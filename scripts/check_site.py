@@ -82,8 +82,25 @@ DISCLAIMER = "Not a prediction for any specific event."
 for name, body in txt.items():
     check(body.count(DISCLAIMER) == 1, f"{name}: 免责句恰出现 1 次（实际 {body.count(DISCLAIMER)}）")
 
-BANNED = [
-    (r"\bdemo\b", "demo"),
+# 标题与描述的长度：超过 ~158 字符的 description 在结果页会被截断，等于白写
+for name, body in raw.items():
+    mt = re.search(r"(?is)<title>(.*?)</title>", body)
+    md = re.search(r'(?is)<meta name="description" content="(.*?)"', body)
+    mh = re.search(r"(?is)<h1[^>]*>(.*?)</h1>", body)
+    check(mt is not None, f"{name}: 有 <title>")
+    check(md is not None, f"{name}: 有 meta description")
+    check(mh is not None, f"{name}: 有 <h1>")
+    if mt:
+        t = text_of(mt.group(1))
+        check(len(t) <= 65, f"{name}: title 长度 {len(t)} ≤ 65")
+    if md:
+        d = text_of(md.group(1))
+        check(len(d) <= 158, f"{name}: description 长度 {len(d)} ≤ 158")
+        check(len(d) >= 110, f"{name}: description 长度 {len(d)} ≥ 110（别写太薄）")
+    if mt and mh:
+        check(text_of(mt.group(1)) != text_of(mh.group(1)), f"{name}: title 与 H1 不同")
+
+BANNED = [    (r"\bdemo\b", "demo"),
     (r"\bprototype\b", "prototype"),
     (r"education\s+demo", "education demo"),
     (r"simulation\s+model", "simulation model"),

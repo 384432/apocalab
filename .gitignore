@@ -16,6 +16,7 @@ EoNW/
 verify_out.txt
 switch.json
 .tmp_chrome/
+.deploy/
 
 # OS
 .DS_Store
