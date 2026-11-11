@@ -13,6 +13,7 @@ import { YIELDS } from '../lib/effects';
 import type { City } from '../lib/cities';
 import { coordText } from '../lib/cities';
 import { BURST_LABEL, panelRows, ringScale, scaleBar } from '../lib/panel';
+import { buildIsland } from '../lib/island';
 
 interface Props {
   city: City;
@@ -28,30 +29,7 @@ const scale = ringScale(rows);
 const bar = scaleBar(rows);
 
 /** Everything the client needs, produced by the same functions as the SSR above. */
-const island = {
-  default: { city: city.slug, yield: y, burst },
-  yields: YIELDS,
-  burstLabels: BURST_LABEL,
-  cities: cities.map((c) => ({
-    slug: c.slug,
-    name: c.name,
-    coords: coordText(c),
-  })),
-  combos: {
-    air: Object.fromEntries(YIELDS.map((yy) => [String(yy), panelRows('air', yy)])),
-    ground: Object.fromEntries(YIELDS.map((yy) => [String(yy), panelRows('ground', yy)])),
-  },
-  bars: Object.fromEntries(
-    (['air', 'ground'] as Burst[]).flatMap((b) =>
-      YIELDS.map((yy) => [`${b}.${yy}`, scaleBar(panelRows(b, yy))]),
-    ),
-  ),
-  scales: Object.fromEntries(
-    (['air', 'ground'] as Burst[]).flatMap((b) =>
-      YIELDS.map((yy) => [`${b}.${yy}`, Math.round(ringScale(panelRows(b, yy)) * 1e4) / 1e4]),
-    ),
-  ),
-};
+const island = buildIsland(city, y, burst, cities);
 ---
 
 <section class="panel" id="result" aria-labelledby="result-title">

@@ -1,8 +1,15 @@
 # apocalab.com — v1 实施计划
 
 > 技术负责人 / 全栈工程师：灵
-> 版本：**v1.3（2026-11-11 修订）**。阶段 0 数据层已通过抽检，阶段 1 骨架与 `/blast-radius/` 已上线，阶段 2 首页与查表已上线；第 8 节 5 个决策点已全部裁决，正文按裁决结果改过。
+> 版本：**v1.4（2026-11-11 修订）**。阶段 0 数据层已通过抽检，阶段 1 骨架与 `/blast-radius/`、阶段 2 首页与查表、阶段 3 `/nuclear-bomb-map/` 均已交付；交付形态自 v1.4 起锁定为 **Cloudflare Pages 静态站**（§3.7）。第 8 节 5 个决策点已全部裁决，正文按裁决结果改过。
 > 本文所有页码、图号、公式，均来自我本机对手册 PDF 的抽取核对（见 2.1），不是从二手网页抄的。
+
+**v1.4 相对 v1.3 改了什么**（只列会改变行为的）：
+
+1. **交付形态写回 Cloudflare Pages（§3.7）**。v1.0–v1.3 的计划里**根本没有部署一节**——这是漏项，不是取舍。结果阶段 2 我用平台自带托管交了一版预览，偏离了最初就定死的 Cloudflare Pages。现在补齐：`dist/` 静态产出、`output: 'static'`、不装 adapter、预览期 `_headers` 加 `noindex`、正式域名上线时删掉该行。
+2. **§3.1 目录树改成真实结构**，不再写不存在的文件名。
+3. **修正 §3.2 / §3.6 的三处实测偏差**：投影文件叫 `mercator.ts`；降级不是「4 s 超时悬崖」（降级层首帧就在，瓦片只是升级，窗口 7 s）；MapLibre 分块是 +285 KB gzip 而不是 +260 KB。
+4. **三页 title / H1 重写并把分工写死（§4.1–4.3）**：`/` 主词 `nuke simulator`、`/blast-radius/` 主词 `nuclear bomb blast radius`、`/methodology/` 主词 `how nuclear blast radius is calculated`。首页 title 里不再出现 `blast radius`——两页打同一个词是自己在跟自己抢。四条 title 之间任意两页的最长共同词串不得超过 3 个词，`check_site.py` 断言。
 
 **v1.3 相对 v1.2 改了什么**（只列会改变行为的）：
 
@@ -250,12 +257,12 @@ src/
     about/index.astro
     privacy/index.astro
     [city]/index.astro          ← getStaticPaths 读 cities.json
-  components/   ResultPanel / EffectTable / MapShell / Citation / SiteNav / Footnote
-  islands/      MapExplorer.ts        ← 唯一 hydrate 的组件
-  lib/          effects.ts / projection.ts / urlState.ts / population.ts / citation.ts
-  data/         effects.json / cities.json / fallout-cases.json / copy/
-scripts/        build_population.py / build_og.py / verify_data.py / build_ledger.py
-public/data/    cities-search-*.json / pop/<slug>.bin
+  components/   ResultPanel.astro（首页面板）/ RadiusCell.astro（表格单元格）/ BombMap.astro
+  lib/          effects.ts / panel.ts / island.ts / cities.ts / mercator.ts / site.ts
+  scripts/      bomb-map.ts           ← 全站唯一在浏览器里跑的地图脚本（动态 import MapLibre）
+  data/         effects.json / cities.json
+scripts/        build_effects.py / build_cities.py / verify_data.py / check_site.py / check_urls.py
+public/         ne_110m_land.geojson / favicon.svg / _headers / robots.txt
 ```
 
 ### 3.2 地图与半径绘制（关键决策）
@@ -264,11 +271,11 @@ public/data/    cities-search-*.json / pop/<slug>.bin
 
 理由：你的降级要求是「瓦片挂了圈还在」。如果圈是 MapLibre layer，map 初始化失败或 style 报错时圈会一起没。做法：
 
-- `<div id="basemap">` 交给 MapLibre，只负责底图；`<canvas id="rings">` 绝对定位叠在上面，由 `projection.ts` 自己算墨卡托投影，监听 `map.on('move')` 重绘。
+- `<div id="basemap">` 交给 MapLibre，只负责底图；`<canvas id="rings">` 绝对定位叠在上面，由 `lib/mercator.ts` 自己算墨卡托投影，监听 `map.on('move')` 重绘。
 - 圈用真实测地圆（按大圆半径算，投影后是多边形，不是屏幕圆），所以「按真实比例」成立。
 - 数字标注跟着圈走，字体用系统栈（不加载 web font）。
-- `map` 初始化失败 / style 加载超时 4s / 连续瓦片错误 → `basemap` 换成降级层，`rings` 照常，右下角一行 `Basemap unavailable — radii are still to scale.`。**不会出现永久的 Loading map。**
-- **降级层（D5 已裁决）**：自托管 Natural Earth 110m 陆地轮廓（公有领域，约 120 KB，随站打包 `public/geo/ne110m-land.json`），瓦片挂掉时画「轮廓 + 半径圈 + 一行说明」。**不用任何第三方的免费额度，不引入第二份会变的条款**——这条比省 4 小时重要。
+- **降级层首帧就在，不是超时才出现**：HTML 一渲染完就先画轮廓 + 圈，瓦片只是在它之上淡入。所以「打不开」这件事不存在——只有「有没有真实底图」的区别。触发降级的条件只有两条：MapLibre 初始化抛错（含无 WebGL），或 7 s 内没跑完 `load`；style 就位之后的单张瓦片 / 字形 404 不算失败（MapLibre 会为单个资源报 error，圈不受影响）。降级时地图左下角出现一行 `Basemap unavailable — radii are still to scale.`
+- **降级层（D5 已裁决）**：自托管 Natural Earth 110m 陆地轮廓（公有领域，138 KB 原始 / 约 40 KB gzip，随站打包 `public/ne_110m_land.geojson`），瓦片挂掉时画「轮廓 + 半径圈 + 一行说明」。**不用任何第三方的免费额度，不引入第二份会变的条款**——这条比省 4 小时重要。
 - **手势约束（你定的）**：`dragRotate: false`、`touchPitch: false`、`pitchWithRotate: false`、`maxPitch: 0`。半径圈是我们自己按墨卡托算的多边形，用户一转一倾就和底图错位；2D 产品不需要这两个手势。键盘也不给旋转。
 
 ### 3.3 底图配置（换源只改一处）
@@ -320,12 +327,24 @@ export const BASEMAP = {
 |---|---|---|
 | 首屏 HTML+TXT | < 60 KB gzip | Astro 静态、内联 critical CSS、无 web font |
 | 首屏可见结果 | < 1.2 s | 结果面板是纯 HTML；数字来自内联 JSON |
-| 地图可见 | < 2 s（4G） | MapLibre 在 `requestIdleCallback` 后动态 `import()`；不阻塞首屏 |
+| 地图可见 | < 2 s（4G） | 首帧就是自绘轮廓 + 圈；MapLibre 动态 `import()` 后台升级，不阻塞首帧 |
 | 切换当量到出圈 | < 300 ms | 纯查表 + Canvas 重绘，无网络 |
-| JS 总量 | 首屏 < 40 KB，地图就绪后 +260 KB | 代码分割；`cities-search` 分片按需 |
-| 降级 | 4 s 超时必定落到可用状态 | style 超时 + tile error 计数 |
+| JS 总量 | 首屏 < 40 KB，地图就绪后 +285 KB（gzip） | 代码分割；MapLibre 只在 `/nuclear-bomb-map/` 上按需加载 |
+| 降级 | 可用状态在首帧即成立，不依赖任何网络请求 | 轮廓 + 圈先画；瓦片升级窗口 7 s |
 
 移动端交互：选点 = 单击（`tap`），当量 = 三个大按钮（不做滑杆，滑杆是阶段二的事）；结果面板为底部抽屉，拇指可达；地图默认 zoom 由半径自动 fit（留 15% 边距）。
+
+---
+
+### 3.7 部署（Cloudflare Pages，静态，零适配器）
+
+**这是硬约束，不是可选项。** 站点只以 Cloudflare Pages 的形式交付，理由不是偏好：整站的成立条件是「关掉 JS 也能读、没有服务端状态、CDN 直接吐 HTML」，一旦接了 adapter，Pages 就会去跑 Functions，这三个前提同时失效。
+
+- **构建**：`npm run build`（即 `astro build`）→ `dist/`。`astro.config.mjs` 保持 `output: 'static'`，不装 `@astrojs/cloudflare` 或任何 adapter。`check_site.py` 断言配置里没有 `adapter:`、没有 `@astrojs/*`、`dist/` 里没有 `functions/`。
+- **Pages 项目设置**：构建命令 `npm run build`，输出目录 `dist`，Node 20+。仓库根的 `wrangler.toml` 用 `pages_build_output_dir = "./dist"` 兜底，手工 `wrangler pages deploy` 也不会把仓库根当成产物。
+- **预览期禁收录**：`public/_headers` 给 `/*` 加 `X-Robots-Tag: noindex`，避免 `*.pages.dev` 被搜成重复内容。**正式域名指向 Pages 之后必须删掉这一行**，否则生产页也带 noindex，整站从搜索结果里消失。`check_site.py` 断言这行在场，删文件就是构建失败，不会「顺手忘了」。
+- **`_headers` 还负责 `.geojson` 的 MIME**：Pages 对未知扩展名默认 `application/octet-stream`，降级轮廓那条路径要它明确是 `application/json`。
+- **交付物只有两种**：Cloudflare Pages 的预览链接（`*.pages.dev`，带 noindex）与正式域名 `apocalab.com`。平台自带的托管预览链接不再作为交付物，也不写进任何文档。
 
 ---
 
@@ -334,9 +353,9 @@ export const BASEMAP = {
 > Title 与 H1 都含目标词，且不重复同一句话；description 每页手写。
 
 ### 4.1 `/` — 主词 `nuke simulator`
-- Title（阶段 2 已上线）: `Nuke Simulator: Blast Radius for Any City, 15 kt to 1 Mt`
-- Title（人口层上线后恢复）: `Nuke Simulator: Blast Radius and Population for Any City`
-- H1（阶段 2 已上线）: `Pick a city, pick a yield — the rings are drawn to scale from the manual`
+- Title: `Nuke Simulator: What a Nuclear Bomb Would Do to Any City`（**不出现 `blast radius`**——那是 `/blast-radius/` 的词）
+- H1: `Nuke Simulator — see what a nuclear bomb would do to any city`
+- 人口层上线后：title 不变（主词已锁定 `nuke simulator`），只在 description 里加 10 km 人口；标题不跟着功能改，避免每次改版都丢一次相关性。
 - Default state（SSR）: New York, 100 kt, air burst → 4 个半径 + 各半径内人口 + 出处。
 - 结构：地图（左/上）+ 结果面板（右/下）+ 三句话解释这是什么 + 4 条内链块（blast-radius / nuclear-bomb-map / methodology / 6 个城市）+ FAQ（8 条，FAQPage JSON-LD）+ 一行脚注。
 - JS off：地图区替换为静态结果块 + 「See the full table →」指向 `/blast-radius/`。
@@ -344,8 +363,8 @@ export const BASEMAP = {
 
 ### 4.2 `/blast-radius/` — `nuclear bomb blast radius`（US 8,100/月）
 
-- Title: `Nuclear Bomb Blast Radius, 15 kt to 1 Mt — Table With Sources`
-- H1: `Every nuclear bomb blast radius in this table points to a page in the 1977 manual`
+- Title: `Nuclear Bomb Blast Radius Table: 15 kt, 100 kt, 1 Mt`
+- H1: `Nuclear Bomb Blast Radius, with the printed page behind every number`
 - 首屏即表格。行 = 火球 / 5 psi / 1 psi / 热辐射（二度、三度各一行）；列 = 15 / 100 / 1000 kt（阶段二扩到 12 档）。
 - **每个格子里必须有四行**（这是溯源的最小单位，不能再少）：
   1. 数值 + 单位（km，2 位小数）；
@@ -369,9 +388,10 @@ export const BASEMAP = {
 - 工作量：**4 h**（不含数据）
 
 ### 4.3 `/nuclear-bomb-map/` — `nuclear bomb map`（US 2,400/月）
-- Title: `Nuclear Bomb Map — Drop a Pin Anywhere and See the Rings`
-- H1: `A nuclear bomb map with real scale, not a cartoon`
-- 与首页共用岛屿组件，差异在默认视角（世界 zoom 2）与文案侧重「地图」而非「模拟器」。
+- Title: `Nuclear Bomb Map: Blast Rings on Real Ground, 20 Cities`
+- H1: `Nuclear Bomb Map — the rings on the ground, not on a chart`
+- 与首页共用 `lib/island.ts` + `panelRows()`，所以同一个组合在两页不可能显示不同的数；但**首页保留 SVG 真比例圆环，不用地图替换**——SVG 关 JS 也看得见，地图看不见，两者不是替代关系。
+- 默认视角 = 按该城最大半径自动 fit（16:9 画幅里外圈占短边 40%），不是固定世界 zoom：世界视图看不出任何一圈的相对大小。
 - 导航一级项，首页与城市页都链过来。
 - 工作量：**4 h**
 

@@ -15,8 +15,13 @@ EoNW/
 /*.txt
 verify_out.txt
 switch.json
-.tmp_chrome/
+map-gate.json
+.tmp_chrome*/
 .deploy/
+
+# workspace bookkeeping: the assistant's own notes and the platform's app records.
+# Not part of the site; kept out of the public repository.
+.workbuddy/
 
 # OS
 .DS_Store

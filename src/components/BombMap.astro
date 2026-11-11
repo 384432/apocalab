@@ -1,0 +1,136 @@
+---
+/**
+ * The map view for one city.
+ *
+ * Server-rendered state, in the same shape as the homepage panel: the numbers
+ * and their sources are in the HTML before any script runs. What is *not*
+ * server-rendered is the geometry — a static image of the rings would be a
+ * picture of the numbers, and the point of this page is that the rings sit on
+ * real ground. So with scripting off this page shows the readout list and a
+ * line saying the map needs scripting; it never shows an empty frame.
+ */
+import type { Burst, YieldKt } from '../lib/effects';
+import type { City } from '../lib/cities';
+import { coordText } from '../lib/cities';
+import { BURST_LABEL, panelRows } from '../lib/panel';
+import { buildIsland } from '../lib/island';
+import { SITE_ORIGIN } from '../lib/site';
+
+interface Props {
+  city: City;
+  y: YieldKt;
+  burst: Burst;
+  cities: City[];
+}
+
+const { city, y, burst, cities } = Astro.props;
+
+const rows = panelRows(burst, y);
+const island = buildIsland(city, y, burst, cities);
+const heaviest = rows.reduce((m, r) => (r.r !== null && r.r > m ? r.r : m), 0);
+---
+
+<section class="map-app" id="bomb-map" aria-labelledby="map-title">
+  <div class="map-head">
+    <h2 id="map-title">
+      <span data-bind="place">{city.name}</span>
+      <span class="sep">·</span>
+      <span data-bind="setting">
+        {y.toLocaleString('en-US')} kt · {burst === 'air' ? 'air burst' : 'contact burst'}
+      </span>
+    </h2>
+    <p class="map-sub">
+      Ring centre <span data-bind="coords">{coordText(city)}</span> — a GeoNames gazetteer
+      point, not an administrative centroid.
+    </p>
+  </div>
+
+  <form class="map-controls" id="map-controls" aria-label="Map settings">
+    <fieldset>
+      <legend>City</legend>
+      <select name="city">
+        {
+          cities.map((c) => (
+            <option value={c.slug} selected={c.slug === city.slug}>
+              {c.name}
+            </option>
+          ))
+        }
+      </select>
+    </fieldset>
+
+    <fieldset>
+      <legend>Yield</legend>
+      <div class="seg">
+        {[15, 100, 1000].map((yy) => (
+          <label>
+            <input type="radio" name="yield" value={String(yy)} checked={yy === y} />
+            <span>{yy.toLocaleString('en-US')} kt</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Burst</legend>
+      <div class="seg">
+        {(['air', 'ground'] as Burst[]).map((bb) => (
+          <label>
+            <input type="radio" name="burst" value={bb} checked={bb === burst} />
+            <span>{bb === 'air' ? 'Air' : 'Contact'}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  </form>
+
+  <figure class="map-figure">
+    <div class="map-frame" id="map-frame" data-mode="pending">
+      <canvas id="map-fallback" aria-hidden="true"></canvas>
+      <div id="map" aria-hidden="true"></div>
+      <canvas id="map-rings" role="img" aria-label={`Rings at ${rows
+        .filter((r) => r.r !== null)
+        .map((r) => `${r.name} ${r.km} km`)
+        .join(', ')}`}></canvas>
+      <p class="map-note" id="map-note" hidden></p>
+    </div>
+    <figcaption>
+      Rings are true ground distances — drawn from a geodesic circle and projected, not a
+      screen-space circle. Basemap © OpenFreeMap, map data © OpenStreetMap contributors;
+      the fallback outline is Natural Earth 110m, public domain. Rotation and pitch are
+      disabled: a ground circle is only honest on a north-up, flat map.
+    </figcaption>
+  </figure>
+
+  <p class="map-nojs">
+    The map draws with scripting. The distances it would draw for this city are listed
+    below, and every combination is in the <a href="/blast-radius/">blast radius table</a>.
+  </p>
+
+  <ul class="map-readout" id="map-readout">
+    {
+      rows.map((row) => (
+        <li class="map-ro" data-absent={row.absent ? '1' : undefined}>
+          <span class="dot" style={`background:${row.color}`} />
+          <span class="nm">{row.name}</span>
+          <span class="v">
+            {row.absent ? '—' : row.km}
+            {!row.absent && <span class="u">km</span>}
+          </span>
+          <span class="src">{row.absent ? 'contact burst: not reported' : row.src}</span>
+        </li>
+      ))
+    }
+  </ul>
+
+  <p class="small map-scale">
+    Outermost ring {heaviest.toFixed(2)} km. Data: {SITE_ORIGIN}/blast-radius/ — the same
+    JSON, the same figures, the same printed pages.
+  </p>
+
+  <script type="application/json" id="apoca-map-island" set:html={JSON.stringify(island)} />
+</section>
+
+<script>
+  import '../scripts/bomb-map';
+</script>

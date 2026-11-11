@@ -749,6 +749,233 @@ dl.spec dd {
   color: var(--dim-2);
 }
 
+/* ---------- map page ---------- */
+
+.map-app {
+  margin: 26px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.map-head {
+  padding: 16px 18px 4px;
+}
+
+.map-head h2 {
+  margin: 0;
+  font-size: 1.06rem;
+  letter-spacing: -0.01em;
+}
+
+.map-head .sep {
+  color: var(--dim-2);
+}
+
+.map-sub {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: var(--dim-2);
+}
+
+.map-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 24px;
+  padding: 10px 18px 16px;
+}
+
+.map-controls fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.map-controls legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 0.66rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--dim-2);
+}
+
+.map-controls select {
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+/* Without scripting the controls would be dead, and the frame would be a black
+   rectangle: neither is shown. The readout below stays. */
+html:not(.js) .map-controls,
+html:not(.js) .map-figure {
+  display: none;
+}
+
+html.js .map-nojs {
+  display: none;
+}
+
+.map-figure {
+  margin: 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.map-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 340px;
+  max-height: 560px;
+  background: #0f1318;
+  overflow: hidden;
+}
+
+#map-fallback,
+#map-rings {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* id beats .maplibregl-map from the dynamically loaded MapLibre stylesheet. */
+#map {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+#map-fallback {
+  transition: opacity 0.28s ease;
+}
+
+.map-frame[data-mode='tiles'] #map-fallback {
+  opacity: 0;
+}
+
+#map-rings {
+  pointer-events: none;
+}
+
+/* MapLibre ships 70 kB of stylesheet for controls, popups and attribution — none
+   of which this page renders. Astro would put that file on the critical path, so
+   it is not imported. The rules the canvas actually needs are copied verbatim
+   from maplibre-gl 5.x; adding any MapLibre control means importing the real
+   stylesheet instead of extending this list. */
+.maplibregl-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.maplibregl-canvas-container.maplibregl-interactive {
+  cursor: grab;
+  user-select: none;
+}
+
+.maplibregl-canvas-container.maplibregl-interactive:active {
+  cursor: grabbing;
+}
+
+.maplibregl-canvas-container.maplibregl-touch-drag-pan,
+.maplibregl-canvas-container.maplibregl-touch-drag-pan .maplibregl-canvas {
+  touch-action: pinch-zoom;
+}
+
+.map-note {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(11, 13, 16, 0.9);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--dim);
+}
+
+.map-figure figcaption {
+  padding: 10px 18px 12px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 0.73rem;
+  line-height: 1.55;
+  color: var(--dim-2);
+}
+
+.map-readout {
+  list-style: none;
+  margin: 0;
+  padding: 4px 18px 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.map-ro {
+  display: grid;
+  grid-template-columns: 10px minmax(8.5rem, 0.9fr) 6.5rem minmax(0, 1.1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 0.84rem;
+}
+
+.map-ro:last-child {
+  border-bottom: 0;
+}
+
+.map-ro .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  align-self: center;
+}
+
+.map-ro .v {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.map-ro .v .u {
+  margin-left: 2px;
+  font-size: 0.72em;
+  font-weight: 400;
+  color: var(--dim-2);
+}
+
+.map-ro .src {
+  font-size: 0.76rem;
+  color: var(--dim-2);
+}
+
+.map-ro[data-absent='1'] .v {
+  color: var(--dim-2);
+}
+
+.map-nojs {
+  margin: 0;
+  padding: 12px 18px;
+  font-size: 0.82rem;
+  color: var(--dim);
+  border-top: 1px solid var(--line-soft);
+}
+
+.map-scale {
+  padding: 0 18px 14px;
+  margin: 0;
+}
+
 /* ---------- footer ---------- */
 
 /* Exactly one line, at the very bottom of every page. No banner, no subtitle. */
@@ -806,6 +1033,20 @@ dl.spec dd {
 
   .controls {
     gap: 14px;
+  }
+
+  .map-frame {
+    aspect-ratio: 4 / 3;
+    min-height: 300px;
+  }
+
+  .map-ro {
+    grid-template-columns: 10px minmax(0, 1fr) 5.5rem;
+    row-gap: 2px;
+  }
+
+  .map-ro .src {
+    grid-column: 2 / -1;
   }
 }
 

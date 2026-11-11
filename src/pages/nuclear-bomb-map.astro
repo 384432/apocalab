@@ -1,0 +1,84 @@
+---
+/**
+ * /nuclear-bomb-map/ — the rings on real ground.
+ *
+ * This page is the only place on the site that loads a map. The homepage keeps
+ * its SVG ring diagram: that one survives scripting being off, and the two are
+ * not substitutes for each other.
+ */
+import Base from '../layouts/Base.astro';
+import BombMap from '../components/BombMap.astro';
+import { YIELDS } from '../lib/effects';
+import type { YieldKt } from '../lib/effects';
+import { DEFAULT_CITY, cities, getCity } from '../lib/cities';
+
+const city = getCity(DEFAULT_CITY) ?? cities[0];
+const defaultYield: YieldKt = 100;
+const defaultBurst = 'air' as const;
+---
+
+<Base
+  title="Nuclear Bomb Map: Blast Rings on Real Ground, 20 Cities"
+  description="Pick a city and a yield and see the rings on real ground, north-up and at true scale, with every distance traced to a printed page of the 1977 manual."
+  path="/nuclear-bomb-map/"
+  current="map"
+>
+  <Fragment slot="head">
+    <script is:inline>
+      document.documentElement.classList.add('js');
+    </script>
+  </Fragment>
+
+  <p class="eyebrow">Public-domain source · no model output</p>
+  <h1>Nuclear Bomb Map — the rings on the ground, not on a chart</h1>
+
+  <p class="lede">
+    The same five distances as the <a href="/blast-radius/">blast radius table</a>, drawn where
+    they actually land. Pick a city, pick a yield, and the rings are laid over the ground at
+    true scale, north-up. Every number behind a ring still carries the figure and printed page
+    it came from.
+  </p>
+
+  <BombMap city={city} y={defaultYield} burst={defaultBurst} cities={cities} />
+
+  <h2>What the map adds, and what it does not</h2>
+
+  <p>
+    A radius in a table is a number you have to imagine. Here the rings are geodesic circles —
+    true ground distances — projected onto the basemap, so at 60° of latitude they are visibly
+    not the same shape as at the equator. The centre is a gazetteer point, and each ring is
+    drawn from that point outward, so what you see is the distance, not a stylised target.
+  </p>
+
+  <p>
+    What it does not add is any new information about the effects themselves. It does not know
+    where buildings are, what they are made of, whether anyone is outdoors, or which way the
+    wind is blowing. The manual's distances are to a given overpressure on flat terrain at sea
+    level; a city with hills, a shoreline, or a dense core is not flat, and this page makes no
+    correction for that. See <a href="/methodology/">methodology</a>.
+  </p>
+
+  <h2>Two things worth knowing before you read the rings</h2>
+
+  <p>
+    <strong>Burst height is inside the number, not beside it.</strong> Each overpressure ring is
+    read at the peak of its own contour, so its burst height differs from its neighbours'. The
+    readout under the map gives each row's figure and page; the table gives each row's burst
+    height in feet.
+  </p>
+
+  <p>
+    <strong>The 1 Mt rows leave the chart's stated assumptions behind.</strong> Reading at the
+    peak puts the 1 Mt burst heights at 10,174 ft (5 psi) and 15,750 ft (1 psi), while
+    Fig.&nbsp;3.73c is computed for a homogeneous sea-level atmosphere at 5,000 ft or less
+    (§3.73, p.&nbsp;110). Those two rings are the manual's curve multiplied by the manual's
+    scaling law, and should be read as the edge of what the chart supports.
+  </p>
+
+  <p class="small">
+    Yields covered: {YIELDS.map((y) => `${y.toLocaleString('en-US')} kt`).join(' · ')}.
+    Cities: {cities.length}. Contact bursts are shown for the fireball and the two overpressure
+    rings; thermal radii are not drawn for a contact burst, because Fig.&nbsp;7.42 is an air-burst
+    chart and the manual handles surface-burst heating by a separate route (§7.41, p.&nbsp;290).
+  </p>
+</Base>

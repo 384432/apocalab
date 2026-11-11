@@ -6,7 +6,7 @@ interface Props {
   description: string;
   /** Canonical path, e.g. '/blast-radius/'. Resolved against `site` in astro.config.mjs. */
   path: string;
-  current?: 'blast-radius' | 'methodology' | 'home';
+  current?: 'blast-radius' | 'methodology' | 'map' | 'home';
   jsonLd?: Record<string, unknown>;
 }
 
@@ -16,6 +16,7 @@ const canonical = new URL(path, site).toString();
 
 const nav = [
   { key: 'blast-radius', href: '/blast-radius/', label: 'Blast radius' },
+  { key: 'map', href: '/nuclear-bomb-map/', label: 'Map' },
   { key: 'methodology', href: '/methodology/', label: 'Methodology' },
 ] as const;
 
@@ -31,6 +32,7 @@ const disclaimer =
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta name="theme-color" content="#0b0d10" />
     <meta name="color-scheme" content="dark" />
 
@@ -46,6 +48,10 @@ const disclaimer =
     {jsonLd && (
       <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
     )}
+
+    <!-- Page-specific head additions (the map page flips the `js` class before
+         first paint so its canvas frame is never shown empty). -->
+    <slot name="head" />
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>

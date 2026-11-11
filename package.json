@@ -10,6 +10,7 @@
     "check": "astro check"
   },
   "dependencies": {
-    "astro": "^5.13.0"
+    "astro": "^5.13.0",
+    "maplibre-gl": "^5.24.0"
   }
 }

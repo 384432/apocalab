@@ -11,20 +11,47 @@ the cube-root scaling law the manual itself prints on p. 101.
 
 ```bash
 npm install
-npm run build          # -> dist/  (pure static, zero runtime JS except the panel switcher)
+npm run build          # -> dist/  (pure static; runtime JS only in the panel switcher and on the map page)
 npx http-server dist   # or any static server; ?city=tokyo&yield=1000&burst=ground works without one
 ```
 
 ## Gates
 
-Two scripts decide whether the site may ship. Both exit non-zero on failure.
+Four scripts decide whether the site may ship. All exit non-zero on failure.
 
 ```bash
 python scripts/verify_data.py   # 354 checks on the data layer (provenance, scaling, monotonicity)
-python scripts/check_site.py    # 264 checks on the built HTML (pages, JS-off, citations, URL state)
+python scripts/check_site.py    # 452 checks on the built HTML (pages, JS-off, citations, canonical, sitemap)
+python scripts/check_urls.py    #  30 checks over real HTTP: every sitemap URL answers 200
+node   scripts/verify_map.mjs   #  browser: tiles, blocked tiles, shared URL, JS off, 390 px
 ```
 
-`check_site.py` needs `dist/` to exist first.
+`check_site.py` and `check_urls.py` need `dist/` to exist first (`npm run build`). `check_urls.py`
+starts its own loopback server, so it needs nothing running; `verify_map.mjs` drives headless
+Chromium on `--remote-debugging-port=9333` against the built site on `:4322`.
+
+## Deploy — Cloudflare Pages, static, no adapter
+
+This is a hard constraint, not a preference: the whole site rests on "readable with scripting off,
+no server state, the CDN serves HTML". An adapter would make Pages run Functions and take all
+three away.
+
+| Setting | Value |
+|---|---|
+| Build command | `npm run build` |
+| Output directory | `dist` |
+| Node | 20+ |
+| Adapter | none — `astro.config.mjs` stays `output: 'static'` |
+
+`wrangler.toml` carries `pages_build_output_dir = "./dist"` so a manual
+`wrangler pages deploy` cannot upload the repository root.
+
+`public/_headers` adds `X-Robots-Tag: noindex` to every path while the site is only on
+`*.pages.dev`. **Delete that rule when `apocalab.com` points at Pages** — otherwise production
+inherits it and the site drops out of every search engine. `check_site.py` fails if the rule is
+missing, so it cannot be forgotten; it does not fail when the domain goes live, so that removal
+is a deliberate commit. The same file pins the MIME type of `ne_110m_land.geojson`, which Pages
+would otherwise serve as `application/octet-stream`.
 
 ## Pipeline
 
@@ -34,11 +61,14 @@ python scripts/check_site.py    # 264 checks on the built HTML (pages, JS-off, c
 | `scripts/verify_data.py` | provenance, unit chain, cube-root recomputation, monotonicity |
 | `scripts/build_cities.py` | GeoNames cities15000 → `src/data/cities.json` (20 gazetteer points) |
 | `scripts/fetch_geonames.py` | one-time download of the GeoNames dump into the gitignored work dir |
-| `scripts/check_site.py` | the build gate: citations, JS-off reading, interpolation labels, URL state |
+| `scripts/check_site.py` | the build gate: citations, JS-off reading, interpolation labels, URL state, canonical, sitemap, `_headers` |
+| `scripts/check_urls.py` | serves `dist/` on a loopback port and fetches every sitemap URL: 200, canonical round-trip, 404 sanity |
 | `scripts/measure_switch.mjs` | drives headless Chromium to time a yield switch (gate: < 300 ms) |
 | `scripts/verify_switch.mjs` | same browser, asserts the numbers actually change |
 | `scripts/verify_share_url.mjs` | cold-loads a shared `?city=&yield=&burst=` URL |
 | `scripts/verify_js_off.mjs` | disables scripting, asserts the default state is still readable |
+| `scripts/verify_layout.mjs` | overflow and ring geometry at 390 and 1265 px |
+| `scripts/verify_map.mjs` | four map states (tiles / tiles blocked / shared URL / scripting off) plus a 390 px pass |
 | `scripts/build_review_page.py` | one page with the ledger and the marked-up source figures |
 | `scripts/patch_plan_v1*.py` | the plan revisions, one script per version, every edit asserted |
 

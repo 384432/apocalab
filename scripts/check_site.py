@@ -12,10 +12,14 @@ G-d 1 Mt 带爆高边界    —— "5,000 ft" 与 "10,174 ft" 出现在同一段
 用法：python scripts/check_site.py     （先跑 astro build）
 """
 import html
+import itertools
 import json
 import pathlib
 import re
 import sys
+import xml.etree.ElementTree as ET
+
+NS = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
@@ -58,7 +62,17 @@ def citation_line(e):
 PAGES = {
     "index": DIST / "index.html",
     "blast-radius": DIST / "blast-radius" / "index.html",
+    "nuclear-bomb-map": DIST / "nuclear-bomb-map" / "index.html",
     "methodology": DIST / "methodology" / "index.html",
+}
+
+# The one address each page is allowed to claim as its own. Written out in full
+# rather than derived, so a change in astro.config.mjs cannot silently pass.
+CANONICAL = {
+    "index": "https://apocalab.com/",
+    "blast-radius": "https://apocalab.com/blast-radius/",
+    "nuclear-bomb-map": "https://apocalab.com/nuclear-bomb-map/",
+    "methodology": "https://apocalab.com/methodology/",
 }
 
 print("0 产物存在")
@@ -266,6 +280,182 @@ head_txt = " ".join([
 head_plain = text_of(head_txt).lower()
 check("population" not in head_plain,
       "index: title/description/h1 不出现 population（人口层还没上线）")
+
+print("12 canonical 绝对地址")
+for name, body in raw.items():
+    links = re.findall(r'(?is)<link\s+rel="canonical"\s+href="([^"]+)"', body)
+    check(len(links) == 1, f"{name}: 恰一个 canonical（实际 {len(links)}）")
+    if not links:
+        continue
+    url = links[0]
+    check(url == CANONICAL[name], f"{name}: canonical 指向自己（{url}）")
+    check(url.startswith("https://apocalab.com/"), f"{name}: canonical 是 https 绝对地址")
+    check(url.endswith("/"), f"{name}: canonical 以斜杠结尾")
+    check("?" not in url and "#" not in url, f"{name}: canonical 不含 query 或锚点")
+
+print("13 sitemap 与 robots")
+sm_path = DIST / "sitemap.xml"
+check(sm_path.exists(), "dist/sitemap.xml 存在")
+locs = []
+if sm_path.exists():
+    sm = sm_path.read_text(encoding="utf-8")
+    try:
+        root = ET.fromstring(sm)
+        locs = [e.text.strip() for e in root.findall("s:url/s:loc", NS)]
+        check(True, "sitemap: 是合法 XML")
+    except Exception as exc:  # noqa: BLE001
+        check(False, f"sitemap: 解析失败 {exc}")
+    check(len(locs) == len(CANONICAL), f"sitemap: 列出 {len(locs)} 个 URL（页面数 {len(CANONICAL)}）")
+    check(set(locs) == set(CANONICAL.values()), "sitemap: 与被构建的页面集合一致（不多不少）")
+    for loc in locs:
+        check(
+            loc.startswith("https://apocalab.com/") and loc.endswith("/"),
+            f"sitemap: {loc} 是 https 绝对地址且带斜杠",
+        )
+        rel = loc[len("https://apocalab.com/"):]
+        target = (DIST / rel / "index.html") if rel else (DIST / "index.html")
+        check(target.exists(), f"sitemap: {loc} 解析到构建产物（静态托管即 200）")
+
+rob_path = DIST / "robots.txt"
+check(rob_path.exists(), "dist/robots.txt 存在")
+if rob_path.exists():
+    lines = [ln.strip() for ln in rob_path.read_text(encoding="utf-8").strip().splitlines()]
+    check(
+        lines == ["User-agent: *", "Allow: /", "Sitemap: https://apocalab.com/sitemap.xml"],
+        f"robots.txt: 恰三行且内容正确（实际 {lines}）",
+    )
+
+print("14 四页标题不互相抢词")
+title_map = {}
+for name, body in raw.items():
+    m = re.search(r"(?is)<title>(.*?)</title>", body)
+    title_map[name] = text_of(m.group(1)).lower() if m else ""
+
+
+def common_run(a, b):
+    """Longest run of consecutive words present in both titles."""
+    A = re.findall(r"[a-z0-9.]+", a)
+    B = re.findall(r"[a-z0-9.]+", b)
+    for n in range(min(len(A), len(B)), 1, -1):
+        sa = {" ".join(A[i:i + n]) for i in range(len(A) - n + 1)}
+        sb = {" ".join(B[i:i + n]) for i in range(len(B) - n + 1)}
+        hit = sa & sb
+        if hit:
+            return n, sorted(hit)[0]
+    return 0, ""
+
+
+check("blast radius" not in title_map.get("index", "x"), "index: title 不出现 blast radius")
+check("nuke simulator" in title_map.get("index", ""), "index: title 的主词是 nuke simulator")
+check("nuclear bomb blast radius" in title_map.get("blast-radius", ""),
+      "blast-radius: title 的主词是 nuclear bomb blast radius")
+for a, b in itertools.combinations(sorted(title_map), 2):
+    n, s = common_run(title_map[a], title_map[b])
+    check(n <= 3, f"title {a} 与 {b} 最长共同词串 {n} 词（“{s}”），要求 ≤ 3")
+
+print("15 地图页（/nuclear-bomb-map/）")
+mp = raw["nuclear-bomb-map"]
+mt = txt["nuclear-bomb-map"]
+check('id="map-rings"' in mp, "map: 自绘半径圈 canvas 存在")
+check('id="map-fallback"' in mp, "map: 备用轮廓 canvas 存在")
+check('id="map-frame"' in mp and 'data-mode="pending"' in mp, "map: frame 带 data-mode 供断言")
+check(mp.count('class="map-ro"') == 5, f"map: 读数列 5 行（实际 {mp.count('class=\"map-ro\"')}）")
+check("OpenFreeMap" in mt and "OpenStreetMap" in mt, "map: 底图署名")
+check("Natural Earth" in mt, "map: 备用轮廓署名（公有领域）")
+
+for eff in ("fireball", "overpressure_5psi", "overpressure_1psi", "thermal_2nd", "thermal_3rd"):
+    e = next(x for x in entries if x["effect"] == eff and x["burst"] == "air" and x["yield_kt"] == 100)
+    check(f"{e['radius_km']:.2f}" in mt, f"map: 默认态 {eff} 的 {e['radius_km']:.2f} km 是静态文本")
+    check(citation_line(e) in mt, f"map: 默认态 {eff} 带出处 {citation_line(e)}")
+
+m2 = re.search(r'(?is)<script type="application/json" id="apoca-map-island">(.*?)</script>', mp)
+check(m2 is not None, "map: 存在 apoca-map-island")
+island2 = json.loads(m2.group(1)) if m2 else {}
+mcities = island2.get("cities", [])
+check(len(mcities) == 20, f"map: 岛内含 20 个城市（实际 {len(mcities)}）")
+check(all("lat" in c and "lon" in c for c in mcities), "map: 岛内城市带经纬度")
+for burst in ("air", "ground"):
+    for y in (15, 100, 1000):
+        rows = island2.get("combos", {}).get(burst, {}).get(str(y))
+        check(rows is not None and len(rows) == 5, f"map: 岛内 combos.{burst}.{y} 有 5 行")
+        for row in rows or []:
+            e = by_key.get((row["id"], burst, y))
+            if row["absent"]:
+                check(e is None, f"map: {burst}/{y}/{row['id']} 标 absent 时确实没有数据")
+                continue
+            check(e is not None, f"map: {burst}/{y}/{row['id']} 在 effects.json 中存在")
+            if e:
+                check(row["km"] == f"{e['radius_km']:.2f}",
+                      f"map: 岛内 {burst}/{y}/{row['id']} 的 km 与 JSON 一致")
+
+mscripts = re.findall(r"(?is)<script\b[^>]*>", mp)
+mods = [s for s in mscripts if 'type="module"' in s]
+check(len(mods) == 1, f"map: 一个模块脚本（实际 {len(mods)}）")
+check(not any("maplibre" in s for s in mscripts if "src=" in s),
+      "map: MapLibre 不在 HTML 里静态引用（必须是运行时动态 import）")
+for name in ("index", "blast-radius", "methodology"):
+    check("maplibre" not in raw[name].lower(), f"{name}: 不加载地图库")
+check("<svg" in raw["index"] and 'class="rings"' in raw["index"],
+      "index: 首页的 SVG 真比例圆环保留，没有被地图替换")
+
+chunks = sorted((DIST / "_astro").glob("BombMap*.js"))
+check(bool(chunks), "dist: 有地图脚本 chunk")
+if chunks:
+    js = "".join(p.read_text(encoding="utf-8") for p in chunks)
+    for token in ("dragRotate", "touchPitch", "pitchWithRotate", "maxPitch", "disableRotation"):
+        check(token in js, f"map: 构建产物里带旋转/俯仰锁定 {token}")
+
+print("16 Cloudflare Pages 产物契约")
+
+
+def parse_headers(text):
+    """_headers is: a path line at column 0, then indented headers, repeat."""
+    out = []
+    cur = None
+    for raw in text.splitlines():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        if not raw[:1].isspace():
+            cur = {"path": raw.strip(), "headers": []}
+            out.append(cur)
+        elif cur is not None:
+            cur["headers"].append(raw.strip())
+    return out
+
+
+hdr_path = DIST / "_headers"
+check(hdr_path.exists(), "dist/_headers 存在（Pages 只认这个文件名）")
+rules = []
+if hdr_path.exists():
+    hdr = hdr_path.read_text(encoding="utf-8")
+    rules = parse_headers(hdr)
+    check(bool(rules) and rules[0]["path"] == "/*", f"_headers 第一条规则作用于 /*（实际 {rules[:1]}）")
+    if rules:
+        check(
+            any(h.lower().startswith("x-robots-tag:") and "noindex" in h.lower()
+                for h in rules[0]["headers"]),
+            "_headers 给全部预览页加 noindex",
+        )
+    check("disallow" not in hdr.lower(), "_headers 里不塞 robots 指令（那是 robots.txt 的活）")
+    geo = next((r for r in rules if "geojson" in r["path"]), None)
+    check(
+        geo is not None
+        and any(h.lower().startswith("content-type:") and "application/json" in h.lower()
+                for h in geo["headers"]),
+        "_headers 给 .geojson 指定 application/json（Pages 对未知扩展名默认 octet-stream）",
+    )
+
+cfg = (ROOT / "astro.config.mjs").read_text(encoding="utf-8")
+check(not re.search(r"(?m)^\s*adapter\s*:", cfg), "astro.config.mjs 没有 adapter（纯静态，Pages 不跑函数）")
+check("@astrojs/" not in cfg, "astro.config.mjs 不引任何 @astrojs/* 适配器包")
+check("output: 'static'" in cfg or 'output: "static"' in cfg, "astro.config.mjs 是 output: 'static'")
+check(not (DIST / "functions").exists(), "dist 里没有 functions/（预览环境不执行任何服务端代码）")
+
+wr = ROOT / "wrangler.toml"
+check(wr.exists(), "wrangler.toml 存在")
+if wr.exists():
+    check('pages_build_output_dir = "./dist"' in wr.read_text(encoding="utf-8"),
+          "wrangler.toml 的 pages_build_output_dir 指向 dist")
 
 print(f"结果：PASS {passes}  FAIL {len(fails)}")
 if fails:

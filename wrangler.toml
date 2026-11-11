@@ -1,0 +1,12 @@
+# Cloudflare Pages project configuration.
+#
+# Static only: `astro build` writes dist/, and nothing here asks Pages to run a
+# server. There is no adapter in astro.config.mjs and there must not be one —
+# the moment an adapter appears, this stops being a preview of a static site.
+#
+# `pages_build_output_dir` is what `wrangler pages deploy` reads, so a manual
+# deploy cannot accidentally upload the repository root.
+
+name = "apocalab"
+compatibility_date = "2026-11-11"
+pages_build_output_dir = "./dist"
