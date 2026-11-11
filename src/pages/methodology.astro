@@ -1,0 +1,370 @@
+---
+import Base from '../layouts/Base.astro';
+import { crossChecks, entries, fmtFt, manual } from '../lib/effects';
+
+const checked = entries.filter((e) => e.checked_by !== null).length;
+const total = entries.length;
+---
+
+<Base
+  title="Methodology — How the Blast Radius Numbers Were Obtained"
+  description="Every figure on apocalab traced to a figure and printed page of The Effects of Nuclear Weapons (1977), including the one chart whose contour labels had to be identified from the manual's text."
+  path="/methodology/"
+  current="methodology"
+>
+  <p class="eyebrow">Audit trail</p>
+  <h1>Where each number comes from, and where the manual stops</h1>
+
+  <p class="lede">
+    This page is the audit trail for the <a href="/blast-radius/">blast radius table</a>. It gives
+    the source, the exact figure and printed page, the way each value was obtained, and the places
+    where the underlying chart runs out of assumptions. If a number here cannot be traced to a page
+    of the manual, it does not belong on the site.
+  </p>
+
+  <h2 id="source">The source</h2>
+
+  <dl class="spec">
+    <div><dt>Title</dt><dd>{manual.title}</dd></div>
+    <div><dt>Editors</dt><dd>{manual.editors.join(', ')}</dd></div>
+    <div><dt>Edition</dt><dd>{manual.edition} edition, {manual.year}</dd></div>
+    <div><dt>Publisher</dt><dd>{manual.publisher.join(' / ')}</dd></div>
+    <div><dt>DOI</dt><dd><code>{manual.doi}</code></dd></div>
+    <div>
+      <dt>Status</dt>
+      <dd>
+        U.S. government publication, public domain. No permission is required to reproduce it, and
+        nothing on this site is a derivative model built on top of it beyond the scaling law the
+        manual itself prints.
+      </dd>
+    </div>
+    <div>
+      <dt>Page numbers</dt>
+      <dd>
+        Every citation uses the <strong>printed</strong> page number, not the position inside a PDF.
+        The two differ: in the full scan (<code>6852629.pdf</code>) chapter 3 starts at printed page
+        + 9; the chapter files extracted from the same scan differ again. A reader holding the book
+        needs the printed number, so that is what is cited.
+      </dd>
+    </div>
+  </dl>
+
+  <h2 id="effects">How each figure was obtained</h2>
+
+  <p class="tbl-hint">Scroll the table sideways →</p>
+  <div class="tbl-wrap">
+    <table class="data">
+      <caption>Source of each row in the blast radius table.</caption>
+      <thead>
+        <tr>
+          <th scope="col">Effect</th>
+          <th scope="col">Source</th>
+          <th scope="col">Printed page</th>
+          <th scope="col">Method</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Fireball, air burst</th>
+          <td>Eq. (2.127.1)</td>
+          <td>70</td>
+          <td>Printed equation, R = 110·W<sup>0.4</sup> ft. No chart reading.</td>
+        </tr>
+        <tr>
+          <th scope="row">Fireball, contact burst</th>
+          <td>Eq. (2.127.2)</td>
+          <td>71</td>
+          <td>Printed equation, R = 145·W<sup>0.4</sup> ft. No chart reading.</td>
+        </tr>
+        <tr>
+          <th scope="row">5 psi</th>
+          <td>Fig. 3.73c</td>
+          <td>115</td>
+          <td>
+            Read at the peak of each contour, interpolated between 4 and 6 psi, then scaled by
+            W<sup>1/3</sup>.
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">1 psi</th>
+          <td>Fig. 3.73c</td>
+          <td>115</td>
+          <td>Read at the peak of the outermost contour, then scaled by W<sup>1/3</sup>.</td>
+        </tr>
+        <tr>
+          <th scope="row">Thermal, 2nd degree</th>
+          <td>Fig. 7.42</td>
+          <td>291</td>
+          <td>Read directly at each yield column, at 4.5 cal/cm². Not scaled.</td>
+        </tr>
+        <tr>
+          <th scope="row">Thermal, 3rd degree</th>
+          <td>Fig. 7.42</td>
+          <td>291</td>
+          <td>Read directly at each yield column, at 10 cal/cm². Not scaled.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="hob">Height of burst</h2>
+
+  <p>
+    Height of burst is read off the chart, not chosen in advance. Each overpressure contour has a
+    point where it reaches furthest from ground zero; that point fixes a distance and a burst
+    height together, and both are used. The manual works its own example the same way:
+  </p>
+  <p class="note">
+    “From Fig. 3.73c, the maximum ground distance to which 4 psi extends for a 1 KT weapon is 2,600
+    feet. This occurs for a burst height of approximately 1,100 feet.” — p. 114
+  </p>
+  <p>
+    Reading that same point off the digitised chart gives 2,618 ft, a difference of 0.7%, and the
+    whole family of contours is calibrated from that agreement. Burst heights scale with the same
+    cube-root law as distances, because a contour is only "the same contour" if the geometry is
+    scaled with it.
+  </p>
+
+  <p>
+    <strong>Contact bursts</strong> use height of burst = 0 and are read where each contour meets
+    the bottom edge of the figure, the convention the manual states on p. 106.
+  </p>
+
+  <p class="note note--warn">
+    <strong>Where the chart stops: the high burst heights.</strong>
+    Peak burst heights scale to 10,174 ft at 5 psi and 15,750 ft at 1 psi for 1 Mt, and to
+    7,311 ft for 1 psi at 100 kt. Fig. 3.73c is computed for a homogeneous sea-level atmosphere at
+    burst heights of 5,000 ft or less (§3.73, p. 110). Those cells therefore extrapolate the
+    chart's assumption by up to a factor of three. They are kept because the scaling law is the
+    manual's own and the alternative — silently dropping the largest yield — would hide the
+    limitation instead of stating it. No altitude
+    correction from §3.64–3.66 is applied, and that omission pushes the figures low rather than
+    high. Treat them as the edge of what this chart supports, not as precise distances.
+  </p>
+
+  <h2 id="overpressure">What “psi” means on this site</h2>
+
+  <p>
+    Fig. 3.73 plots <strong>peak overpressure on the ground</strong>. That is not the same quantity
+    as the incident (side-on) pressure in free air: the ground reflects the shock front, so the
+    peak value is higher, and for the same psi the distance is larger. A tool that quotes incident
+    overpressure will report a noticeably smaller radius for the same number, and both can be right
+    about different quantities. This site reports the manual's quantity and says so in every cell.
+  </p>
+  <p>
+    Nothing here converts overpressure into a damage or casualty statement. The manual contains
+    such tables; this site does not reproduce them yet, and does not improvise its own.
+  </p>
+
+  <h2 id="thermal">Thermal assumptions</h2>
+
+  <p>
+    Every thermal figure is a <strong>slant range</strong>, read off a chart computed for air bursts
+    at burst heights of 200·W<sup>0.4</sup> ft with 12-mile visibility (§7.42, p. 290). §12.66
+    (p. 563) notes that at ranges much greater than the burst height the slant range may be taken as
+    the distance to ground zero, which is how it is reported.
+  </p>
+  <p>The two columns are thresholds, not a range of outcomes:</p>
+  <ul>
+    <li>
+      <strong>4.5 cal/cm² — second degree.</strong> The lower edge of the band the manual associates
+      with second-degree burns in unshaded light skin. §12.65 (p. 563) states that at 4.5–6 cal/cm²
+      about 18% of an exposed population receives second-degree burns and the remainder first-degree.
+    </li>
+    <li>
+      <strong>10 cal/cm² — third degree.</strong> Read from the same chart and reported as the
+      third-degree column; the burn-severity chart behind the threshold is Fig. 12.64 (p. 564).
+    </li>
+  </ul>
+  <p>
+    Assumptions that move these numbers and are <em>not</em> adjusted for: light skin tone, no
+    clothing, no shelter, no haze or cloud, no evasive action, and a person facing the burst. Darker
+    skin needs more irradiance for the same burn; clothing and shade can remove the exposure
+    entirely. These are the manual's conditions, restated, not this site's preferences.
+  </p>
+  <p>
+    <strong>No thermal rows are given for contact bursts.</strong> Fig. 7.42 is an air-burst chart,
+    and the manual handles surface-burst thermal radiation through a different procedure (§7.41,
+    p. 290). Rather than splice two procedures into one column, the contact-burst table reports
+    blast and fireball only.
+  </p>
+
+  <h2 id="calibration">How the thermal contours were identified</h2>
+
+  <p class="note note--warn">
+    <strong>Read this before checking the thermal figures.</strong>
+    Fig. 7.42 is a scan with no text layer: the numeric labels printed beside its contour lines
+    cannot be extracted, and they are not reliably legible at the resolution of the available
+    scan. The six thermal values on this site therefore do <em>not</em> come from reading those
+    labels. They come from reading the <em>geometry</em> of the curves and then fixing which curve
+    is which from two independent statements in the manual.
+  </p>
+
+  <p>Those two statements are:</p>
+  <ul>
+    <li>§12.66 (p. 563): at 1 Mt, 4.5–6 cal/cm² reaches a slant range of 9–10 miles.</li>
+    <li>§7.43 (p. 290): at 1 Mt, 8 cal/cm² reaches about 7 miles.</li>
+  </ul>
+  <p>
+    Together they fix the order and the spacing of the contours from the outside in: 4.5, 6, 8, 10,
+    15, 25 cal/cm². Applying that ordering to the digitised curves reproduces both statements
+    within a few percent, and the third anchor is reproduced as well — the table below shows all
+    three. That agreement is the evidence; the labels are not. Anyone re-checking these values
+    should expect to re-derive the contour order the same way, and should treat a mismatch between
+    our curve order and the printed labels as the first thing to look at.
+  </p>
+
+  <h2 id="scaling">Cube-root scaling, and what it is not</h2>
+
+  <p>
+    The chart is drawn for 1 kt. Distances for the other yields come from Eq. (3.61.2), p. 101 —
+    the manual's statement that, for a given overpressure, distance scales as W<sup>1/3</sup> — which
+    is restated in §3.62 (p. 102) and applied to these same figures in §3.73 (p. 110). Height of
+    burst scales the same way.
+  </p>
+  <p>
+    This is the one place where a number on the site is not a direct transcription. It is a
+    multiplication the manual instructs, not a model this site invented, and it happens once at
+    build time: the JSON ships finished values, and no arithmetic runs in the browser. Each scaled
+    entry also ships the 1 kt reading and the pixel coordinates it was read at, so the
+    multiplication can be re-done by hand. The page label for every such value is
+    <code>scaled from the 1 kt curve (§3.61, p.101)</code>.
+  </p>
+
+  <h2 id="checks">Cross-checks</h2>
+  <p>
+    Four statements in the manual's prose, used as independent anchors. They are the reason the
+    digitised curves are trusted; they are not a substitute for the citations above.
+  </p>
+
+  <p class="tbl-hint">Scroll the table sideways →</p>
+  <div class="tbl-wrap">
+    <table class="data">
+      <caption>Digitised reading against the sentence in the manual.</caption>
+      <thead>
+        <tr>
+          <th scope="col">Check</th>
+          <th scope="col">Manual</th>
+          <th scope="col">Read here</th>
+          <th scope="col">Difference</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          crossChecks.map((c) => (
+            <tr>
+              <th scope="row">
+                {c.claim}
+                <span class="th-sub">{c.manual}</span>
+              </th>
+              <td>{c.id}</td>
+              <td>
+                <span class="v">
+                  {c.ours_mi !== undefined ? `${c.ours_mi} mi` : `${fmtFt(c.ours_ft ?? 0)} ft`}
+                </span>
+              </td>
+              <td>
+                <span class="v">
+                  {c.delta_pct > 0 ? '+' : ''}
+                  {c.delta_pct.toFixed(1)}%
+                </span>
+              </td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="verification">Verification status</h2>
+
+  <p>
+    <strong>{checked} of {total} rows</strong> carry an individual sign-off; the rest are marked
+    with a star wherever they appear. The distinction is not decorative:
+  </p>
+  <ul>
+    <li>
+      The fifteen air-burst values carry a sign-off dated 11 November 2026. The twelve headline
+      figures — fireball, 5 psi, 1 psi and second-degree thermal, across three yields — were
+      independently recomputed by the site owner, and five of them were spot-checked against the
+      original figures. The third-degree column was read off the same chart and accepted with them.
+    </li>
+    <li>
+      The nine contact-burst values reuse the same 1 kt base readings taken from a different edge
+      of the same two charts. They have been through the automated checks but not through an
+      individual human reading, and they are marked with a star rather than quietly promoted.
+    </li>
+  </ul>
+  <p>
+    The automated check (<code>scripts/verify_data.py</code>) enforces structure, provenance,
+    monotonicity, the scaling arithmetic, unit conversions, the interpolation label on every 5 psi
+    row, and agreement between the JSON and the CSV ledger. It currently runs 354 assertions, and a
+    single failure exits non-zero, which fails the build.
+  </p>
+
+  <h2 id="population">Population figures</h2>
+
+  <p>
+    No population figure is published on the site yet. When city pages are added, the convention is
+    fixed in advance: population is counted <strong>within 10 km of the city centre</strong> on the
+    WorldPop 1 km grid, 2020 estimates, and the radius, year and dataset version are printed beside
+    the number.
+  </p>
+  <p>
+    Administrative city boundaries are deliberately not used: every country defines a city
+    differently, so boundary figures from different countries cannot be compared with each other.
+    Population inside an effect ring is a separate figure computed from the same grid and is never
+    merged into the city figure. These are resident-population counts, not footfall, and not
+    casualties.
+  </p>
+
+  <h2 id="not">What this site does not compute</h2>
+  <ol>
+    <li>Casualty or fatality estimates.</li>
+    <li>Damage to specific buildings or structures.</li>
+    <li>Fallout footprints or dose rates.</li>
+    <li>Real-time or daytime population.</li>
+    <li>Underwater, underground or high-altitude bursts.</li>
+    <li>Multiple warheads or salvo effects.</li>
+    <li>Terrain shielding, urban canyon effects, or blast propagation through buildings.</li>
+    <li>Thermal effects on materials, or ignition and fire spread.</li>
+    <li>Electromagnetic pulse.</li>
+    <li>Any prediction for a specific event, place or date.</li>
+  </ol>
+
+  <h2 id="files">Files and reproduction</h2>
+
+  <dl class="spec">
+    <div>
+      <dt><code>src/data/effects.json</code></dt>
+      <dd>
+        Every published value, with citation, burst height, conversion arithmetic, the Chinese
+        reading note taken at the chart, and — for scaled entries — the 1 kt base reading and pixel
+        coordinates.
+      </dd>
+    </div>
+    <div>
+      <dt><code>data-ledger.csv</code></dt>
+      <dd>
+        One row per value: effect, yield, value in km, unit conversion, chapter, figure, printed
+        page, reading method, raw reading. This is the file to check line by line against the book.
+      </dd>
+    </div>
+    <div>
+      <dt><code>scripts/build_effects.py</code></dt>
+      <dd>Regenerates the JSON and the ledger from the recorded readings. No network access.</dd>
+    </div>
+    <div>
+      <dt><code>scripts/verify_data.py</code></dt>
+      <dd>Runs the 354 assertions. Exits non-zero on any failure.</dd>
+    </div>
+  </dl>
+
+  <p>
+    Reproduction recipe for any single value: open the cited figure at the cited printed page, read
+    the distance at the stated burst height, multiply by W<sup>1/3</sup> if the cell says
+    <code>scaled</code>, and convert feet to metres with 0.3048. If the result differs from the
+    table, the reading note in the JSON records the pixel coordinates used, so the disagreement can
+    be located rather than argued about.
+  </p>
+</Base>

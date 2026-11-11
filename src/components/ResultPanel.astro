@@ -1,0 +1,331 @@
+---
+/**
+ * The result panel: five radii for one city, one yield, one burst mode.
+ *
+ * Everything the panel displays is server-rendered for the default state
+ * (New York · 100 kt · air burst), so the numbers are in the HTML before any
+ * script executes. The control bar is hidden until the inline script runs; the
+ * script then swaps text nodes from the JSON island below — it never fetches,
+ * never mounts a framework, and never recomputes a radius.
+ */
+import type { Burst, YieldKt } from '../lib/effects';
+import { YIELDS } from '../lib/effects';
+import type { City } from '../lib/cities';
+import { coordText } from '../lib/cities';
+import { BURST_LABEL, panelRows, ringScale, scaleBar } from '../lib/panel';
+
+interface Props {
+  city: City;
+  y: YieldKt;
+  burst: Burst;
+  cities: City[];
+}
+
+const { city, y, burst, cities } = Astro.props;
+
+const rows = panelRows(burst, y);
+const scale = ringScale(rows);
+const bar = scaleBar(rows);
+
+/** Everything the client needs, produced by the same functions as the SSR above. */
+const island = {
+  default: { city: city.slug, yield: y, burst },
+  yields: YIELDS,
+  burstLabels: BURST_LABEL,
+  cities: cities.map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    coords: coordText(c),
+  })),
+  combos: {
+    air: Object.fromEntries(YIELDS.map((yy) => [String(yy), panelRows('air', yy)])),
+    ground: Object.fromEntries(YIELDS.map((yy) => [String(yy), panelRows('ground', yy)])),
+  },
+  bars: Object.fromEntries(
+    (['air', 'ground'] as Burst[]).flatMap((b) =>
+      YIELDS.map((yy) => [`${b}.${yy}`, scaleBar(panelRows(b, yy))]),
+    ),
+  ),
+  scales: Object.fromEntries(
+    (['air', 'ground'] as Burst[]).flatMap((b) =>
+      YIELDS.map((yy) => [`${b}.${yy}`, Math.round(ringScale(panelRows(b, yy)) * 1e4) / 1e4]),
+    ),
+  ),
+};
+---
+
+<section class="panel" id="result" aria-labelledby="result-title">
+  <div class="panel-head">
+    <h2 id="result-title">
+      <span data-bind="city">{city.name}</span>
+      <span class="sep">·</span>
+      <span data-bind="yield">{y.toLocaleString('en-US')} kt</span>
+    </h2>
+    <p class="panel-sub">
+      <span data-bind="burst">{BURST_LABEL[burst]}</span>
+      <span class="sep">·</span>
+      ring centre <span data-bind="coords">{coordText(city)}</span>
+    </p>
+  </div>
+
+  <div class="panel-body">
+    <figure class="rings">
+      <svg viewBox="-120 -120 240 240" role="img" aria-labelledby="rings-t">
+        <title id="rings-t">
+          Concentric rings at the radii listed beside this diagram, drawn to scale
+        </title>
+        <circle class="ring-axis" cx="0" cy="0" r="112" />
+        <g id="rings" transform={`scale(${scale.toFixed(4)})`}>
+          {
+            rows.map((row) => (
+              <circle
+                data-ring={row.id}
+                cx="0"
+                cy="0"
+                r={row.r ?? 0}
+                fill={`${row.color}1f`}
+                stroke={row.color}
+                stroke-width={1 / scale}
+                style={row.r === null ? 'display:none' : undefined}
+              />
+            ))
+          }
+        </g>
+        <line id="sb" x1="-100" y1="106" x2={-100 + bar.units} y2="106" />
+        <line id="sb-l" x1="-100" y1="102" x2="-100" y2="110" />
+        <line id="sb-r" x1={-100 + bar.units} y1="102" x2={-100 + bar.units} y2="110" />
+        <text data-bind="sbt" x="-100" y="96">{bar.km} km</text>
+      </svg>
+      <figcaption>
+        Drawn to scale from ground zero. The rings do not depend on the city — a
+        100 kt burst produces the same distances anywhere at sea level — so this
+        diagram is the same shape for every city and the selected city sets the
+        point they are measured from.
+      </figcaption>
+    </figure>
+
+    <dl class="readout">
+      {
+        rows.map((row) => (
+          <div class="ro" data-row={row.id} data-absent={row.absent ? '1' : '0'}>
+            <dt>
+              <span class="swatch" style={`--c:${row.color}`} aria-hidden="true" />
+              {row.name}
+              <span class="ro-sub">{row.sub}</span>
+            </dt>
+            <dd>
+              <span class="v" data-cell="km">
+                {row.km}
+                {row.km !== '—' && <span class="u">km</span>}
+                {!row.checked && row.r !== null && (
+                  <sup
+                    class="unchecked"
+                    title="Not individually spot-checked. See the verification section in methodology."
+                  >
+                    *
+                  </sup>
+                )}
+              </span>
+              <span class="hob" data-cell="hob">{row.hob}</span>
+              <span class="src" data-cell="src">{row.src}</span>
+              <span class="tags" data-cell="tags">
+                {row.tags.map((t) => <span class={`tag ${t.c}`}>{t.t}</span>)}
+              </span>
+              <span class="absent" data-cell="absent">{row.absent}</span>
+            </dd>
+          </div>
+        ))
+      }
+    </dl>
+  </div>
+
+  <form class="controls" id="controls" method="get" action="/">
+    <fieldset>
+      <legend>Yield</legend>
+      <div class="seg">
+        {
+          YIELDS.map((yy) => (
+            <label>
+              <input
+                type="radio"
+                name="yield"
+                value={yy}
+                checked={yy === y}
+              />
+              <span>{yy.toLocaleString('en-US')} kt</span>
+            </label>
+          ))
+        }
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Burst</legend>
+      <div class="seg">
+        <label>
+          <input type="radio" name="burst" value="air" checked={burst === 'air'} />
+          <span>Air burst</span>
+        </label>
+        <label>
+          <input type="radio" name="burst" value="ground" checked={burst === 'ground'} />
+          <span>Contact burst</span>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="ctl-city">
+      <legend>City</legend>
+      <select name="city" id="city-select">
+        {
+          cities.map((c) => (
+            <option value={c.slug} selected={c.slug === city.slug}>
+              {c.name}
+            </option>
+          ))
+        }
+      </select>
+    </fieldset>
+  </form>
+
+  <p class="fallback">
+    The panel above shows New York at 100 kt — the default state, rendered into the HTML. Switching
+    city or yield here needs scripting, so with scripting off the
+    <a href="/blast-radius/">blast radius table</a> is the way to every other combination: all three
+    yields, both burst modes, in one page.
+  </p>
+</section>
+
+<script type="application/json" id="apoca-island" set:html={JSON.stringify(island)} />
+
+<script is:inline>
+  (function () {
+    var el = document.getElementById('apoca-island');
+    if (!el) return;
+    var D = JSON.parse(el.textContent);
+    var root = document.getElementById('result');
+    var form = document.getElementById('controls');
+    if (!root || !form) return;
+
+    root.className += ' js';
+
+    var q = function (sel) { return root.querySelector(sel); };
+    var valid = {
+      city: D.cities.map(function (c) { return c.slug; }),
+      yield: D.yields.map(String),
+      burst: ['air', 'ground'],
+    };
+
+    function readUrl() {
+      var p = new URLSearchParams(location.search);
+      var s = {
+        city: p.get('city') || D.default.city,
+        y: p.get('yield') || p.get('y') || String(D.default.yield),
+        b: p.get('burst') || D.default.burst,
+      };
+      if (valid.city.indexOf(s.city) < 0) s.city = D.default.city;
+      if (valid.yield.indexOf(s.y) < 0) s.y = String(D.default.yield);
+      if (valid.burst.indexOf(s.b) < 0) s.b = D.default.burst;
+      return s;
+    }
+
+    function cityOf(slug) {
+      for (var i = 0; i < D.cities.length; i++) {
+        if (D.cities[i].slug === slug) return D.cities[i];
+      }
+      return D.cities[0];
+    }
+
+    function apply(s, writeUrl) {
+      var key = s.b + '.' + s.y;
+      var rows = D.combos[s.b][s.y];
+      var city = cityOf(s.city);
+
+      q('[data-bind="city"]').textContent = city.name;
+      q('[data-bind="yield"]').textContent = Number(s.y).toLocaleString('en-US') + ' kt';
+      q('[data-bind="burst"]').textContent = D.burstLabels[s.b];
+      q('[data-bind="coords"]').textContent = city.coords;
+
+      var scale = D.scales[key];
+      var bar = D.bars[key];
+      document.getElementById('rings').setAttribute('transform', 'scale(' + scale + ')');
+
+      rows.forEach(function (row) {
+        var wrap = root.querySelector('[data-row="' + row.id + '"]');
+        if (!wrap) return;
+        var ring = root.querySelector('[data-ring="' + row.id + '"]');
+        if (ring) {
+          if (row.r === null) {
+            ring.style.display = 'none';
+          } else {
+            ring.style.display = '';
+            ring.setAttribute('r', String(row.r));
+            ring.setAttribute('stroke-width', String(1 / scale));
+          }
+        }
+
+        wrap.setAttribute('data-absent', row.absent ? '1' : '0');
+        var km = wrap.querySelector('[data-cell="km"]');
+        km.textContent = row.km === '—' ? '—' : row.km;
+        if (row.km !== '—') {
+          var u = document.createElement('span');
+          u.className = 'u';
+          u.textContent = 'km';
+          km.appendChild(u);
+        }
+        if (!row.checked && row.r !== null) {
+          var st = document.createElement('sup');
+          st.className = 'unchecked';
+          st.title = 'Not individually spot-checked. See the verification section in methodology.';
+          st.textContent = '*';
+          km.appendChild(st);
+        }
+
+        wrap.querySelector('[data-cell="hob"]').textContent = row.hob;
+        wrap.querySelector('[data-cell="src"]').textContent = row.src;
+
+        var tags = wrap.querySelector('[data-cell="tags"]');
+        tags.textContent = '';
+        row.tags.forEach(function (t) {
+          var sp = document.createElement('span');
+          sp.className = 'tag ' + t.c;
+          sp.textContent = t.t;
+          tags.appendChild(sp);
+        });
+
+        wrap.querySelector('[data-cell="absent"]').textContent = row.absent || '';
+      });
+
+      var sb = document.getElementById('sb');
+      var x2 = -100 + bar.units;
+      sb.setAttribute('x2', String(x2));
+      document.getElementById('sb-r').setAttribute('x1', String(x2));
+      document.getElementById('sb-r').setAttribute('x2', String(x2));
+      q('[data-bind="sbt"]').textContent = bar.km + ' km';
+
+      form.querySelector('input[name="yield"][value="' + s.y + '"]').checked = true;
+      form.querySelector('input[name="burst"][value="' + s.b + '"]').checked = true;
+      document.getElementById('city-select').value = s.city;
+
+      if (writeUrl) {
+        var qs = '?city=' + encodeURIComponent(s.city) + '&yield=' + s.y + '&burst=' + s.b;
+        history.replaceState(null, '', qs);
+      }
+    }
+
+    function current() {
+      return {
+        city: document.getElementById('city-select').value,
+        y: form.querySelector('input[name="yield"]:checked').value,
+        b: form.querySelector('input[name="burst"]:checked').value,
+      };
+    }
+
+    form.addEventListener('change', function () { apply(current(), true); });
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      apply(current(), true);
+    });
+
+    apply(readUrl(), false);
+  })();
+</script>

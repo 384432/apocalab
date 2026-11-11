@@ -1,0 +1,81 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Canonical path, e.g. '/blast-radius/'. Resolved against `site` in astro.config.mjs. */
+  path: string;
+  current?: 'blast-radius' | 'methodology' | 'home';
+  jsonLd?: Record<string, unknown>;
+}
+
+const { title, description, path, current, jsonLd } = Astro.props;
+const site = Astro.site ?? new URL('https://apocalab.com');
+const canonical = new URL(path, site).toString();
+
+const nav = [
+  { key: 'blast-radius', href: '/blast-radius/', label: 'Blast radius' },
+  { key: 'methodology', href: '/methodology/', label: 'Methodology' },
+] as const;
+
+const disclaimer =
+  'Numbers are transcribed from The Effects of Nuclear Weapons (1977), a public-domain U.S. government publication. Not a prediction for any specific event.';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="theme-color" content="#0b0d10" />
+    <meta name="color-scheme" content="dark" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="apocalab" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta name="twitter:card" content="summary" />
+
+    <!-- og:image (1200x630) is generated in a later phase; nothing is referenced
+         here until the file actually exists, so no broken preview cards ship. -->
+    {jsonLd && (
+      <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    )}
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="site-head">
+      <div class="wrap">
+        <a class="brand" href="/">apoca<span>lab</span></a>
+        <nav class="site-nav" aria-label="Sections">
+          {nav.map((item) => (
+            <a
+              href={item.href}
+              aria-current={current === item.key ? 'page' : undefined}
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap">
+        <slot />
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <p>{disclaimer}</p>
+      </div>
+    </footer>
+  </body>
+</html>

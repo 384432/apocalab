@@ -1,0 +1,80 @@
+---
+import type { Entry } from '../lib/effects';
+import { citationLine, fmtFt, fmtKm, interpFt } from '../lib/effects';
+
+interface Props {
+  entry?: Entry;
+  yieldKt: number;
+}
+
+const { entry, yieldKt } = Astro.props;
+const e = entry;
+const ip = e ? interpFt(e) : null;
+
+let hobText = '';
+if (e) {
+  if (e.effect === 'fireball') {
+    hobText =
+      e.burst === 'air'
+        ? 'printed equation · no burst height input'
+        : 'contact burst · height of burst = 0';
+  } else if (e.effect.startsWith('thermal')) {
+    hobText = `burst height ${fmtFt(e.hob_ft ?? 0)} ft · 200·W^0.4 (§7.42)`;
+  } else if (e.burst === 'ground') {
+    hobText = 'contact burst · height of burst = 0';
+  } else {
+    hobText = `burst height ${fmtFt(e.hob_ft ?? 0)} ft`;
+  }
+}
+---
+
+{
+  e && (
+    <td data-col={`${yieldKt} kt`}>
+      <span class="v">
+        {fmtKm(e.radius_km)}
+        <span class="u">km</span>
+        {e.checked_by === null && (
+          <sup
+            class="unchecked"
+            title="Not individually spot-checked. See the verification section in methodology."
+          >
+            *
+          </sup>
+        )}
+      </span>
+
+      <span class="hob">{hobText}</span>
+      <span class="src">{citationLine(e)}</span>
+
+      {e.effect === 'fireball' && (
+        <span class="tag tag-plain">printed equation, not a chart reading</span>
+      )}
+
+      {e.scaled && <span class="tag tag-scaled">{e.scaled_label}</span>}
+
+      {ip && (
+        <span class="tag tag-warn">
+          interpolated between 4 and 6 psi contours, at {fmtFt(Number(ip))} ft (1 kt)
+        </span>
+      )}
+
+      {e.value_type === 'curve_read' && (
+        <span class="tag tag-read">read directly off Fig. 7.42, not scaled</span>
+      )}
+
+      {e.q_cal_cm2 !== undefined && (
+        <span class="tag tag-plain">
+          {e.q_cal_cm2} cal/cm² · light skin, unshaded
+        </span>
+      )}
+
+      {e.burst === 'air' && e.hob_ft !== null && e.hob_ft > 5000 && (
+        <span class="tag tag-warn">
+          burst height {fmtFt(e.hob_ft)} ft is beyond the manual's 5,000 ft
+          homogeneous-atmosphere assumption
+        </span>
+      )}
+    </td>
+  )
+}

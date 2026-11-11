@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>apocalab.com — 实施计划 v1</title>
+<style>
+  :root {
+    --bg: #0B0E13;
+    --panel: #11161e;
+    --panel-2: #0f141b;
+    --line: #1e2632;
+    --line-soft: #171e28;
+    --fg: #dfe6f0;
+    --fg-dim: #9aa7b8;
+    --fg-faint: #6b7788;
+    --accent: #ff6a2b;
+    --accent-soft: rgba(255,106,43,.12);
+    --warn: #f0b429;
+    --ok: #37c98b;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.75 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    font-feature-settings: "tnum" 0;
+  }
+  a { color: #7fb3ff; text-decoration: none; border-bottom: 1px solid rgba(127,179,255,.25); }
+  a:hover { border-bottom-color: #7fb3ff; }
+
+  .top {
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #0e131a 0%, #0B0E13 100%);
+    padding: 44px 24px 30px;
+  }
+  .top-inner { max-width: 980px; margin: 0 auto; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  h1.title { font-size: clamp(26px, 4.4vw, 40px); line-height: 1.2; margin: 14px 0 10px; letter-spacing: -.01em; }
+  .sub { color: var(--fg-dim); font-size: 15px; margin: 0; max-width: 720px; }
+  .meta { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-size: 12.5px; color: var(--fg-dim); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px;
+  }
+  .chip b { color: var(--fg); font-weight: 600; }
+
+  .layout { max-width: 1180px; margin: 0 auto; padding: 0 24px 100px; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 40px; }
+  @media (min-width: 1080px) {
+    .grid { grid-template-columns: 232px minmax(0, 1fr); gap: 56px; }
+    nav.toc { position: sticky; top: 28px; align-self: start; max-height: calc(100vh - 56px); overflow-y: auto; }
+  }
+  nav.toc { display: none; padding-top: 44px; }
+  @media (min-width: 1080px) { nav.toc { display: block; } }
+  nav.toc .toc-title { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--fg-faint); margin-bottom: 12px; }
+  ul.toc-list { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--line); }
+  ul.toc-list li { margin: 0; }
+  ul.toc-list a {
+    display: block; padding: 5px 0 5px 14px; font-size: 13.5px; line-height: 1.45;
+    color: var(--fg-dim); border: 0; border-left: 2px solid transparent; margin-left: -1px;
+  }
+  ul.toc-list a:hover { color: var(--fg); border-left-color: var(--accent); }
+  ul.toc-list ul { display: none; }
+
+  main { padding-top: 40px; max-width: 880px; }
+  h2 {
+    font-size: 22px; line-height: 1.35; margin: 52px 0 16px; padding-top: 22px;
+    border-top: 1px solid var(--line-soft); letter-spacing: -.005em;
+  }
+  h2:first-of-type { margin-top: 0; border-top: 0; padding-top: 0; }
+  h3 { font-size: 17px; margin: 32px 0 10px; color: #cfe0f5; }
+  p { margin: 12px 0; }
+  strong { color: #fff; font-weight: 650; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
+  blockquote {
+    margin: 18px 0; padding: 12px 16px; background: var(--accent-soft);
+    border-left: 2px solid var(--accent); border-radius: 0 6px 6px 0; color: #f0d9cd;
+  }
+  blockquote p { margin: 4px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 6px 0; }
+  li.todo { list-style: none; position: relative; padding-left: 2px; }
+  li.todo::before {
+    content: ""; position: absolute; left: -18px; top: 7px; width: 11px; height: 11px;
+    border: 1px solid #46536a; border-radius: 3px;
+  }
+  code {
+    font: 13.5px/1.5 "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+    background: #161d27; border: 1px solid var(--line); border-radius: 4px;
+    padding: 1.5px 5px; color: #ffc9ad;
+  }
+  pre {
+    position: relative; background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 16px 18px; overflow-x: auto; margin: 18px 0;
+  }
+  pre code { background: none; border: 0; padding: 0; color: #c7d3e2; font-size: 13px; }
+  pre[data-lang]::before {
+    content: attr(data-lang); position: absolute; top: 8px; right: 12px;
+    font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--fg-faint);
+  }
+  .table-wrap {
+    overflow-x: auto; margin: 18px 0; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--panel-2);
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 560px; }
+  th, td { padding: 9px 13px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line-soft); }
+  th { background: #141b24; color: #cfe0f5; font-weight: 600; white-space: nowrap; font-size: 12.5px; letter-spacing: .02em; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: rgba(255,255,255,.015); }
+  td code { font-size: 12.5px; }
+
+  footer {
+    border-top: 1px solid var(--line); margin-top: 60px; padding: 28px 24px 60px;
+    color: var(--fg-faint); font-size: 12.5px; text-align: center;
+  }
+  @media print {
+    body { background: #fff; color: #111; }
+    nav.toc, .top { display: none; }
+    pre, .table-wrap { border-color: #ccc; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="eyebrow"><span class="dot"></span>apocalab.com &nbsp;/&nbsp; implementation plan</div>
+    <h1 class="title">核武器效应公开数据站 —— 实施计划 v1</h1>
+    <p class="sub">技术方案、数据来源与页码落实、页面规格、开发顺序、风险清单。第一步只交计划，不含代码。</p>
+    <div class="meta">
+      <span class="chip">版本 <b>v1 · 待裁决</b></span>
+      <span class="chip">输出日期 <b>2026-11-11 13:17</b></span>
+      <span class="chip">数据源 <b>Glasstone &amp; Dolan, 1977（公有领域）</b></span>
+      <span class="chip">工时 <b>70–85 h</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="grid">
+    <nav class="toc">
+      <div class="toc-title">目录</div>
+      <ul class="toc-list">
+<li><a href="#0">0. 先说三句结论</a></li>
+<li><a href="#1">1. 定位与合规基线（不改动你的定位，只落成可执行约束）</a></li>
+<li><a href="#2">2. 数据层（最重要的一节）</a></li>
+<li><a href="#3">3. 技术架构</a></li>
+<li><a href="#4">4. 页面清单与逐页规格</a></li>
+<li><a href="#5-seo">5. SEO 落地清单（逐条可勾）</a></li>
+<li><a href="#6-104-h">6. 开发顺序与工作量（总 ~104 h）</a></li>
+<li><a href="#7">7. 风险清单（逐条，具体到哪一条 + 替代做法）</a></li>
+<li><a href="#8-2026-11-11">8. 五个决策点：已裁决（2026-11-11）</a></li>
+<li><a href="#9">9. 口径自查（不是入库数据，只为验证链路走通）</a></li>
+<li><a href="#10-0">10. 附：数据录入模板（阶段 0 用的工作表表头）</a></li>
+<li><a href="#11">11. 我这边的收尾说明</a></li>
+</ul>
+    </nav>
+    <main>
+<blockquote>
+<p>技术负责人 / 全栈工程师：灵<br />
+版本：<strong>v1.1（2026-11-11 修订）</strong>。阶段 0 数据层已交付并通过抽检；第 8 节 5 个决策点已全部裁决，正文按裁决结果改过。<br />
+本文所有页码、图号、公式，均来自我本机对手册 PDF 的抽取核对（见 2.1），不是从二手网页抄的。</p>
+</blockquote>
+<p><strong>v1.1 相对 v1.0 改了什么</strong>（只列会改变行为的）：</p>
+<ol>
+<li><strong>D2 落地</strong>：爆高口径从「固定 1,000 ft」改成「读每条等压线在图上的峰值」，每条线带自己的爆高；地爆读 HOB = 0 的图底边；火球空爆 110·W^0.4 / 地爆 145·W^0.4，禁止混搭。</li>
+<li><strong>D4 落地</strong>：城市人口统一为「城市中心半径 10 km 内 WorldPop 人口」，不用行政市界；效应圈内人口另算，两个数不合并。</li>
+<li><strong>D5 落地</strong>：备用底图改为自托管 Natural Earth 110m 公有领域轮廓，不用任何第三方免费额度。</li>
+<li><strong>顺序调整</strong>：<code>/blast-radius/</code> 提到地图之前，阶段 1 直接交一页可上线的静态表。</li>
+<li><strong>三条硬约束入正文</strong>：全站禁 demo 类字样；免责每页恰一行、放页底；地图禁旋转与俯仰。</li>
+<li><strong>页数口径</strong>：首月 80 页靠加城市堆，不靠加页面类型。</li>
+<li><strong>修正 v1.0 的两处出处错误</strong>：缩放律是式 (3.61.2) p.101（不是 §3.75 p.108）；§12.66 的烧伤句在 p.563。</li>
+</ol>
+<hr />
+<h2 id="0">0. 先说三句结论</h2>
+<ol>
+<li><strong>能做，但有一个必须先说清的硬冲突</strong>：手册里 5 psi / 1 psi 只有 <strong>1 kt 一条曲线</strong>。要出 15/100/1000 kt，只有两条路——用手册自己写的立方根缩放律（§3.61、§3.75），或者只做 1 kt 一档。你要三档，就得接受缩放，并接受「缩放值」这个标签。这是全文唯一的实质性问题，第 2.2 节讲透。<strong>D1 已裁决：接受缩放</strong>，每个缩放值都带固定标签。</li>
+<li><strong>数据录入是整个 v1 的真实瓶颈</strong>：约 70–85 工时里，<strong>14 小时花在读图上</strong>（对数坐标纸上逐点读数）。代码是次要成本。这也决定了开发顺序：数据层先做，做不出合格数据就不做页面。</li>
+<li><strong>四个半径里，只有火球半径能直接引用公式</strong>（§2.127，手册原文给了 90/110/145·W^0.4），另外三个必须从图上读。所以「每格带章/图/页」这件事，页面上是能做到的，但页面上要给的是<strong>图号+页码+读数方式</strong>，不是「表 3.xx 第 5 行」。</li>
+</ol>
+<hr />
+<h2 id="1">1. 定位与合规基线（不改动你的定位，只落成可执行约束）</h2>
+<ul>
+<li>站点性质：公开数据的交互式查询与可视化。程序只做查表 + 绘圈。</li>
+<li>唯一数值来源：《The Effects of Nuclear Weapons》，Glasstone &amp; Dolan 编，第 3 版，1977，US DoD / ERDA 出版，公有领域。DOI <code>10.2172/6852629</code>，镜像 <code>fourmilab.ch/etexts/www/effects/</code>。</li>
+<li>全站英文，目标美国。写作口径：陈述手册怎么说，不替手册下结论；不出现「would die」「will be destroyed」这类因果断言，使用「within this ring, the manual's damage criteria place…」的引述式表达。</li>
+<li><strong>免责位置硬约束（你定的）</strong>：每页<strong>恰一行</strong>脚注，放页面最底部。不做首屏免责条、不做副标题、不做弹层。文案固定：<br />
+<code>Numbers are transcribed from The Effects of Nuclear Weapons (1977), a public-domain U.S. government publication. Not a prediction for any specific event.</code></li>
+<li><strong>全站禁用词（构建期断言，命中即构建失败）</strong>：<code>education demo</code> / <code>prototype</code> / <code>demo</code> / <code>simulation model</code> / <code>our estimate</code>。注意 <code>demolish</code>、<code>demographic</code>、<code>demolition</code> 都含 <code>demo</code> 子串，断言必须用词边界匹配，不能简单 <code>includes</code>——这条我写进校验脚本里，不靠人记。</li>
+</ul>
+<hr />
+<h2 id="2">2. 数据层（最重要的一节）</h2>
+<h3 id="21">2.1 手册里到底有什么（我实测过，不是推测）</h3>
+<p>我把第 2、3、7、12 章 PDF 和整本扫描件下到本地，逐页核对图表标题与印刷页码。<strong>两套偏移量不要混用</strong>：整本 <code>6852629.pdf</code> 里第 3 章 = 印刷页 + 9；分章 <code>eonw_3.pdf</code> 里 = 印刷页 + 79；ch7 = +275，ch2 = +25。下文写的页码一律是<strong>印刷页</strong>。结论如下：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>用途</th>
+<th>出处</th>
+<th>印刷页</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>火球半径（热极小值）</td>
+<td><code>R = 90 W^0.4</code>（R 英尺，W 千吨），§2.127</td>
+<td>70</td>
+<td><strong>已核</strong></td>
+</tr>
+<tr>
+<td>火球半径（breakaway，空中爆炸）</td>
+<td>式 (2.127.1) <code>R = 110 W^0.4</code></td>
+<td>70</td>
+<td><strong>已核</strong></td>
+</tr>
+<tr>
+<td>火球半径（接触地面爆炸）</td>
+<td>式 (2.127.2) <code>R = 145 W^0.4</code></td>
+<td>71</td>
+<td><strong>已核</strong></td>
+</tr>
+<tr>
+<td>火球最大半径 ≈ 2 × breakaway</td>
+<td>§2.129</td>
+<td>71</td>
+<td><strong>已核</strong></td>
+</tr>
+<tr>
+<td>局部落尘上限爆高 <code>H = 180 W^0.4</code> ft</td>
+<td>式 (2.128.1)</td>
+<td>71</td>
+<td><strong>已核</strong></td>
+</tr>
+<tr>
+<td>立方根缩放律 <code>D/D₁ = (W/W₁)^(1/3)</code></td>
+<td>式 (3.61.1)，§3.61</td>
+<td>101</td>
+<td><strong>已核</strong></td>
+</tr>
+<tr>
+<td>地面距离按同一立方根律缩放 <code>D/D₁ = (W/W₁)^(1/3)</code></td>
+<td>式 (3.61.2)，§3.61；§3.62 重述</td>
+<td>101 / 102</td>
+<td><strong>已核</strong>（v1.0 误记成 §3.75 p.108，已修正）</td>
+</tr>
+<tr>
+<td>「取爆高为零」即地爆</td>
+<td>§3.64</td>
+<td>106</td>
+<td><strong>已核</strong>（原文 “taking the height of burst … to be zero”）</td>
+</tr>
+<tr>
+<td>对 Fig. 3.73a–c 的缩放重述</td>
+<td>§3.73</td>
+<td>110</td>
+<td><strong>已核</strong></td>
+</tr>
+<tr>
+<td>1 kt 自由空气爆炸：超压 vs 距离</td>
+<td>Fig. 3.72</td>
+<td>109</td>
+<td>已核（v1 未使用）</td>
+</tr>
+<tr>
+<td>1 kt 空中爆炸（高压段）</td>
+<td>Fig. 3.73a</td>
+<td>111</td>
+<td>未使用（若出现 10 psi 以上的数，必须注明取自本图）</td>
+</tr>
+<tr>
+<td>同上（中压段）</td>
+<td>Fig. 3.73b</td>
+<td>113</td>
+<td>未使用（同上）</td>
+</tr>
+<tr>
+<td><strong>同上（低压段，含 1 / 2 / 4 / 6 / 8 / 10 psi）</strong></td>
+<td><strong>Fig. 3.73c</strong></td>
+<td><strong>115</strong></td>
+<td><strong>已核 + 阶段 0 已数字化</strong>（最关键的一张；<strong>没有 5 psi 这条线</strong>）</td>
+</tr>
+<tr>
+<td>「最优爆高」概念：使某超压地面距离最大的爆高</td>
+<td>§3.73</td>
+<td>106</td>
+<td><strong>已核</strong></td>
+</tr>
+<tr>
+<td>热辐射：给定 Q 的距离曲线（多当量族）</td>
+<td>Fig. 7.42</td>
+<td>291</td>
+<td><strong>已核</strong></td>
+</tr>
+<tr>
+<td>热分配系数 f（空中爆炸，按当量）</td>
+<td>Table 7.88</td>
+<td>313</td>
+<td>已核表头</td>
+</tr>
+<tr>
+<td>有效热分配（地面爆炸，接触爆炸 f=0.18）</td>
+<td>Table 7.101</td>
+<td>319</td>
+<td><strong>已核</strong></td>
+</tr>
+<tr>
+<td>大气透过率 T（12 英里能见度）</td>
+<td>Fig. 7.98</td>
+<td>316–317</td>
+<td>已核</td>
+</tr>
+<tr>
+<td>皮肤烧伤所需辐照（按肤色/烧伤度数）</td>
+<td>Fig. 12.64</td>
+<td>564</td>
+<td>已核（图为曲线，读数）</td>
+</tr>
+<tr>
+<td>1 Mt 时 4.5–6 cal/cm² 对应二度烧伤为主，斜距 9–10 mi</td>
+<td>§12.66</td>
+<td><strong>563</strong></td>
+<td><strong>已核</strong>（v1.0 写 562 有误：§12.63 从 562 起，这句话在 563）</td>
+</tr>
+<tr>
+<td>1 Mt 时 8 cal/cm² 约 7 mi</td>
+<td>§7.43</td>
+<td>290</td>
+<td><strong>已核</strong>（第二条标定锚点）</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>关键发现（决定整个数据方案）</strong>：手册没有「按当量列半径」的表。超压只有 1 kt 的曲线族（Fig. 3.72/3.73a-c/3.74a-c），其他当量靠 §3.61 的立方根缩放推出去。热辐射反而好一些，Fig. 7.42 本身就是多当量曲线族。</p>
+<h3 id="22">2.2 四个半径的取数路径（逐条，含冲突说明）</h3>
+<p><strong>① 火球半径 fireball</strong><br />
+- 来源：式 (2.127.1) / (2.127.2)，p.70–71。<br />
+- 做法：构建期按当量算好写进 JSON。<strong>这是全站唯一「用公式而不是读图」的数</strong>，但公式是手册原文给的、不涉及我们任何拟合。<br />
+- 显示口径：默认给 <strong>breakaway 半径</strong>（空中爆炸），因为它是「可见火球最大时的半径」，与云团示意视觉最不易混淆；面板里小字注明 <code>Eq. (2.127.1), p.70</code>。<br />
+- 替代方案（若你要求绝对零计算）：只能给 1 kt 的值，或去读 Fig. 2.121 上 20 kt 一条曲线然后靠缩放推到别的当量——反而更绕且误差更大。不建议。</p>
+<p><strong>② 5 psi / ③ 1 psi 半径（已按 D2 落地：读峰值，不选固定爆高）</strong></p>
+<ul>
+<li>来源：Fig. 3.73c（p.115，1 kt，低压段）。<strong>爆高不是我们挑的</strong>：每条等压线在地面距离方向都有一个最右端（峰值点），读那一端的横坐标与纵坐标，得到「该 psi 的最大地面距离 + 达到该距离的爆高」。</li>
+<li>手册 p.114 的算例正是这个读法，我直接引用、没有自己拟合：<blockquote>
+<p>“From Fig. 3.73c, the maximum ground distance to which 4 psi extends for a 1 KT weapon is 2,600 feet. This occurs for a burst height of approximately 1,100 feet.”<br />
+  我用像素复读到 2,618 ft，对原文 <strong>+0.7%</strong>，整族曲线由此定标。</p>
+</blockquote>
+</li>
+<li>1 kt 四条峰值：1 psi 7,020 ft @ 1,575 ft｜2 psi 4,192 ft @ 1,100 ft｜4 psi 2,600 ft @ 1,100 ft｜6 psi 2,010 ft @ 950 ft。</li>
+<li><strong>5 psi 图上没有印线</strong>（只印 1 / 2 / 4 / 6 / 8 / 10 psi），按 4 与 6 psi 的对数压力位置插值，t = 0.5503 → <strong>2,275 ft @ 1,017 ft</strong>。台账里每一行 5 psi 的 <code>readout</code> 必须出现 <code>interpolated between 4 and 6 psi contours, at X ft</code>，页面上也照印。</li>
+<li>多当量：<code>d = d₁kt × W^(1/3)</code>，依据式 (3.61.2) p.101（§3.62 p.102、§3.73 p.110 重述）。<strong>爆高同律缩放</strong> <code>H = H₁kt × W^(1/3)</code>，否则就不叫「同一条等压线」了。</li>
+<li>值类型 <code>scaled_curve_read</code>，带 <code>base</code>（1 kt 英尺数 + 像素坐标）与 <code>scaling</code>（law / formula / pages），可逐条复算。</li>
+<li>页面标签固定：<code>scaled from the 1 kt curve (§3.61, p.101)</code>。</li>
+<li><strong>地爆（D2 第二态）</strong>：爆高取 0（§3.64 p.106），读每条等压线与图底边的交点。1 kt：1 psi 3,830 ft、4 psi 1,655 ft、5 psi 1,361 ft、6 psi 1,121 ft。</li>
+<li><strong>1 Mt 的爆高边界（必须上页面）</strong>：峰值爆高按 W^(1/3) 缩放到 1 Mt 是 5 psi 10,174 ft、1 psi 15,750 ft，而 §3.73 p.110 的匀质海平面大气假设只覆盖 <strong>5,000 ft 以内</strong>。这条外推了 2–3 倍，且未做 §3.64–3.66 的高度修正（省略的方向使数值偏小）。结果面板必须显示 HOB，methodology 必须写这一句，并注明「按 §3.61 缩放、应读作上限」。</li>
+</ul>
+<p><strong>④ 热辐射半径（三档全直读，一格不走缩放）</strong></p>
+<ul>
+<li>来源：Fig. 7.42（p.291）。它本身就是多当量曲线族，15 / 100 / 1 Mt 三列都在图上，直接读。</li>
+<li>纵轴是斜距（mi），横轴是辐照 Q 的对数。曲线族的计算条件：爆高 <code>200·W^0.4 ft</code>、能见度 12 mi 的空爆（§7.42 p.290）。斜距按 §12.66 p.563 的说明读作到爆心地面投影的距离（两者在远距离近似相等）。</li>
+<li>阈值：默认 <strong>4.5 cal/cm²（二度烧伤下缘，未遮挡浅肤色）</strong>，表格另给 <strong>10 cal/cm²（三度）</strong> 一列。§12.65 p.563：4.5–6 cal/cm² 时约 18% 暴露人群二度烧伤、其余一度。</li>
+<li><strong>曲线标号无法直读，这件事必须写在 methodology 里，不能假装是读出来的</strong>：Fig. 7.42 是扫描件，没有文字层，等值线旁边的数字标号我用程序读不出来。标定依据是手册自己的两句独立陈述——§12.66 p.563（1 Mt 时 4.5–6 cal/cm² 落在 9–10 mi）+ §7.43 p.290（1 Mt 时 8 cal/cm² 约 7 mi）——由此确定自外向内为 4.5 / 6 / 8 / 10 / 15 / 25 cal/cm²。三条锚点复现偏差 +3.6% / −3.9% / +5.0%。</li>
+<li><strong>不做地爆热辐射（已裁决）</strong>：Fig. 7.42 是空爆曲线，地爆热辐射在手册里另走一套（§7.41 p.290）。地爆选项只给超压和火球，<strong>页面上要明写这一条</strong>，不能让用户以为漏算了。</li>
+</ul>
+<h3 id="23">2.3 数据文件设计</h3>
+<p><code>src/data/effects.json</code>（构建期生成、入库、可 diff）：</p>
+<pre data-lang="jsonc"><code>{
+  &quot;manual&quot;: {
+    &quot;title&quot;: &quot;The Effects of Nuclear Weapons&quot;,
+    &quot;edition&quot;: &quot;3rd&quot;, &quot;year&quot;: 1977,
+    &quot;publisher&quot;: [&quot;US Department of Defense&quot;, &quot;ERDA&quot;],
+    &quot;doi&quot;: &quot;10.2172/6852629&quot;,
+    &quot;mirror&quot;: &quot;https://www.fourmilab.ch/etexts/www/effects/&quot;,
+    &quot;public_domain&quot;: true
+  },
+  &quot;entries&quot;: [
+    {
+      &quot;id&quot;: &quot;overpressure_5psi.air.1000&quot;,
+      &quot;effect&quot;: &quot;overpressure_5psi&quot;,              // fireball | overpressure_5psi | overpressure_1psi | thermal_2nd | thermal_3rd
+      &quot;label&quot;: &quot;5 psi overpressure radius&quot;,
+      &quot;yield_kt&quot;: 1000,
+      &quot;burst&quot;: &quot;air&quot;,                              // air | ground
+      &quot;radius_m&quot;: 6935, &quot;radius_km&quot;: 6.93, &quot;radius_ft&quot;: 22753,
+      &quot;hob_ft&quot;: 10174, &quot;hob_m&quot;: 3101,              // 空爆为该等压线峰值爆高；地爆为 0
+      &quot;value_type&quot;: &quot;scaled_curve_read&quot;,           // formula | curve_read | scaled_curve_read
+      &quot;citation&quot;: { &quot;chapter&quot;: 3, &quot;section&quot;: &quot;§3.73 / §3.61&quot;, &quot;figure&quot;: &quot;3.73c&quot;, &quot;page&quot;: 115 },
+      &quot;readout&quot;: &quot;interpolated between 4 and 6 psi contours, at 2275 ft (1 kt, peak of each isobar) …&quot;,
+      &quot;conversion&quot;: &quot;2275 ft × 1000^(1/3) = 22753 ft; × 0.3048 = 6935 m = 6.93 km&quot;,
+      &quot;raw_reading_cn&quot;: &quot;…（中文原始读数，含像素坐标）&quot;,
+      &quot;read_error&quot;: &quot;±5%&quot;,
+      &quot;read_by&quot;: &quot;programmatic chart digitization (ring)&quot;,
+      &quot;checked_by&quot;: null,
+      &quot;note&quot;: &quot;5 psi is NOT one of the contours printed on Fig. 3.73c …&quot;,
+      &quot;hob_note&quot;: null,
+      &quot;scaled&quot;: true,
+      &quot;scaled_label&quot;: &quot;scaled from the 1 kt curve (§3.61, p.101)&quot;,
+      &quot;scaling&quot;: { &quot;law&quot;: &quot;cube_root&quot;, &quot;formula&quot;: &quot;d = d_1kt · W^(1/3)&quot;, &quot;pages&quot;: [101, 102, 110] },
+      &quot;base&quot;: { &quot;yield_kt&quot;: 1, &quot;radius_ft&quot;: 2275.3, &quot;hob_ft&quot;: 1017.4, &quot;figure&quot;: &quot;3.73c&quot;, &quot;page&quot;: 115,
+                &quot;interpolated&quot;: true, &quot;between_psi&quot;: [4, 6], &quot;interp_fraction&quot;: 0.5503,
+                &quot;px&quot;: { &quot;4psi&quot;: [642.3, 914.9], &quot;6psi&quot;: [522.5, 946.0] } }
+    }
+  ]
+}
+</code></pre>
+<p>约束（由 <code>scripts/verify_data.py</code> 在构建前强制）：<br />
+- <code>value_type != "formula"</code> 的条目，<code>citation.page</code> 与 <code>citation.figure</code> 必须非空，否则构建失败。<br />
+- <code>value_type == "scaled_curve_read"</code> 的条目必须同时有 <code>base.*</code> 与 <code>scaling.*</code>。<br />
+- 同一 <code>(effect, yield_kt, burst)</code> 只允许一条。<br />
+- 所有 <code>checked_by</code> 为空的条目，页面渲染时在数字旁输出一个 <code>*</code>，并链到 methodology 的「已核 / 待核」清单——<strong>你的抽查状态直接进页面</strong>，不是写在我脑子里。<br />
+- 数值单调性检查：同 effect 下半径随当量必须单调递增，不满足直接报错（能抓住 90% 的手抖读数错误）。<br />
+- <code>effect == "overpressure_5psi"</code> 的每条，<code>readout</code> 必须含 <code>interpolated between 4 and 6 psi contours, at</code>，否则构建失败（防止某一行漏标注）。<br />
+- <code>value_type == "curve_read"</code>（热辐射）的每条，<code>scaled</code> 必须缺失或为 false——直读的值不允许带缩放标记。<br />
+- <code>burst == "ground"</code> 且 <code>effect</code> 属于热辐射的条目，一律不允许存在（地爆不给热辐射，见 2.2 ④）。<br />
+- 页面渲染时，<code>read_error</code> 与 <code>checked_by</code> 一起进 <code>data-*</code> 属性，便于以后做「已核 / 待核」标记而不改结构。</p>
+<p>其他数据文件：<br />
+- <code>src/data/cities.json</code>：20 城 slug / 名称 / 经纬度（GeoNames geonameid）/ 城市文案里要用的真实地名数组 / 人口数（各半径内）。<br />
+- <code>src/data/fallout-cases.json</code>：核试验历史案例（名称、日期、当量、试验场、公开结论、出处）。<br />
+- <code>src/data/copy/*.md</code>：页面文案与城市文案，与数据分离，方便你直接改词。</p>
+<h3 id="24">2.4 溯源与抽查机制（你要人工对原文，我把它做成可操作的）</h3>
+<ol>
+<li>每条数据带 <code>citation{chapter, section, figure, page}</code>，页面显示形如 <code>Ch. 3 · Fig. 3.73c · p. 115</code>，hover 显示完整引用串。</li>
+<li>构建期额外产出 <code>dist/data-ledger.csv</code>（不入站、只给你）：<code>id, 值, 单位, 图号, 页码, 读数方式, 录入人, 抽查状态</code>。你拿这张表对着 PDF 抽查，改 <code>checked_by</code> 即可。</li>
+<li>每条数据附一个可选 <code>readout</code> 字段：记录我在图上读到的坐标（例如「爆高 2,000 ft 水平线 × 5 psi 曲线，横向 3,1xx ft」），便于你复现我的读数过程而不是只看结果。</li>
+<li><code>scripts/verify_data.py</code> + 手工抽查，两道关。你抽查不过的，我重读，不解释。</li>
+</ol>
+<h3 id="25">2.5 人口数据</h3>
+<ul>
+<li>源：<strong>WorldPop Global2，1 km，R2025A v1，年份 2020，constrained（UN-adjusted）</strong>，GeoTIFF，30 arc-second，WGS84，单位 people/pixel。许可 CC BY 4.0（可商用，需署名）。<br />
+  选 UN-adjusted 的理由：20 个城市跨 10 个国家，各国普查口径不一致，用联合国校正后的国家总量更可比。这条会写进 methodology，并可一键切换成非校正版（脚本参数）。</li>
+<li>分辨率与口径：1 km 格网，统计的是<strong>夜间居住人口分布</strong>，非实时人流、非伤亡。页面固定用这句：<code>Resident population, 1 km grid, WorldPop 2020. Not footfall, not casualties.</code></li>
+<li>「范围内人口」算法：格网像元<strong>中心点</strong>落入圆内即计入，累加 people/pixel。不用面积加权（加权会在 1 km 格子上制造并不存在的精度）。这个选择写进 methodology，并注明它是「离散近似，边缘 ±一圈」。</li>
+<li>预处理（<code>scripts/build_population.py</code>）：<br />
+  1. 下载 20 个城市所在的全球 1 km 分幅（WorldPop 按国家/分幅发布，脚本按 bbox 取）；<br />
+  2. 裁 250 km × 250 km 的方形窗口；<br />
+  3. 转成 <code>uint16</code> 小端二进制 + 一个 <code>meta.json</code>（bbox、像元数、缩放系数、单位）；<br />
+  4. 每城一个文件 <code>public/data/pop/&lt;slug&gt;.bin</code>，约 250–500 KB，gzip 后更小；<br />
+  5. 同时预算每个城市 × 4 个半径的人口和，写进 <code>cities.json</code>（保证城市页和首屏无需任何下载即可显示人口）。</li>
+<li>任意点选点：若点落在某城 250 km 窗口内，<strong>按需</strong>拉该城 <code>.bin</code>（lazy，一次，缓存），在 Canvas/JS 里环求和，&lt;10 ms。窗口外 → 人口行显示 <code>Population data covers the 20 preset metros in this edition</code> 并给「跳到最近的城市」按钮。<strong>绝不外推、绝不显示 0 冒充</strong>。</li>
+<li>这个「窗口 + lazy」是可控成本下的最优解；全球 1 km 栅格要 30 MB+，与 2 秒首屏冲突。</li>
+</ul>
+<h3 id="26">2.6 地名与搜索</h3>
+<ul>
+<li>GeoNames <code>cities15000.zip</code>（约 25,000 条，含人口、坐标、国家、时区），CC BY 4.0。构建期过滤成 <code>public/data/cities-search.json</code>（只留 name / asciiname / country / lat / lon / population，约 1.2 MB，gzip 后 ~350 KB，按首字母分 4 个分片按需加载）。</li>
+<li>搜索全离线：前缀 + 模糊匹配，不请求任何地理编码 API。选中后落 URL 参数。</li>
+<li>只收录 20 个城市页；搜索命中的其他城市走首页地图（可正常出圈，但无静态页）。这符合「凑不出三项就不生成页面」的原则。</li>
+</ul>
+<h3 id="27">2.7 落尘：写清楚做什么、不做什么</h3>
+<ul>
+<li><strong>不做</strong>：任何地点级沉降足迹、剂量率、风向下的污染区预测。理由写入 methodology：手册的沉降预测依赖实测气象、地形、降水，且 §2.128 只给「本地落尘上限爆高」这一个判据，推不出单点足迹。</li>
+<li><strong>做 ①</strong>：选点后按 8 个方位显示扇形<strong>示意</strong>（Canvas，半透明填充，无距离刻度、无剂量标尺，角落固定 <code>Schematic only — not a prediction. No scale.</code>）。扇形的张角写成配置项，不假装是气象数据。</li>
+<li><strong>做 ②</strong>：核试验历史案例时间轴（<code>/methodology/</code> 下的区块，或独立锚点）。首批 6 条：Trinity、Hiroshima、Nagasaki、Castle Bravo、Tsar Bomba、Semipalatinsk 首次试验。每条只有：日期、当量、地点、一句公开记载的事实、出处链接。不做伤亡渲染。</li>
+<li><strong>交叉引用</strong>：§2.128 式 (2.128.1)（p.71）给出「本地落尘显著的下限爆高」，这个可以在 methodology 里作为唯一可引用的落尘数字出现。</li>
+</ul>
+<h3 id="28-0">2.8 阶段 0 结果（已交付、已抽检通过）</h3>
+<p>24 条数据（空爆 15 条 = 5 个效应 × 3 档，地爆 9 条 = 3 个效应 × 3 档），<code>src/data/effects.json</code> + <code>data-ledger.csv</code>；<code>verify_data.py</code> <strong>354 项检查全过</strong>。</p>
+<p><strong>空爆（默认口径，半径 km）</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>效应</th>
+<th>15 kt</th>
+<th>100 kt</th>
+<th>1 Mt</th>
+<th>出处</th>
+<th>读数方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>火球（breakaway）</td>
+<td>0.10</td>
+<td>0.21</td>
+<td>0.53</td>
+<td>式 (2.127.1) p.70</td>
+<td>手册公式</td>
+</tr>
+<tr>
+<td>5 psi</td>
+<td>1.71</td>
+<td>3.22</td>
+<td>6.93</td>
+<td>Fig. 3.73c p.115</td>
+<td>读峰值 + 立方根缩放（5 psi 为 4/6 插值）</td>
+</tr>
+<tr>
+<td>1 psi</td>
+<td>5.28</td>
+<td>9.93</td>
+<td>21.40</td>
+<td>Fig. 3.73c p.115</td>
+<td>读峰值 + 立方根缩放</td>
+</tr>
+<tr>
+<td>热辐射 二度 4.5 cal/cm²</td>
+<td>3.37</td>
+<td>6.99</td>
+<td>16.68</td>
+<td>Fig. 7.42 p.291</td>
+<td><strong>直读，不缩放</strong></td>
+</tr>
+<tr>
+<td>热辐射 三度 10 cal/cm²</td>
+<td>1.77</td>
+<td>4.02</td>
+<td>10.35</td>
+<td>Fig. 7.42 p.291</td>
+<td><strong>直读，不缩放</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>地爆（contact surface burst，只给火球与超压）</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>效应</th>
+<th>15 kt</th>
+<th>100 kt</th>
+<th>1 Mt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>火球（式 2.127.2，p.71）</td>
+<td>0.13</td>
+<td>0.28</td>
+<td>0.70</td>
+</tr>
+<tr>
+<td>5 psi</td>
+<td>1.02</td>
+<td>1.93</td>
+<td>4.15</td>
+</tr>
+<tr>
+<td>1 psi</td>
+<td>2.88</td>
+<td>5.42</td>
+<td>11.67</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>空爆爆高（ft，页面必须显示）</strong>：5 psi 2,509 / 4,723 / 10,174；1 psi 3,884 / 7,311 / 15,750；热辐射 591 / 1,262 / 3,170（Fig. 7.42 的 <code>200·W^0.4</code> 计算爆高）。火球是公式值，不消耗爆高。</p>
+<p><strong>四条交叉校验</strong>：p.114 算例 4 psi 2,600 ft（+0.7%）｜§12.66 二度 9–10 mi（+3.6% / −3.9%）｜§7.43 的 8 cal 约 7 mi（+5.0%）。</p>
+<hr />
+<h2 id="3">3. 技术架构</h2>
+<h3 id="31">3.1 栈与目录</h3>
+<p>Astro 5 + TypeScript，<code>output: 'static'</code>。岛屿只用一个（地图），默认零 JS 也能读全站。</p>
+<pre><code>src/
+  pages/
+    index.astro
+    blast-radius/index.astro
+    nuclear-bomb-map/index.astro
+    nuclear-winter/index.astro
+    methodology/index.astro
+    about/index.astro
+    privacy/index.astro
+    [city]/index.astro          ← getStaticPaths 读 cities.json
+  components/   ResultPanel / EffectTable / MapShell / Citation / SiteNav / Footnote
+  islands/      MapExplorer.ts        ← 唯一 hydrate 的组件
+  lib/          effects.ts / projection.ts / urlState.ts / population.ts / citation.ts
+  data/         effects.json / cities.json / fallout-cases.json / copy/
+scripts/        build_population.py / build_og.py / verify_data.py / build_ledger.py
+public/data/    cities-search-*.json / pop/&lt;slug&gt;.bin
+</code></pre>
+<h3 id="32">3.2 地图与半径绘制（关键决策）</h3>
+<p><strong>半径圈不由 MapLibre 的 layer 画，由我们自己的 Canvas 覆盖层画。</strong></p>
+<p>理由：你的降级要求是「瓦片挂了圈还在」。如果圈是 MapLibre layer，map 初始化失败或 style 报错时圈会一起没。做法：</p>
+<ul>
+<li><code>&lt;div id="basemap"&gt;</code> 交给 MapLibre，只负责底图；<code>&lt;canvas id="rings"&gt;</code> 绝对定位叠在上面，由 <code>projection.ts</code> 自己算墨卡托投影，监听 <code>map.on('move')</code> 重绘。</li>
+<li>圈用真实测地圆（按大圆半径算，投影后是多边形，不是屏幕圆），所以「按真实比例」成立。</li>
+<li>数字标注跟着圈走，字体用系统栈（不加载 web font）。</li>
+<li><code>map</code> 初始化失败 / style 加载超时 4s / 连续瓦片错误 → <code>basemap</code> 换成降级层，<code>rings</code> 照常，右下角一行 <code>Basemap unavailable — radii are still to scale.</code>。<strong>不会出现永久的 Loading map。</strong></li>
+<li><strong>降级层（D5 已裁决）</strong>：自托管 Natural Earth 110m 陆地轮廓（公有领域，约 120 KB，随站打包 <code>public/geo/ne110m-land.json</code>），瓦片挂掉时画「轮廓 + 半径圈 + 一行说明」。<strong>不用任何第三方的免费额度，不引入第二份会变的条款</strong>——这条比省 4 小时重要。</li>
+<li><strong>手势约束（你定的）</strong>：<code>dragRotate: false</code>、<code>touchPitch: false</code>、<code>pitchWithRotate: false</code>、<code>maxPitch: 0</code>。半径圈是我们自己按墨卡托算的多边形，用户一转一倾就和底图错位；2D 产品不需要这两个手势。键盘也不给旋转。</li>
+</ul>
+<h3 id="33">3.3 底图配置（换源只改一处）</h3>
+<p><code>src/lib/basemap.ts</code> 单一配置文件：</p>
+<pre data-lang="ts"><code>export const BASEMAP = {
+  primary: { style: 'https://tiles.openfreemap.org/styles/fiord', slug: 'fiord' },
+  // 备用（D5：自托管 Natural Earth 110m 轮廓，公有领域，随站打包）
+  fallback: { kind: 'natural-earth-110m', path: '/geo/ne110m-land.json', bytes: 120_000 },
+  interactions: { dragRotate: false, touchPitch: false, pitchWithRotate: false, maxPitch: 0 },
+  void: '#0B0E13',
+  attribution: 'OpenFreeMap © OpenMapTiles · Data from OpenStreetMap',
+  styleTimeoutMs: 4000,
+};
+</code></pre>
+<ul>
+<li>主源核实结果（官网原文）：公共实例<strong>完全免费、不限请求数、无需 API key、无 cookie</strong>，FAQ 明确 <code>Is commercial usage allowed? Yes.</code>，无 SLA（官网明说）。署名由 MapLibre 自动挂上，但我们仍手写一份常驻 footer，防止客户端差异。</li>
+<li>风格选 <strong>Fiord</strong>（深色、地形感强）；Dark 作为同一源内的第二候选（同源换风格不算备用源）。</li>
+<li>禁止清单照你写的执行：不用 Esri World Imagery、Google、Mapbox、任何 API key 服务。备用源<strong>不是</strong>别家的免费额度，是自托管的 Natural Earth 110m 轮廓（D5）。</li>
+</ul>
+<h3 id="34-url">3.4 URL 状态</h3>
+<ul>
+<li><code>/ ?city=new-york&amp;y=100</code> （预置点，短、可分享、可被搜到）</li>
+<li><code>/ ?lat=40.7128&amp;lon=-74.0060&amp;y=100&amp;n=40.7128,-74.0060</code> （任意点，<code>n</code> 存地名用于分享图与标题）</li>
+<li><code>/nuclear-bomb-map/?lat=&amp;lon=&amp;y=</code> 同构。</li>
+<li>所有状态变更 <code>replaceState</code>（不污染历史），复制链接按钮给绝对 URL。</li>
+<li>首屏无参 → 渲染默认（New York · 100 kt · air），<strong>服务端直出，不靠 JS 补</strong>。</li>
+</ul>
+<h3 id="35-png-svg">3.5 分享图（构建期 PNG，绝不用 SVG）</h3>
+<ul>
+<li><code>scripts/build_og.py</code>（Pillow）：深色底 + Natural Earth 110m 陆地图层（灰蓝）+ 该点四个半径圈（真实比例）+ 圆心标记 + 左上当量/城市、右下人口、底部固定出处行。</li>
+<li>输出 1200×630 PNG，每城 1 张（100 kt 口径）+ 首页 + <code>/nuclear-bomb-map/</code> + <code>/blast-radius/</code> + <code>/nuclear-winter/</code>，共约 24 张，全部 <code>build</code> 前生成到 <code>public/og/</code>。</li>
+<li><code>og:title</code> 与 <code>&lt;title&gt;</code> <strong>由同一个 <code>page</code> 对象渲染</strong>（不可能不一致，从结构上消灭上一版的 bug）。</li>
+<li><code>og:image</code> 绝对 URL，<code>og:image:width/height</code> 显式写出，同时给 <code>twitter:card=summary_large_image</code>。</li>
+<li>构建后加一条断言脚本：任一页面 <code>og:title !== title</code> 或 <code>og:image</code> 以 <code>.svg</code> 结尾 → 构建失败。</li>
+</ul>
+<h3 id="36">3.6 性能预算（移动端优先）</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>项</th>
+<th>目标</th>
+<th>手段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>首屏 HTML+TXT</td>
+<td>&lt; 60 KB gzip</td>
+<td>Astro 静态、内联 critical CSS、无 web font</td>
+</tr>
+<tr>
+<td>首屏可见结果</td>
+<td>&lt; 1.2 s</td>
+<td>结果面板是纯 HTML；数字来自内联 JSON</td>
+</tr>
+<tr>
+<td>地图可见</td>
+<td>&lt; 2 s（4G）</td>
+<td>MapLibre 在 <code>requestIdleCallback</code> 后动态 <code>import()</code>；不阻塞首屏</td>
+</tr>
+<tr>
+<td>切换当量到出圈</td>
+<td>&lt; 300 ms</td>
+<td>纯查表 + Canvas 重绘，无网络</td>
+</tr>
+<tr>
+<td>JS 总量</td>
+<td>首屏 &lt; 40 KB，地图就绪后 +260 KB</td>
+<td>代码分割；<code>cities-search</code> 分片按需</td>
+</tr>
+<tr>
+<td>降级</td>
+<td>4 s 超时必定落到可用状态</td>
+<td>style 超时 + tile error 计数</td>
+</tr>
+</tbody>
+</table></div>
+<p>移动端交互：选点 = 单击（<code>tap</code>），当量 = 三个大按钮（不做滑杆，滑杆是阶段二的事）；结果面板为底部抽屉，拇指可达；地图默认 zoom 由半径自动 fit（留 15% 边距）。</p>
+<hr />
+<h2 id="4">4. 页面清单与逐页规格</h2>
+<blockquote>
+<p>Title 与 H1 都含目标词，且不重复同一句话；description 每页手写。</p>
+</blockquote>
+<h3 id="41-nuke-simulator">4.1 <code>/</code> — 主词 <code>nuke simulator</code></h3>
+<ul>
+<li>Title: <code>Nuke Simulator: Blast Radius and Population for Any City</code></li>
+<li>H1: <code>Pick a point, pick a yield — this nuke simulator draws the rings to scale</code></li>
+<li>Default state（SSR）: New York, 100 kt, air burst → 4 个半径 + 各半径内人口 + 出处。</li>
+<li>结构：地图（左/上）+ 结果面板（右/下）+ 三句话解释这是什么 + 4 条内链块（blast-radius / nuclear-bomb-map / methodology / 6 个城市）+ FAQ（8 条，FAQPage JSON-LD）+ 一行脚注。</li>
+<li>JS off：地图区替换为静态结果块 + 「See the full table →」指向 <code>/blast-radius/</code>。</li>
+<li>工作量：<strong>8 h</strong></li>
+</ul>
+<h3 id="42-blast-radius-nuclear-bomb-blast-radiusus-8100">4.2 <code>/blast-radius/</code> — <code>nuclear bomb blast radius</code>（US 8,100/月）</h3>
+<ul>
+<li>Title: <code>Nuclear Bomb Blast Radius, 15 kt to 1 Mt — Table With Sources</code></li>
+<li>H1: <code>Every nuclear bomb blast radius in this table points to a page in the 1977 manual</code></li>
+<li>首屏即表格。行 = 火球 / 5 psi / 1 psi / 热辐射（二度、三度各一行）；列 = 15 / 100 / 1000 kt（阶段二扩到 12 档）。</li>
+<li><strong>每个格子里必须有四行</strong>（这是溯源的最小单位，不能再少）：<br />
+  1. 数值 + 单位（km，2 位小数）；<br />
+  2. 该格实际用的爆高 <code>at 2,509 ft HOB</code> / <code>contact burst</code> / <code>formula — no burst height input</code>；<br />
+  3. 出处 <code>Ch. 3 · Fig. 3.73c · p. 115</code>（公式类写 <code>Eq. (2.127.1) · p. 70</code>）；<br />
+  4. 口径标签：<code>scaled from the 1 kt curve (§3.61, p.101)</code> / <code>interpolated between 4 and 6 psi contours</code> / <code>read directly, not scaled</code>。</li>
+<li>表下第一段是「1 Mt 的爆高超出 5,000 ft 匀质大气假设」的说明，和表格同屏，不折叠、不放进 tooltip。</li>
+<li>地爆表单独一张，明确写「contact surface burst：超压与火球；热辐射不在此口径内给出」。</li>
+<li>纯 HTML 表，<code>&lt;table&gt;</code> 语义化，JS off 完整可读——<strong>这一页是本站的第一个 JS 依赖为零的页面</strong>。</li>
+<li>表下给读数方式块（峰值读法 / 立方根缩放原文 / 5 psi 插值 / Fig. 7.42 标定依据），并链 <code>/methodology/</code>。</li>
+</ul>
+<p><strong>上线标准（四条硬门，任一不达标不上线）</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>门</th>
+<th>判定方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>G-a</td>
+<td>关 JS 能读完整表</td>
+<td>构建后 HTML 里 15 个主数 + 24 条出处全部是静态文本，页面无 <code>&lt;script&gt;</code></td>
+</tr>
+<tr>
+<td>G-b</td>
+<td>每格带印刷页码</td>
+<td>构建后断言 <code>p. 115</code> / <code>p. 291</code> / <code>p. 70</code> / <code>p. 71</code> 出现次数与格子数一致</td>
+</tr>
+<tr>
+<td>G-c</td>
+<td>5 psi 每行带插值标注</td>
+<td>断言 <code>interpolated between 4 and 6 psi contours</code> 出现 6 次（空爆 3 + 地爆 3）</td>
+</tr>
+<tr>
+<td>G-d</td>
+<td>1 Mt 带爆高边界说明</td>
+<td>断言页面含 <code>5,000 ft</code> 与 <code>10,174 ft</code>，且两者在同一段内</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>工作量：<strong>4 h</strong>（不含数据）</li>
+</ul>
+<h3 id="43-nuclear-bomb-map-nuclear-bomb-mapus-2400">4.3 <code>/nuclear-bomb-map/</code> — <code>nuclear bomb map</code>（US 2,400/月）</h3>
+<ul>
+<li>Title: <code>Nuclear Bomb Map — Drop a Pin Anywhere and See the Rings</code></li>
+<li>H1: <code>A nuclear bomb map with real scale, not a cartoon</code></li>
+<li>与首页共用岛屿组件，差异在默认视角（世界 zoom 2）与文案侧重「地图」而非「模拟器」。</li>
+<li>导航一级项，首页与城市页都链过来。</li>
+<li>工作量：<strong>4 h</strong></li>
+</ul>
+<h3 id="44-city-20">4.4 <code>/[city]/</code> × 20</h3>
+<ul>
+<li>Title 模板（<strong>每页手写，不批量套</strong>）：<code>Nuclear Blast Radius in New York — 15 kt, 100 kt and 1 Mt</code></li>
+<li>H1（各不相同）：<code>Where the rings land in New York</code></li>
+<li>内容三件套：① 15/100/1000 kt × 4 效应表（同 4.2 规格）；② 各半径内人口；③ 120–160 词真地名文案（Manhattan / Brooklyn / Jersey City / Newark…，来自 GeoNames + OSM 地名，不编）。</li>
+<li>结构数据：<code>BreadcrumbList</code>（Home › Cities › New York）。内链：回首页、回 <code>/blast-radius/</code>、上/下各一个城市、<code>/nuclear-bomb-map/</code>。</li>
+<li>20 城：new-york, los-angeles, chicago, houston, san-francisco, washington-dc, miami, seattle, boston, atlanta, london, paris, tokyo, berlin, sydney, toronto, mexico-city, sao-paulo, new-delhi, johannesburg。</li>
+<li>生成门槛写入脚本：某城若 4 效应 × 3 当量有任一缺值 / 人口缺失 / 文案 &lt; 100 词 → 该城<strong>不生成页面</strong>（符合你的「凑不出三项不要生成」）。</li>
+<li>工作量：<strong>10 h</strong>（模板 4 h + 20 篇文案 6 h）</li>
+</ul>
+<h3 id="45-nuclear-winter-nuclear-winterus-9900">4.5 <code>/nuclear-winter/</code> — <code>nuclear winter</code>（US 9,900/月）</h3>
+<ul>
+<li>Title: <code>Nuclear Winter: What the Published Research Actually Says</code></li>
+<li>H1: <code>Nuclear winter, from the 1983 paper to the 2019 model runs</code></li>
+<li>2,500+ 词。结构：定义 → 机制（烟尘进入平流层）→ 关键研究时间线（TTAPS 1983 / Robock 2007 / Coupe 2019 / Toon 2019）→ 争议与不确定 → 与本站数据的关系（明确说：本站不算核冬天，只引述已发表结论）。</li>
+<li>图表 2–3 个：只用<strong>已发表数字</strong>重绘（如烟尘量 vs 全球平均降温），标注「redrawn from X (year), Fig. Y」；不做任何新计算。</li>
+<li>引用：脚注式，8–12 条，优先可公开访问的原文/摘要链接。</li>
+<li>内链：<code>/methodology/</code>、<code>/blast-radius/</code>、首页。</li>
+<li>工作量：<strong>14 h</strong>（含查证）</li>
+</ul>
+<h3 id="46-methodology">4.6 <code>/methodology/</code></h3>
+<ul>
+<li>手册版本/DOI/镜像；四类数值的取数路径与图号页码；立方根缩放的原文引用与适用边界（手册说「megaton range」以内）；读图误差（对数坐标 ±3–8%，写区间不写单值保证）；WorldPop 版本/年份/分辨率/像元中心法；GeoNames 版本；<strong>「本站没有算什么」清单</strong>（10 条：不做伤亡估计、不做实时人流、不做落尘足迹、不做 3D、不做自由当量滑杆外推、不做地下/水下/高空爆炸、不做多弹头、不做地形遮蔽、不做建筑结构响应、不做辐射剂量）。</li>
+<li>含 <code>data-ledger</code> 的可读版本（抽查状态表）。</li>
+<li>工作量：<strong>5 h</strong></li>
+</ul>
+<h3 id="47-about-privacy">4.7 <code>/about/</code> <code>/privacy/</code></h3>
+<ul>
+<li>about：谁做的、为什么做、数据从哪来、怎么纠错（给一个邮箱，用现有 Agent Mail 或普通邮箱）。</li>
+<li>privacy：无账号、无 cookie、无追踪（GA4/Clarity 先不加，v1 保持 zero-tracking，这也省掉一类合规问题）、CDN 日志说明、外链。</li>
+<li>工作量：<strong>2 h</strong></li>
+</ul>
+<hr />
+<h2 id="5-seo">5. SEO 落地清单（逐条可勾）</h2>
+<ul>
+<li class="todo">全站静态；JS off 下每页数字/文案/内链都在 HTML（用 <code>astro build</code> 后 grep 校验，写进 CI）</li>
+<li class="todo">首页 SSR 默认值（New York · 100 kt）</li>
+<li class="todo">一页一词；Title ≠ H1 且都含目标词</li>
+<li class="todo">description 逐页手写</li>
+<li class="todo">og:image = 1200×630 PNG，构建期生成；og:title 与 title 同源</li>
+<li class="todo">JSON-LD：首页 + 各 FAQ 区 <code>FAQPage</code>；城市页 <code>BreadcrumbList</code>；<code>/blast-radius/</code> 加 <code>Dataset</code>（可选）</li>
+<li class="todo">canonical 全部指向 <code>https://apocalab.com/...</code>（构建时断言不含 <code>vercel.app</code> / <code>pages.dev</code>）</li>
+<li class="todo"><code>sitemap.xml</code>（<code>@astrojs/sitemap</code>，自动含 20 城）</li>
+<li class="todo"><code>robots.txt</code> 指 sitemap</li>
+<li class="todo">内链 ≥3 条/页；城市页必链首页 + <code>/blast-radius/</code></li>
+<li class="todo">构建断言：无 <code>lorem</code>、无 <code>TODO</code>、无 <code>undefined</code>；禁词按词边界匹配（<code>\bdemo\b</code> 等）</li>
+<li class="todo">构建断言：<code>/blast-radius/</code> 的四条硬门（4.2）逐条过</li>
+<li class="todo">Lighthouse 移动端：Perf ≥ 90，SEO = 100，A11y ≥ 90</li>
+</ul>
+<hr />
+<h2 id="6-104-h">6. 开发顺序与工作量（总 ~104 h）</h2>
+<p><strong>顺序按你的调整改过：<code>/blast-radius/</code> 提前到地图之前。</strong> 理由不再是「先有数据后有页面」，而是「这一页只要有真数字真表格就能接 <code>nuclear bomb blast radius</code> 这个月搜 8,100 的词，不需要地图」。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>内容</th>
+<th>工时</th>
+<th>出口标准（不达标不进入下一阶段）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>0 数据层</strong> ✅</td>
+<td>曲线读数、<code>effects.json</code>、<code>verify_data.py</code>、<code>data-ledger.csv</code></td>
+<td>14 h</td>
+<td><strong>已通过 2026-11-11</strong>：24 条数据、354 项自检全过、抽检 5 条对上原图</td>
+</tr>
+<tr>
+<td><strong>1 骨架 + <code>/blast-radius/</code></strong></td>
+<td>Astro 工程、<code>effects.ts</code>、Base 布局、<code>/blast-radius/</code>、<code>/methodology/</code> 首版</td>
+<td>12 h</td>
+<td>4.2 的四条硬门全绿</td>
+</tr>
+<tr>
+<td><strong>2 首页 + 查表</strong></td>
+<td>ResultPanel SSR、首页默认值（New York · 100 kt）、URL 状态</td>
+<td>8 h</td>
+<td>JS off 首页有完整结果；切当量 &lt;300 ms</td>
+</tr>
+<tr>
+<td><strong>3 地图 + 视觉</strong></td>
+<td>MapLibre、Canvas 覆盖层、测地圆、Natural Earth 降级、移动端抽屉</td>
+<td>16 h</td>
+<td>断网/挂瓦片时轮廓与圈仍在且不空白；4G 首屏 2 s 内</td>
+</tr>
+<tr>
+<td><strong>4 <code>/nuclear-bomb-map/</code></strong></td>
+<td>世界视角 + 导航接入</td>
+<td>4 h</td>
+<td>导航可点达；分享链接可还原</td>
+</tr>
+<tr>
+<td><strong>5 城市页 ×20</strong></td>
+<td>模板 + 生成门槛 + 20 篇文案 + og 图</td>
+<td>10 h</td>
+<td>20 页全过门槛；每页 3 条内链</td>
+</tr>
+<tr>
+<td><strong>6 城市页扩到 80 页</strong></td>
+<td>20 → 60–70 城</td>
+<td>16 h</td>
+<td>首月 80 页在线，每页都过生成门槛</td>
+</tr>
+<tr>
+<td><strong>7 内容与法务</strong></td>
+<td>nuclear-winter 2500 词、methodology 定稿、about、privacy</td>
+<td>18 h</td>
+<td>引用可点、无自算数字</td>
+</tr>
+<tr>
+<td><strong>8 收口</strong></td>
+<td>sitemap/robots/canonical 断言、Lighthouse、OG 全量核查</td>
+<td>6 h</td>
+<td>第 5 节清单全绿</td>
+</tr>
+<tr>
+<td>—</td>
+<td><strong>阶段二</strong>（12 当量页，等你确认）</td>
+<td>8 h</td>
+<td>复用同套数据与模板</td>
+</tr>
+</tbody>
+</table></div>
+<p>总量从 v1.0 的 70–85 h 上调到 <strong>~104 h</strong>，多出来的两块是：城市页扩到 80 页（+16 h）、骨架与 <code>/blast-radius/</code> 合并成一段（+2 h，因为这一页现在要按上线标准做，不是草稿）。</p>
+<h3 id="61-80-3">6.1 首月 80 页怎么堆（你定的第 3 条）</h3>
+<p>80 页靠<strong>加城市</strong>，不靠加页面类型。原因：新页面类型的边际成本里有「新数据口径 + 新文案结构 + 新 schema」三样，每加一种都要重走一遍方法论；城市页的边际成本只有「120–160 词地名文案 + 一次人口预算」，而且数据和模板完全复用。</p>
+<ul>
+<li>阶段 5 先把 20 城跑通，确认模板与生成门槛（缺值 / 缺人口 / 文案 &lt;100 词 → 该城不生成）。</li>
+<li>阶段 6 按 20 城一批扩到 60–70 城，每批过一次门槛检查。</li>
+<li><strong>不一次铺满</strong>：先看前 20 城的收录信号，再决定要不要继续往上堆。这跟你定的站群准则一致——信号顺序是收录 → 外链 → 页量 → 排名，页量排在收录后面，不该先堆。</li>
+</ul>
+<hr />
+<h2 id="7">7. 风险清单（逐条，具体到哪一条 + 替代做法）</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>风险</th>
+<th>具体位置</th>
+<th>后果</th>
+<th>替代 / 处置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td><strong>多当量必须靠缩放律</strong></td>
+<td>5 psi / 1 psi</td>
+<td>与「不做任何推导」字面冲突</td>
+<td>用手册 §3.61/§3.75 原文；静态化到 JSON；methodology 公开；页面小字标注。<strong>需要你裁决</strong></td>
+</tr>
+<tr>
+<td>R2</td>
+<td>对数坐标读数误差</td>
+<td>Fig. 3.73c 上 1 psi 那一段</td>
+<td>1 psi 半径可能 ±5–8%</td>
+<td>读数记到 3 位有效、页面四舍五入到 10 m；批量给区间；你抽查 5 条校准</td>
+</tr>
+<tr>
+<td>R3</td>
+<td><strong>1 Mt 的爆高（5 psi 10,174 ft / 1 psi 15,750 ft）超出 §3.73 p.110 的 5,000 ft 匀质大气假设</strong></td>
+<td>3.73c 缩放</td>
+<td>该档半径叠加了手册未量化的额外不确定度</td>
+<td><strong>保留 1 Mt</strong>：结果面板显示 HOB；methodology 写「按 §3.61 缩放、应读作上限」；注明未做 §3.64–3.66 高度修正（省略方向使值偏小）；不做 &gt;1 Mt</td>
+</tr>
+<tr>
+<td>R4</td>
+<td>爆高口径你未指定</td>
+<td>全站</td>
+<td>同一点位不同爆高差 20–40%</td>
+<td>建议默认「对 5 psi 最优的空中爆炸」（§3.73 概念），面板显示实际爆高，第二态给 surface burst</td>
+</tr>
+<tr>
+<td>R5</td>
+<td>热辐射阈值未定义</td>
+<td>thermal radius</td>
+<td>换阈值半径差一倍</td>
+<td>建议二度烧伤（浅肤色）为默认 + 三度另列；值从 Fig. 12.64 读，用 §12 p.562 的 4.5–6 cal/cm² 做校验锚点</td>
+</tr>
+<tr>
+<td>R6</td>
+<td><strong>Fig. 7.42 曲线标号不可直读</strong>（扫描件无文字层）</td>
+<td>thermal 全部 6 格</td>
+<td>阈值与曲线对不上，整列错</td>
+<td><strong>已处置</strong>：三档全部直读该图，标号由 §12.66 p.563 + §7.43 p.290 两句话反推，三条锚点偏差 +3.6% / −3.9% / +5.0%；methodology 明写标定依据与「无文字层」</td>
+</tr>
+<tr>
+<td>R7</td>
+<td>1 km 人口栅格任意点覆盖</td>
+<td>首页选点</td>
+<td>全球 1 km 栅格 30 MB+</td>
+<td>20 城 250 km 窗口 + lazy 加载；窗口外明示未覆盖，不外推</td>
+</tr>
+<tr>
+<td>R8</td>
+<td>城市「范围内人口」定义歧义</td>
+<td>城市页</td>
+<td>数字说不清</td>
+<td>建议统一为「半径内人口」，与效应圈同源；不引入行政市界人口（两套数会互相打脸）</td>
+</tr>
+<tr>
+<td>R9</td>
+<td>20 城跨 10 国，WorldPop 各国方法不一</td>
+<td>城市页</td>
+<td>横向不可比</td>
+<td>统一 R2025A constrained UN-adjusted + 同一年 2020；methodology 明写</td>
+</tr>
+<tr>
+<td>R10</td>
+<td>备用底图源难找</td>
+<td>3.3</td>
+<td>主源挂了只剩纯色</td>
+<td><strong>已解决（D5）</strong>：自托管 Natural Earth 110m 轮廓，公有领域、约 120 KB、随站打包，不依赖任何第三方条款</td>
+</tr>
+<tr>
+<td>R11</td>
+<td>OpenFreeMap 无 SLA</td>
+<td>3.3</td>
+<td>突发不可用</td>
+<td>降级方案已覆盖；上线后每周一次探测脚本记录可用性</td>
+</tr>
+<tr>
+<td>R12</td>
+<td><code>/nuclear-winter/</code> 图表版权</td>
+<td>4.5</td>
+<td>直接截论文图有风险</td>
+<td>只用「已发表的数字」重绘，标注 redrawn from + 原始出处，不复制原图版式</td>
+</tr>
+<tr>
+<td>R13</td>
+<td>内容敏感度（广告/支付审核）</td>
+<td>全站</td>
+<td>后续订阅可能被支付方拒</td>
+<td>v1 保持零追踪、零广告、纯事实引述；文案避开「target your city」这类祈使句，用「at this location」</td>
+</tr>
+<tr>
+<td>R14</td>
+<td>构建产物文件数</td>
+<td>部署</td>
+<td>CF Pages 有文件数上限</td>
+<td>20 城 × 少量资源 + 24 张 og，总量 &lt; 500 文件，安全</td>
+</tr>
+<tr>
+<td>R15</td>
+<td>og 图需离线底图</td>
+<td>3.5</td>
+<td>无瓦片服务器可用</td>
+<td>Natural Earth 110m（公有领域）光栅化，不需要任何地图 API</td>
+</tr>
+<tr>
+<td>R16</td>
+<td><code>[city]</code> 路由与未来 slug 冲突</td>
+<td>路由</td>
+<td>新增 <code>/about/</code> 之类若与城市同名</td>
+<td>静态路由优先于 <code>[city]</code>，且建 <code>reserved.json</code> 白名单在构建期断言</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="8-2026-11-11">8. 五个决策点：已裁决（2026-11-11）</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>议题</th>
+<th>裁决</th>
+<th>落地位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>缩放律（R1）</td>
+<td><strong>接受</strong>。三档全出；每条缩放值带 <code>scaled from the 1 kt curve (§3.61, p.101)</code>；<code>readout</code> 记 1 kt 基准读数与像素坐标；用 §12.66 做交叉校验</td>
+<td>2.2 / 2.8 / <code>effects.json</code></td>
+</tr>
+<tr>
+<td>D2</td>
+<td>爆高口径（R4）</td>
+<td><strong>读峰值</strong>，不选固定爆高、不拟合最优爆高公式；面板显示 HOB 与 burst type；第二态为地爆，读 HOB = 0 底边；火球空爆 110·W^0.4 / 地爆 145·W^0.4，禁止混搭</td>
+<td>2.2 ②③ / 4.2</td>
+</tr>
+<tr>
+<td>D3</td>
+<td>热辐射阈值（R5）</td>
+<td><strong>二度（4.5 cal/cm²，未遮挡浅肤色）默认 + 三度（10 cal/cm²）另列</strong>；页面写明肤色与遮蔽假设</td>
+<td>2.2 ④ / 4.2</td>
+</tr>
+<tr>
+<td>D4</td>
+<td>城市人口口径（R8）</td>
+<td><strong>城市中心半径 10 km 内 WorldPop 人口</strong>，不用行政边界；效应圈内人口另算，两个数不合并；页面明写半径、年份、版本</td>
+<td>2.5 / 4.4</td>
+</tr>
+<tr>
+<td>D5</td>
+<td>备用底图</td>
+<td><strong>自托管 Natural Earth 110m 公有领域轮廓</strong>（约 120 KB，随站打包）；不用任何第三方免费额度；瓦片挂掉画轮廓 + 半径圈 + 一行说明</td>
+<td>3.2 / 3.3</td>
+</tr>
+</tbody>
+</table></div>
+<p>三条调整同样已落地：<code>/blast-radius/</code> 提前到地图之前（6）；关掉地图旋转与俯仰（3.2）；首月 80 页靠加城市（6.1）；全站禁 demo 类字样 + 免责恰一行（1）。</p>
+<p><strong>仍待你后续定的两件</strong>：阶段二 12 当量页做不做（+8 h）；<code>/nuclear-bomb-map/</code> 与首页要不要合并（当前分开，因为两个词各自有量，合并会牺牲其中一个的标题口径）。</p>
+<hr />
+<h2 id="9">9. 口径自查（<strong>不是入库数据，只为验证链路走通</strong>）</h2>
+<p>仅用已核实的式 (2.127.1) <code>R = 110·W^0.4 ft</code> 跑一遍，确认单位与量级没问题：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>当量</th>
+<th>breakaway 火球半径（≈ ft → m）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>15 kt</td>
+<td>≈ 325 ft ≈ 99 m</td>
+</tr>
+<tr>
+<td>100 kt</td>
+<td>≈ 694 ft ≈ 212 m</td>
+</tr>
+<tr>
+<td>1 Mt</td>
+<td>≈ 1,743 ft ≈ 531 m</td>
+</tr>
+</tbody>
+</table></div>
+<p>与公开常识量级一致，说明链路可用。<strong>5 psi / 1 psi / 热辐射三行现在是空的，阶段 0 读图后填，你抽查过才进页面。</strong></p>
+<hr />
+<h2 id="10-0">10. 附：数据录入模板（阶段 0 用的工作表表头）</h2>
+<p><code>id | effect | yield_kt | burst | radius_ft | radius_m | hob_ft | value_type | figure | page | 读数过程 | 录入 | 抽查 | 备注</code></p>
+<p>~~首批必须填满的 12 行~~ → <strong>阶段 0 已完成，实际落了 24 行</strong>（空爆 12 + 地爆 12），见 <code>data-ledger.csv</code>。实际取值路径与 v1.0 的差异：</p>
+<pre><code>fireball.air.15/100/1000        → 式(2.127.1) p.70（公式，非读图）
+fireball.ground.15/100/1000     → 式(2.127.2) p.71（公式，地爆口径）
+overpressure_5psi.air.*         → Fig.3.73c p.115 读每条等压线峰值 → 4/6 psi 插值 → §3.61 式(3.61.2) p.101 缩放
+overpressure_5psi.ground.*      → Fig.3.73c p.115 读 HOB=0 底边 → 缩放
+overpressure_1psi.air.*         → Fig.3.73c p.115 读峰值 → 缩放
+overpressure_1psi.ground.*      → Fig.3.73c p.115 读底边 → 缩放
+thermal_2nd.air.*               → Fig.7.42 p.291 三档直读（4.5 cal/cm²）
+thermal_3rd.air.*               → Fig.7.42 p.291 三档直读（10 cal/cm²）
+</code></pre>
+<hr />
+<h2 id="11">11. 我这边的收尾说明</h2>
+<ul>
+<li>本地 <code>.tmp_handbook/</code> 是我抽 PDF 的临时目录（4 个 PDF + 抽取脚本 + 文本）。阶段 0 还要用它做读数核对，所以先留着，<strong>首次提交前会写进 <code>.gitignore</code> 并清掉</strong>，不进仓库。</li>
+<li>工作区现有的 4 张 PNG（蘑菇云、地形图、横幅）我看过了，v1 只可能用作 <code>/nuclear-winter/</code> 的插图或 og 图底纹；如果要用，我会先给你看合成效果，不直接上。</li>
+<li>我不同意把「免责」做成页面元素之外的任何东西，但你这条要求我照做：全站每页恰一行，页底。</li>
+</ul>
+    </main>
+  </div>
+</div>
+
+<footer>apocalab.com · 实施计划 v1 · 本文档为内部方案，未对外发布</footer>
+</body>
+</html>

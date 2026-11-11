@@ -1,0 +1,127 @@
+---
+import Base from '../layouts/Base.astro';
+import ResultPanel from '../components/ResultPanel.astro';
+import { YIELDS } from '../lib/effects';
+import { DEFAULT_CITY, cities, getCity } from '../lib/cities';
+import type { YieldKt } from '../lib/effects';
+
+const city = getCity(DEFAULT_CITY) ?? cities[0];
+const defaultYield: YieldKt = 100;
+const defaultBurst = 'air' as const;
+
+const faq = [
+  {
+    q: 'How far from a 100 kt explosion does the blast do damage?',
+    a: 'At 100 kt the 5 psi ring reaches 3.22 km and the 1 psi ring 9.93 km, both read from Fig. 3.73c of The Effects of Nuclear Weapons and scaled by the cube-root law printed in that manual (§3.61, p. 101). One psi is the level at which window glass breaks; five psi is the level associated with most residential buildings being destroyed.',
+  },
+  {
+    q: 'Is this a simulation?',
+    a: 'No. Every number on this page is transcribed from a 1977 U.S. government manual and carries the figure and printed page it came from. Nothing is modelled, fitted or interpolated beyond the scaling law the manual itself states.',
+  },
+  {
+    q: 'Why does the same yield give different radii for air and contact bursts?',
+    a: 'A contact burst puts the fireball against the ground, so part of the energy goes into the ground and the shock wave reflects differently. The manual plots both cases; this site reads each one from its own edge of the chart rather than adjusting one to look like the other.',
+  },
+  {
+    q: 'Why are there no thermal radii for a contact burst?',
+    a: 'Fig. 7.42, the chart the thermal values come from, is drawn for air bursts at a burst height of 200·W^0.4 ft. The manual handles surface-burst thermal radiation by a separate route (§7.41, p. 290). Rather than blend two procedures into one column, this page reports blast and fireball only for contact bursts.',
+  },
+];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faq.map((f) => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+};
+---
+
+<Base
+  title="Nuke Simulator: Blast Radius for Any City, 15 kt to 1 Mt"
+  description="Pick a city and a yield and see the fireball, 5 psi, 1 psi and thermal radii, drawn to scale. Every value is transcribed from The Effects of Nuclear Weapons (1977) with its figure and printed page."
+  path="/"
+  current="home"
+  jsonLd={jsonLd}
+>
+  <p class="eyebrow">Public-domain source · no model output</p>
+  <h1>Pick a city, pick a yield — the rings are drawn to scale from the manual</h1>
+
+  <p class="lede">
+    Five distances, three yields, two burst modes. Every number comes from
+    <em>The Effects of Nuclear Weapons</em> (1977), and every number carries the figure and printed
+    page it was read from — so you can check any of them against the book instead of taking this
+    page's word for it.
+  </p>
+
+  <ResultPanel city={city} y={defaultYield} burst={defaultBurst} cities={cities} />
+
+  <h2>What each ring means</h2>
+
+  <p>
+    The <strong>fireball</strong> is the incandescent sphere at the moment the shock front separates
+    from it. <strong>5 psi</strong> is the overpressure associated with most residential buildings
+    being destroyed; <strong>1 psi</strong> is roughly where window glass breaks. The two
+    <strong>thermal</strong> rings are the slant range to a given irradiance:
+    4.5&nbsp;cal/cm² for second-degree burns on unshaded light skin, 10&nbsp;cal/cm² for
+    third-degree. Clothing, shelter, haze and skin tone all move the thermal figure, and this page
+    makes no adjustment for any of them.
+  </p>
+
+  <p>
+    Height of burst is not chosen here. Each overpressure contour is read at its own peak — the
+    point where it reaches furthest from ground zero — so every value carries the burst height the
+    chart itself associates with that maximum. The panel shows that height next to each number, and
+    the <a href="/blast-radius/">full table</a> carries it for all three yields.
+  </p>
+
+  <h2>Where the numbers come from</h2>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3><a href="/blast-radius/">Blast radius table →</a></h3>
+      <p>
+        All 24 values in one table: five effects, three yields, air and contact burst. Each cell
+        gives the number, the burst height, the figure and the printed page, plus a tag saying
+        whether it was read off a chart or scaled by the manual's own law. Readable with scripting
+        off.
+      </p>
+    </div>
+    <div class="card">
+      <h3><a href="/methodology/">Methodology →</a></h3>
+      <p>
+        How each figure was read, the text of the scaling law, where the 1 Mt rows leave the chart's
+        assumptions behind, and the one chart whose contour labels had to be identified from the
+        manual's prose because the scan has no text layer.
+      </p>
+    </div>
+  </div>
+
+  <h2>Questions this page answers</h2>
+
+  <div class="faq">
+    {
+      faq.map((f) => (
+        <details>
+          <summary>{f.q}</summary>
+          <p>{f.a}</p>
+        </details>
+      ))
+    }
+  </div>
+
+  <p class="note">
+    <strong>What this page is not.</strong> It gives distances from ground zero and nothing else —
+    no casualties, no building damage at a specific address, no fallout. It does not cover
+    underwater, underground or high-altitude bursts, multiple warheads, or terrain shielding. The
+    <a href="/methodology/">methodology page</a> lists what is left out and why.
+  </p>
+
+  <p class="small">
+    Yields covered: {YIELDS.map((y) => `${y.toLocaleString('en-US')} kt`).join(' · ')}.
+    Ring centre for the default state: {city.name} ({city.lat.toFixed(4)}, {city.lon.toFixed(4)}) —
+    a GeoNames gazetteer point, not an administrative centroid.
+  </p>
+</Base>

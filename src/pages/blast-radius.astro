@@ -1,0 +1,284 @@
+---
+import Base from '../layouts/Base.astro';
+import RadiusCell from '../components/RadiusCell.astro';
+import {
+  YIELDS,
+  EFFECT_ROWS,
+  get,
+  crossChecks,
+  fmtFt,
+  manual,
+} from '../lib/effects';
+
+const sub: Record<string, string> = {
+  fireball: 'breakaway radius · Eq. (2.127.1)',
+  overpressure_5psi: 'peak of the 4 and 6 psi contours, interpolated',
+  overpressure_1psi: 'peak of the outermost contour',
+  thermal_2nd: '4.5 cal/cm² · light skin, unshaded',
+  thermal_3rd: '10 cal/cm² · light skin, unshaded',
+};
+
+const groundRows = EFFECT_ROWS.filter(
+  (r) => r.id === 'fireball' || r.id.startsWith('overpressure'),
+);
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: 'Nuclear weapon blast radius, 15 kt to 1 Mt',
+  description:
+    'Fireball, 5 psi, 1 psi and thermal radii for 15, 100 and 1000 kt, transcribed from The Effects of Nuclear Weapons (Glasstone & Dolan, 3rd ed., 1977) and scaled only by the cube-root law printed in that manual.',
+  url: 'https://apocalab.com/blast-radius/',
+  license: 'https://creativecommons.org/publicdomain/mark/1.0/',
+  creator: { '@type': 'Organization', name: 'apocalab' },
+  isBasedOn: {
+    '@type': 'Book',
+    name: 'The Effects of Nuclear Weapons',
+    edition: '3rd',
+    datePublished: '1977',
+    identifier: 'doi:10.2172/6852629',
+    publisher: 'U.S. Department of Defense / ERDA',
+  },
+  variableMeasured: [
+    'fireball radius',
+    '5 psi overpressure radius',
+    '1 psi overpressure radius',
+    'second-degree burn radius',
+    'third-degree burn radius',
+  ],
+};
+---
+
+<Base
+  title="Nuclear Bomb Blast Radius, 15 kt to 1 Mt — Table With Sources"
+  description="Fireball, 5 psi, 1 psi and thermal radii for 15 kt, 100 kt and 1 Mt, transcribed from The Effects of Nuclear Weapons (1977). Every cell gives its figure and printed page."
+  path="/blast-radius/"
+  current="blast-radius"
+  jsonLd={jsonLd}
+>
+  <p class="eyebrow">
+    {manual.title} · {manual.edition} edition, {manual.year} · public domain
+  </p>
+  <h1>Every nuclear bomb blast radius in this table points to a page in the 1977 manual</h1>
+
+  <p class="lede">
+    The table gives the distance from ground zero to four effects, at three yields. None of it
+    is model output: the blast radii are read off Fig.&nbsp;3.73c at 1 kt and then scaled by the
+    manual's own cube-root law (Eq.&nbsp;3.61.2, p.&nbsp;101); the thermal radii are read
+    directly off Fig.&nbsp;7.42 (p.&nbsp;291) and are not scaled at all. Every cell carries the
+    figure and printed page it came from, so any single number can be checked against the book in
+    under a minute.
+  </p>
+
+  <h2 id="air">Air burst — the default reading</h2>
+  <p>
+    Height of burst is not chosen here. Each contour is read at its own peak — the point where it
+    reaches furthest from ground zero — so every overpressure carries the burst height that the
+    chart itself associates with that maximum. The manual works its own example the same way on
+    p.&nbsp;114.
+  </p>
+
+  <p class="tbl-hint">Scroll the table sideways →</p>
+  <div class="tbl-wrap">
+    <table class="data">
+      <caption>Radius to each contour, in kilometres. Air burst.</caption>
+      <thead>
+        <tr>
+          <th scope="col">Effect</th>
+          {YIELDS.map((y) => <th scope="col">{y.toLocaleString('en-US')} kt</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {
+          EFFECT_ROWS.map((row) => (
+            <tr id={row.anchor}>
+              <th scope="row">
+                {row.name}
+                <span class="th-sub">{sub[row.id]}</span>
+              </th>
+              {YIELDS.map((y) => (
+                <RadiusCell entry={get(row.id, 'air', y)} yieldKt={y} />
+              ))}
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <p class="note note--warn" id="hob-boundary">
+    <strong>Why three cells carry an amber warning.</strong>
+    Reading at the peak of each isobar puts the 1 Mt burst heights at 10,174&nbsp;ft (5 psi) and
+    15,750&nbsp;ft (1 psi); even the 100 kt 1 psi row lands at 7,311&nbsp;ft.
+    Fig.&nbsp;3.73c is computed for a homogeneous sea-level atmosphere at burst heights of
+    5,000&nbsp;ft or less (§3.73, p.&nbsp;110), so these cells extrapolate that assumption by up to
+    a factor of three. The numbers are still the manual's curve multiplied by the manual's scaling
+    law, but they should be read as the edge of what this chart supports rather than as precise
+    distances. No altitude correction from §3.64–3.66 is applied here, and leaving it out pushes
+    these figures low rather than high.
+  </p>
+
+  <p class="note" id="tags">
+    <strong>How to read the tags under each number.</strong>
+    <code>scaled from the 1 kt curve (§3.61, p.101)</code> means the figure is the 1 kt reading
+    multiplied by W<sup>1/3</sup> — the manual's own scaling law, applied once at build time, not
+    recomputed in your browser. <code>interpolated between 4 and 6 psi contours</code> means the
+    contour does not exist on the chart at all: Fig.&nbsp;3.73c prints 1, 2, 4, 6, 8 and 10 psi
+    only, so 5 psi is placed between the 4 and 6 psi curves at the logarithmic pressure position
+    0.5503. <code>read directly off Fig. 7.42</code> means no scaling was used. A star (*) marks a
+    value that has not been individually spot-checked; see
+    <a href="/methodology/#verification">verification</a>.
+  </p>
+
+  <h2 id="ground">Contact surface burst</h2>
+  <p>
+    Height of burst is zero: each distance is read where the contour meets the bottom edge of
+    Fig.&nbsp;3.73c, which is the convention the manual states on p.&nbsp;106. A contact burst puts
+    the fireball at the surface, so the fireball column switches to Eq.&nbsp;(2.127.2) on
+    p.&nbsp;71 — the two fireball coefficients are never mixed.
+  </p>
+
+  <p class="tbl-hint">Scroll the table sideways →</p>
+  <div class="tbl-wrap">
+    <table class="data">
+      <caption>Contact surface burst — height of burst = 0. Blast and fireball only.</caption>
+      <thead>
+        <tr>
+          <th scope="col">Effect</th>
+          {YIELDS.map((y) => <th scope="col">{y.toLocaleString('en-US')} kt</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {
+          groundRows.map((row) => (
+            <tr id={`ground-${row.anchor}`}>
+              <th scope="row">
+                {row.name}
+                <span class="th-sub">
+                  {row.id === 'fireball'
+                    ? 'contact burst · Eq. (2.127.2)'
+                    : 'bottom edge of Fig. 3.73c, height of burst = 0'}
+                </span>
+              </th>
+              {YIELDS.map((y) => (
+                <RadiusCell entry={get(row.id, 'ground', y)} yieldKt={y} />
+              ))}
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <p class="note">
+    <strong>The thermal rows are deliberately absent from this table.</strong>
+    Fig.&nbsp;7.42 is drawn for air bursts at burst heights of 200·W<sup>0.4</sup>&nbsp;ft, and the
+    manual treats thermal radiation from a surface burst by a separate route (§7.41, p.&nbsp;290).
+    Rather than blend two procedures into one column and call the result a number, this page reports
+    blast and fireball only for contact bursts. Nothing is missing by accident.
+  </p>
+
+  <h2 id="what">What each ring is</h2>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Fireball</h3>
+      <p>
+        The incandescent sphere itself. The value is the breakaway radius — the radius at the moment
+        the shock front separates from the fireball. For air bursts it comes from Eq.&nbsp;(2.127.1)
+        on p.&nbsp;70; for contact bursts, Eq.&nbsp;(2.127.2) on p.&nbsp;71. §2.129 notes that the
+        fireball may grow to about twice this radius, which is why the figure is described as a
+        breakaway value rather than a maximum.
+      </p>
+    </div>
+    <div class="card">
+      <h3>5 psi overpressure</h3>
+      <p>
+        Peak overpressure on the ground, not the incident pressure in free air. Fig.&nbsp;3.73c
+        plots that quantity, so the reflected wave is already inside the number. There is no 5 psi
+        contour printed on the chart; this row is interpolated between the 4 and 6 psi curves at a
+        fixed logarithmic position, and every 5 psi cell says so.
+      </p>
+    </div>
+    <div class="card">
+      <h3>1 psi overpressure</h3>
+      <p>
+        The outermost contour drawn on Fig.&nbsp;3.73c, and the one most sensitive to burst height:
+        at 1 kt it reaches 7,020&nbsp;ft at a burst height of 1,575&nbsp;ft, against
+        3,830&nbsp;ft for a contact burst. That sensitivity is why this page reads the peak of the
+        curve instead of picking a height of burst in advance.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Thermal · second and third degree</h3>
+      <p>
+        Slant range to a given irradiance, read off a chart drawn for unshaded light skin with
+        12-mile visibility. 4.5&nbsp;cal/cm² is the lower edge of the band the manual ties to
+        second-degree burns (§12.65, p.&nbsp;563); 10&nbsp;cal/cm² is the column reported for
+        third-degree burns (Fig.&nbsp;12.64, p.&nbsp;564). Clothing, shelter, haze and skin tone all
+        move this figure, and the page makes no adjustment for any of them.
+      </p>
+    </div>
+  </div>
+
+  <h2 id="checks">Cross-checks against the manual's own prose</h2>
+  <p>
+    Four places where the book states a number in words. If a reading were wrong, these are the
+    places it would show up first.
+  </p>
+
+  <p class="tbl-hint">Scroll the table sideways →</p>
+  <div class="tbl-wrap">
+    <table class="data">
+      <caption>Digitised reading against the sentence in the manual.</caption>
+      <thead>
+        <tr>
+          <th scope="col">Check</th>
+          <th scope="col">What the manual says</th>
+          <th scope="col">This table</th>
+          <th scope="col">Difference</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          crossChecks.map((c) => (
+            <tr>
+              <th scope="row">
+                {c.claim}
+                <span class="th-sub">{c.id}</span>
+              </th>
+              <td>
+                {c.manual}
+              </td>
+              <td>
+                <span class="v">
+                  {c.ours_mi !== undefined ? `${c.ours_mi} mi` : `${fmtFt(c.ours_ft ?? 0)} ft`}
+                </span>
+              </td>
+              <td>
+                <span class="v">{c.delta_pct > 0 ? '+' : ''}{c.delta_pct.toFixed(1)}%</span>
+              </td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="limits">What this table is not</h2>
+  <p>
+    It is a set of distances from ground zero, and nothing more. It does not estimate deaths,
+    injuries, building damage at a specific address, fallout, or what would happen in any actual
+    event. It also does not cover underwater, underground or high-altitude bursts, multiple
+    warheads, or terrain shielding. The <a href="/methodology/">methodology page</a> lists what is
+    left out and why, including how the two thermal thresholds were placed and where the 1 Mt rows
+    leave the chart's assumptions behind.
+  </p>
+  <p>
+    To reproduce any value: open the cited figure at the cited printed page, read the distance at
+    the stated burst height, multiply by W<sup>1/3</sup> where the cell says
+    <code>scaled</code>, and convert feet to metres with 0.3048. The same numbers, with the pixel
+    coordinates they were read at, ship in
+    <code>src/data/effects.json</code> and <code>data-ledger.csv</code>.
+  </p>
+</Base>

@@ -1,0 +1,22 @@
+# build / deps
+node_modules/
+dist/
+.astro/
+
+# working dir for PDF digitisation (4 manual PDFs + reading scripts). Never committed.
+.tmp_handbook/
+
+# the manual itself: public domain, but 75 MB and not part of the site
+EoNW/
+
+# local scratch
+*.log
+*.bak.md
+/*.txt
+verify_out.txt
+switch.json
+.tmp_chrome/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,1094 @@
+{
+  "manual": {
+    "title": "The Effects of Nuclear Weapons",
+    "editors": [
+      "Samuel Glasstone",
+      "Philip J. Dolan"
+    ],
+    "edition": "3rd",
+    "year": 1977,
+    "publisher": [
+      "U.S. Department of Defense",
+      "Energy Research and Development Administration"
+    ],
+    "doi": "10.2172/6852629",
+    "public_domain": true,
+    "page_convention": "citations use the printed page numbers of the 1977 edition; in the full scan 6852629.pdf the chapter 3 pages are printed page + 9"
+  },
+  "method": {
+    "air_burst_blast": "height of burst is read at the peak of each individual isobar on Fig. 3.73c (the point of maximum horizontal distance); each overpressure therefore carries its own burst height, and that height is scaled as W^(1/3)",
+    "ground_burst_blast": "contact surface burst: the height of burst is taken as zero and the distance is read where each isobar meets the bottom edge of Fig. 3.73c (handbook p.106)",
+    "fireball": "110·W^0.4 ft for air bursts (2.127.1, p.70); 145·W^0.4 ft for contact surface bursts (2.127.2, p.71)",
+    "thermal": "read directly off Fig. 7.42 (p.291) at each yield column; no scaling is applied. Fig. 7.42 is drawn for burst heights of 200·W^0.4 ft (§7.42, p.290) and for air bursts below 15,000 ft with 12-mile visibility",
+    "overpressure_definition": "Fig. 3.73 curves are peak overpressures on the ground, i.e. they include reflection at the surface; tools quoting incident or side-on overpressure show smaller radii for the same psi"
+  },
+  "caveats": [
+    "Blast heights of burst are scaled as W^(1/3), so the 1 Mt rows sit at 10,200 ft (5 psi) and 15,750 ft (1 psi). §3.73 (p.110) states the homogeneous sea-level atmosphere assumption for burst heights of 5,000 ft or less, so the 1 Mt blast rows extrapolate the handbook's assumption by a factor of 2-3. No altitude correction (§3.64-3.66) is applied; the sign of that omission is that the 1 Mt radii are understated rather than overstated.",
+    "5 psi is not printed on Fig. 3.73c. It is interpolated between the 4 and 6 psi contours at the log-pressure position 0.5503, and every 5 psi row is labelled as interpolated.",
+    "Thermal radii are slant ranges. §12.66 (p.563) notes that for ranges much greater than the burst height they may be taken as distances to ground zero, which is how they are reported here.",
+    "Thermal radii are for air bursts only. Fig. 7.42 is calculated for burst heights of 200·W^0.4 ft and the handbook's surface-burst treatment of thermal radiation (§7.41, p.290) points to a different procedure, so the ground-burst option shows blast and fireball only.",
+    "Thermal contour values on Fig. 7.42 are not printed as legible labels on the scan; they were fixed by two independent statements in the handbook (§12.66 p.563: 4.5-6 cal/cm² at 9-10 mi for 1 Mt; §7.43 p.290: 8 cal/cm² at about 7 mi). Both are reproduced within ±5% by the digitized curves."
+  ],
+  "cross_checks": [
+    {
+      "id": "G1",
+      "claim": "1 Mt, 4.5 cal/cm² slant range",
+      "manual": "9–10 mi band, outer edge (§12.66, p.563)",
+      "manual_mi": 10.0,
+      "ours_mi": 10.36,
+      "delta_pct": 3.6
+    },
+    {
+      "id": "G2",
+      "claim": "1 Mt, 6 cal/cm² slant range",
+      "manual": "9–10 mi band, inner edge (§12.66, p.563)",
+      "manual_mi": 9.0,
+      "ours_mi": 8.65,
+      "delta_pct": -3.9
+    },
+    {
+      "id": "G3",
+      "claim": "1 Mt, 8 cal/cm² slant range",
+      "manual": "about 7 mi (§7.43, p.290)",
+      "manual_mi": 7.0,
+      "ours_mi": 7.35,
+      "delta_pct": 5.0
+    },
+    {
+      "id": "G4",
+      "claim": "1 kt, 4 psi maximum ground distance",
+      "manual": "2,600 ft at about 1,100 ft HOB (p.114 worked example)",
+      "manual_ft": 2600.0,
+      "ours_ft": 2618.0,
+      "delta_pct": 0.7
+    }
+  ],
+  "entries": [
+    {
+      "id": "fireball.air.15",
+      "effect": "fireball",
+      "label": "Fireball radius (breakaway)",
+      "burst": "air",
+      "yield_kt": 15,
+      "radius_m": 99,
+      "radius_km": 0.1,
+      "radius_ft": 325,
+      "hob_ft": null,
+      "hob_m": null,
+      "value_type": "formula",
+      "citation": {
+        "chapter": 2,
+        "section": "§2.127",
+        "equation": "(2.127.1)",
+        "figure": null,
+        "page": 70
+      },
+      "readout": "R = 110·W^0.4 ft, W = 15 kt → 325 ft (handbook equation (2.127.1), p.70; no chart reading, no scaling)",
+      "conversion": "110 × 15^0.4 = 110 × 2.95418 = 325 ft; × 0.3048 = 99 m = 0.10 km",
+      "raw_reading_cn": "110 × 15^0.4 = 325 ft（手册公式，非读图）",
+      "read_error": "n/a (printed equation)",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "radius at breakaway; §2.129 (p.71) notes the maximum radius may be taken as about twice this value",
+      "hob_note": "the fireball radius in eq. (2.127.1) does not depend on burst height"
+    },
+    {
+      "id": "fireball.air.100",
+      "effect": "fireball",
+      "label": "Fireball radius (breakaway)",
+      "burst": "air",
+      "yield_kt": 100,
+      "radius_m": 212,
+      "radius_km": 0.21,
+      "radius_ft": 694,
+      "hob_ft": null,
+      "hob_m": null,
+      "value_type": "formula",
+      "citation": {
+        "chapter": 2,
+        "section": "§2.127",
+        "equation": "(2.127.1)",
+        "figure": null,
+        "page": 70
+      },
+      "readout": "R = 110·W^0.4 ft, W = 100 kt → 694 ft (handbook equation (2.127.1), p.70; no chart reading, no scaling)",
+      "conversion": "110 × 100^0.4 = 110 × 6.30957 = 694 ft; × 0.3048 = 212 m = 0.21 km",
+      "raw_reading_cn": "110 × 100^0.4 = 694 ft（手册公式，非读图）",
+      "read_error": "n/a (printed equation)",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "radius at breakaway; §2.129 (p.71) notes the maximum radius may be taken as about twice this value",
+      "hob_note": "the fireball radius in eq. (2.127.1) does not depend on burst height"
+    },
+    {
+      "id": "fireball.air.1000",
+      "effect": "fireball",
+      "label": "Fireball radius (breakaway)",
+      "burst": "air",
+      "yield_kt": 1000,
+      "radius_m": 531,
+      "radius_km": 0.53,
+      "radius_ft": 1743,
+      "hob_ft": null,
+      "hob_m": null,
+      "value_type": "formula",
+      "citation": {
+        "chapter": 2,
+        "section": "§2.127",
+        "equation": "(2.127.1)",
+        "figure": null,
+        "page": 70
+      },
+      "readout": "R = 110·W^0.4 ft, W = 1000 kt → 1743 ft (handbook equation (2.127.1), p.70; no chart reading, no scaling)",
+      "conversion": "110 × 1000^0.4 = 110 × 15.84893 = 1743 ft; × 0.3048 = 531 m = 0.53 km",
+      "raw_reading_cn": "110 × 1000^0.4 = 1743 ft（手册公式，非读图）",
+      "read_error": "n/a (printed equation)",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "radius at breakaway; §2.129 (p.71) notes the maximum radius may be taken as about twice this value",
+      "hob_note": "the fireball radius in eq. (2.127.1) does not depend on burst height"
+    },
+    {
+      "id": "fireball.ground.15",
+      "effect": "fireball",
+      "label": "Fireball radius (breakaway)",
+      "burst": "ground",
+      "yield_kt": 15,
+      "radius_m": 131,
+      "radius_km": 0.13,
+      "radius_ft": 428,
+      "hob_ft": 0,
+      "hob_m": 0,
+      "value_type": "formula",
+      "citation": {
+        "chapter": 2,
+        "section": "§2.127",
+        "equation": "(2.127.2)",
+        "figure": null,
+        "page": 71
+      },
+      "readout": "R = 145·W^0.4 ft, W = 15 kt → 428 ft (handbook equation (2.127.2), p.71; no chart reading, no scaling)",
+      "conversion": "145 × 15^0.4 = 145 × 2.95418 = 428 ft; × 0.3048 = 131 m = 0.13 km",
+      "raw_reading_cn": "145 × 15^0.4 = 428 ft（手册公式，非读图）",
+      "read_error": "n/a (printed equation)",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": null,
+      "note": "contact surface burst; the fireball is a hemisphere on the surface and this radius is the handbook's equivalent-sphere value (eq. 2.127.2, p.71)",
+      "hob_note": "contact surface burst; the table radius is the equivalent-sphere radius of the hemisphere"
+    },
+    {
+      "id": "fireball.ground.100",
+      "effect": "fireball",
+      "label": "Fireball radius (breakaway)",
+      "burst": "ground",
+      "yield_kt": 100,
+      "radius_m": 279,
+      "radius_km": 0.28,
+      "radius_ft": 915,
+      "hob_ft": 0,
+      "hob_m": 0,
+      "value_type": "formula",
+      "citation": {
+        "chapter": 2,
+        "section": "§2.127",
+        "equation": "(2.127.2)",
+        "figure": null,
+        "page": 71
+      },
+      "readout": "R = 145·W^0.4 ft, W = 100 kt → 915 ft (handbook equation (2.127.2), p.71; no chart reading, no scaling)",
+      "conversion": "145 × 100^0.4 = 145 × 6.30957 = 915 ft; × 0.3048 = 279 m = 0.28 km",
+      "raw_reading_cn": "145 × 100^0.4 = 915 ft（手册公式，非读图）",
+      "read_error": "n/a (printed equation)",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": null,
+      "note": "contact surface burst; the fireball is a hemisphere on the surface and this radius is the handbook's equivalent-sphere value (eq. 2.127.2, p.71)",
+      "hob_note": "contact surface burst; the table radius is the equivalent-sphere radius of the hemisphere"
+    },
+    {
+      "id": "fireball.ground.1000",
+      "effect": "fireball",
+      "label": "Fireball radius (breakaway)",
+      "burst": "ground",
+      "yield_kt": 1000,
+      "radius_m": 700,
+      "radius_km": 0.7,
+      "radius_ft": 2298,
+      "hob_ft": 0,
+      "hob_m": 0,
+      "value_type": "formula",
+      "citation": {
+        "chapter": 2,
+        "section": "§2.127",
+        "equation": "(2.127.2)",
+        "figure": null,
+        "page": 71
+      },
+      "readout": "R = 145·W^0.4 ft, W = 1000 kt → 2298 ft (handbook equation (2.127.2), p.71; no chart reading, no scaling)",
+      "conversion": "145 × 1000^0.4 = 145 × 15.84893 = 2298 ft; × 0.3048 = 700 m = 0.70 km",
+      "raw_reading_cn": "145 × 1000^0.4 = 2298 ft（手册公式，非读图）",
+      "read_error": "n/a (printed equation)",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": null,
+      "note": "contact surface burst; the fireball is a hemisphere on the surface and this radius is the handbook's equivalent-sphere value (eq. 2.127.2, p.71)",
+      "hob_note": "contact surface burst; the table radius is the equivalent-sphere radius of the hemisphere"
+    },
+    {
+      "id": "overpressure_5psi.air.15",
+      "effect": "overpressure_5psi",
+      "label": "5 psi overpressure radius",
+      "burst": "air",
+      "yield_kt": 15,
+      "radius_m": 1710,
+      "radius_km": 1.71,
+      "radius_ft": 5611,
+      "hob_ft": 2509,
+      "hob_m": 765,
+      "value_type": "scaled_curve_read",
+      "citation": {
+        "chapter": 3,
+        "section": "§3.73 / §3.61",
+        "figure": "3.73c",
+        "page": 115
+      },
+      "readout": "interpolated between 4 and 6 psi contours, at 2275 ft (1 kt, peak of each isobar); 4 psi base 2600 ft / 6 psi base 2010 ft at 1 kt, log-pressure fraction 0.5503; scaled from the 1 kt curve (§3.61, p.101): 2275 × 15^(1/3) = 5611 ft",
+      "conversion": "2275 ft × 15^(1/3) = 2275 × 2.4662 = 5611 ft; × 0.3048 = 1710 m = 1.71 km",
+      "raw_reading_cn": "1 kt 基准：4 psi 峰值 2600 ft @ HOB 1,100 ft（p.114 原文）；6 psi 峰值 2010 ft @ HOB 950 ft（x_px 522.5, y_px 946）；按 ln 压力位置插值 t = 0.5503 → 2275.3 ft @ HOB 1017 ft；插值后 × 15^(1/3) = 5611 ft",
+      "read_error": "±5%",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "5 psi is NOT one of the contours printed on Fig. 3.73c (the figure prints 1, 2, 4, 6, 8 and 10 psi only); the value is interpolated between the 4 and 6 psi contours",
+      "hob_note": null,
+      "scaled": true,
+      "scaled_label": "scaled from the 1 kt curve (§3.61, p.101)",
+      "scaling": {
+        "law": "cube_root",
+        "formula": "d = d_1kt · W^(1/3)",
+        "section": "§3.61 eq. (3.61.2), restated §3.62 and §3.73",
+        "pages": [
+          101,
+          102,
+          110
+        ]
+      },
+      "base": {
+        "yield_kt": 1,
+        "radius_ft": 2275.3,
+        "hob_ft": 1017.4,
+        "figure": "3.73c",
+        "page": 115,
+        "interpolated": true,
+        "between_psi": [
+          4,
+          6
+        ],
+        "interp_fraction": 0.5503,
+        "px": {
+          "4psi": [
+            642.3,
+            914.9
+          ],
+          "6psi": [
+            522.5,
+            946.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "overpressure_5psi.air.100",
+      "effect": "overpressure_5psi",
+      "label": "5 psi overpressure radius",
+      "burst": "air",
+      "yield_kt": 100,
+      "radius_m": 3219,
+      "radius_km": 3.22,
+      "radius_ft": 10561,
+      "hob_ft": 4723,
+      "hob_m": 1439,
+      "value_type": "scaled_curve_read",
+      "citation": {
+        "chapter": 3,
+        "section": "§3.73 / §3.61",
+        "figure": "3.73c",
+        "page": 115
+      },
+      "readout": "interpolated between 4 and 6 psi contours, at 2275 ft (1 kt, peak of each isobar); 4 psi base 2600 ft / 6 psi base 2010 ft at 1 kt, log-pressure fraction 0.5503; scaled from the 1 kt curve (§3.61, p.101): 2275 × 100^(1/3) = 10561 ft",
+      "conversion": "2275 ft × 100^(1/3) = 2275 × 4.6416 = 10561 ft; × 0.3048 = 3219 m = 3.22 km",
+      "raw_reading_cn": "1 kt 基准：4 psi 峰值 2600 ft @ HOB 1,100 ft（p.114 原文）；6 psi 峰值 2010 ft @ HOB 950 ft（x_px 522.5, y_px 946）；按 ln 压力位置插值 t = 0.5503 → 2275.3 ft @ HOB 1017 ft；插值后 × 100^(1/3) = 10561 ft",
+      "read_error": "±5%",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "5 psi is NOT one of the contours printed on Fig. 3.73c (the figure prints 1, 2, 4, 6, 8 and 10 psi only); the value is interpolated between the 4 and 6 psi contours",
+      "hob_note": null,
+      "scaled": true,
+      "scaled_label": "scaled from the 1 kt curve (§3.61, p.101)",
+      "scaling": {
+        "law": "cube_root",
+        "formula": "d = d_1kt · W^(1/3)",
+        "section": "§3.61 eq. (3.61.2), restated §3.62 and §3.73",
+        "pages": [
+          101,
+          102,
+          110
+        ]
+      },
+      "base": {
+        "yield_kt": 1,
+        "radius_ft": 2275.3,
+        "hob_ft": 1017.4,
+        "figure": "3.73c",
+        "page": 115,
+        "interpolated": true,
+        "between_psi": [
+          4,
+          6
+        ],
+        "interp_fraction": 0.5503,
+        "px": {
+          "4psi": [
+            642.3,
+            914.9
+          ],
+          "6psi": [
+            522.5,
+            946.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "overpressure_5psi.air.1000",
+      "effect": "overpressure_5psi",
+      "label": "5 psi overpressure radius",
+      "burst": "air",
+      "yield_kt": 1000,
+      "radius_m": 6935,
+      "radius_km": 6.93,
+      "radius_ft": 22753,
+      "hob_ft": 10174,
+      "hob_m": 3101,
+      "value_type": "scaled_curve_read",
+      "citation": {
+        "chapter": 3,
+        "section": "§3.73 / §3.61",
+        "figure": "3.73c",
+        "page": 115
+      },
+      "readout": "interpolated between 4 and 6 psi contours, at 2275 ft (1 kt, peak of each isobar); 4 psi base 2600 ft / 6 psi base 2010 ft at 1 kt, log-pressure fraction 0.5503; scaled from the 1 kt curve (§3.61, p.101): 2275 × 1000^(1/3) = 22753 ft",
+      "conversion": "2275 ft × 1000^(1/3) = 2275 × 10.0000 = 22753 ft; × 0.3048 = 6935 m = 6.93 km",
+      "raw_reading_cn": "1 kt 基准：4 psi 峰值 2600 ft @ HOB 1,100 ft（p.114 原文）；6 psi 峰值 2010 ft @ HOB 950 ft（x_px 522.5, y_px 946）；按 ln 压力位置插值 t = 0.5503 → 2275.3 ft @ HOB 1017 ft；插值后 × 1000^(1/3) = 22753 ft",
+      "read_error": "±5%",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "5 psi is NOT one of the contours printed on Fig. 3.73c (the figure prints 1, 2, 4, 6, 8 and 10 psi only); the value is interpolated between the 4 and 6 psi contours",
+      "hob_note": null,
+      "scaled": true,
+      "scaled_label": "scaled from the 1 kt curve (§3.61, p.101)",
+      "scaling": {
+        "law": "cube_root",
+        "formula": "d = d_1kt · W^(1/3)",
+        "section": "§3.61 eq. (3.61.2), restated §3.62 and §3.73",
+        "pages": [
+          101,
+          102,
+          110
+        ]
+      },
+      "base": {
+        "yield_kt": 1,
+        "radius_ft": 2275.3,
+        "hob_ft": 1017.4,
+        "figure": "3.73c",
+        "page": 115,
+        "interpolated": true,
+        "between_psi": [
+          4,
+          6
+        ],
+        "interp_fraction": 0.5503,
+        "px": {
+          "4psi": [
+            642.3,
+            914.9
+          ],
+          "6psi": [
+            522.5,
+            946.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "overpressure_5psi.ground.15",
+      "effect": "overpressure_5psi",
+      "label": "5 psi overpressure radius",
+      "burst": "ground",
+      "yield_kt": 15,
+      "radius_m": 1023,
+      "radius_km": 1.02,
+      "radius_ft": 3357,
+      "hob_ft": 0,
+      "hob_m": 0,
+      "value_type": "scaled_curve_read",
+      "citation": {
+        "chapter": 3,
+        "section": "§3.73 / §3.61",
+        "figure": "3.73c",
+        "page": 115
+      },
+      "readout": "interpolated between 4 and 6 psi contours, at 1361 ft (1 kt, HOB = 0 bottom edge); 4 psi base 2600 ft / 6 psi base 2010 ft at 1 kt, log-pressure fraction 0.5503; scaled from the 1 kt curve (§3.61, p.101): 1361 × 15^(1/3) = 3357 ft",
+      "conversion": "1361 ft × 15^(1/3) = 1361 × 2.4662 = 3357 ft; × 0.3048 = 1023 m = 1.02 km",
+      "raw_reading_cn": "1 kt 基准：4 psi 底边 1655 ft @ HOB = 0（x_px 454.5, y_px 1136）；6 psi 底边 1121 ft @ HOB = 0（x_px 344, y_px 1136）；按 ln 压力位置插值 t = 0.5503 → 1361.1 ft；插值后 × 15^(1/3) = 3357 ft",
+      "read_error": "±5%",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": null,
+      "note": "5 psi is NOT one of the contours printed on Fig. 3.73c (the figure prints 1, 2, 4, 6, 8 and 10 psi only); the value is interpolated between the 4 and 6 psi contours",
+      "hob_note": null,
+      "scaled": true,
+      "scaled_label": "scaled from the 1 kt curve (§3.61, p.101)",
+      "scaling": {
+        "law": "cube_root",
+        "formula": "d = d_1kt · W^(1/3)",
+        "section": "§3.61 eq. (3.61.2), restated §3.62 and §3.73",
+        "pages": [
+          101,
+          102,
+          110
+        ]
+      },
+      "base": {
+        "yield_kt": 1,
+        "radius_ft": 1361.1,
+        "hob_ft": 0.0,
+        "figure": "3.73c",
+        "page": 115,
+        "interpolated": true,
+        "between_psi": [
+          4,
+          6
+        ],
+        "interp_fraction": 0.5503,
+        "px": {
+          "4psi": [
+            454.5,
+            1136.0
+          ],
+          "6psi": [
+            344.0,
+            1136.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "overpressure_5psi.ground.100",
+      "effect": "overpressure_5psi",
+      "label": "5 psi overpressure radius",
+      "burst": "ground",
+      "yield_kt": 100,
+      "radius_m": 1926,
+      "radius_km": 1.93,
+      "radius_ft": 6318,
+      "hob_ft": 0,
+      "hob_m": 0,
+      "value_type": "scaled_curve_read",
+      "citation": {
+        "chapter": 3,
+        "section": "§3.73 / §3.61",
+        "figure": "3.73c",
+        "page": 115
+      },
+      "readout": "interpolated between 4 and 6 psi contours, at 1361 ft (1 kt, HOB = 0 bottom edge); 4 psi base 2600 ft / 6 psi base 2010 ft at 1 kt, log-pressure fraction 0.5503; scaled from the 1 kt curve (§3.61, p.101): 1361 × 100^(1/3) = 6318 ft",
+      "conversion": "1361 ft × 100^(1/3) = 1361 × 4.6416 = 6318 ft; × 0.3048 = 1926 m = 1.93 km",
+      "raw_reading_cn": "1 kt 基准：4 psi 底边 1655 ft @ HOB = 0（x_px 454.5, y_px 1136）；6 psi 底边 1121 ft @ HOB = 0（x_px 344, y_px 1136）；按 ln 压力位置插值 t = 0.5503 → 1361.1 ft；插值后 × 100^(1/3) = 6318 ft",
+      "read_error": "±5%",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": null,
+      "note": "5 psi is NOT one of the contours printed on Fig. 3.73c (the figure prints 1, 2, 4, 6, 8 and 10 psi only); the value is interpolated between the 4 and 6 psi contours",
+      "hob_note": null,
+      "scaled": true,
+      "scaled_label": "scaled from the 1 kt curve (§3.61, p.101)",
+      "scaling": {
+        "law": "cube_root",
+        "formula": "d = d_1kt · W^(1/3)",
+        "section": "§3.61 eq. (3.61.2), restated §3.62 and §3.73",
+        "pages": [
+          101,
+          102,
+          110
+        ]
+      },
+      "base": {
+        "yield_kt": 1,
+        "radius_ft": 1361.1,
+        "hob_ft": 0.0,
+        "figure": "3.73c",
+        "page": 115,
+        "interpolated": true,
+        "between_psi": [
+          4,
+          6
+        ],
+        "interp_fraction": 0.5503,
+        "px": {
+          "4psi": [
+            454.5,
+            1136.0
+          ],
+          "6psi": [
+            344.0,
+            1136.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "overpressure_5psi.ground.1000",
+      "effect": "overpressure_5psi",
+      "label": "5 psi overpressure radius",
+      "burst": "ground",
+      "yield_kt": 1000,
+      "radius_m": 4149,
+      "radius_km": 4.15,
+      "radius_ft": 13611,
+      "hob_ft": 0,
+      "hob_m": 0,
+      "value_type": "scaled_curve_read",
+      "citation": {
+        "chapter": 3,
+        "section": "§3.73 / §3.61",
+        "figure": "3.73c",
+        "page": 115
+      },
+      "readout": "interpolated between 4 and 6 psi contours, at 1361 ft (1 kt, HOB = 0 bottom edge); 4 psi base 2600 ft / 6 psi base 2010 ft at 1 kt, log-pressure fraction 0.5503; scaled from the 1 kt curve (§3.61, p.101): 1361 × 1000^(1/3) = 13611 ft",
+      "conversion": "1361 ft × 1000^(1/3) = 1361 × 10.0000 = 13611 ft; × 0.3048 = 4149 m = 4.15 km",
+      "raw_reading_cn": "1 kt 基准：4 psi 底边 1655 ft @ HOB = 0（x_px 454.5, y_px 1136）；6 psi 底边 1121 ft @ HOB = 0（x_px 344, y_px 1136）；按 ln 压力位置插值 t = 0.5503 → 1361.1 ft；插值后 × 1000^(1/3) = 13611 ft",
+      "read_error": "±5%",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": null,
+      "note": "5 psi is NOT one of the contours printed on Fig. 3.73c (the figure prints 1, 2, 4, 6, 8 and 10 psi only); the value is interpolated between the 4 and 6 psi contours",
+      "hob_note": null,
+      "scaled": true,
+      "scaled_label": "scaled from the 1 kt curve (§3.61, p.101)",
+      "scaling": {
+        "law": "cube_root",
+        "formula": "d = d_1kt · W^(1/3)",
+        "section": "§3.61 eq. (3.61.2), restated §3.62 and §3.73",
+        "pages": [
+          101,
+          102,
+          110
+        ]
+      },
+      "base": {
+        "yield_kt": 1,
+        "radius_ft": 1361.1,
+        "hob_ft": 0.0,
+        "figure": "3.73c",
+        "page": 115,
+        "interpolated": true,
+        "between_psi": [
+          4,
+          6
+        ],
+        "interp_fraction": 0.5503,
+        "px": {
+          "4psi": [
+            454.5,
+            1136.0
+          ],
+          "6psi": [
+            344.0,
+            1136.0
+          ]
+        }
+      }
+    },
+    {
+      "id": "overpressure_1psi.air.15",
+      "effect": "overpressure_1psi",
+      "label": "1 psi overpressure radius",
+      "burst": "air",
+      "yield_kt": 15,
+      "radius_m": 5277,
+      "radius_km": 5.28,
+      "radius_ft": 17313,
+      "hob_ft": 3884,
+      "hob_m": 1184,
+      "value_type": "scaled_curve_read",
+      "citation": {
+        "chapter": 3,
+        "section": "§3.73 / §3.61",
+        "figure": "3.73c",
+        "page": 115
+      },
+      "readout": "1 kt base 7020 ft at HOB 1575 ft (peak of the outermost isobar, x_px 1540.5, y_px 817); scaled from the 1 kt curve (§3.61, p.101): 7020 × 15^(1/3) = 17313 ft",
+      "conversion": "7020 ft × 15^(1/3) = 7020 × 2.4662 = 17313 ft; × 0.3048 = 5277 m = 5.28 km",
+      "raw_reading_cn": "1 kt 基准 7020 ft（最外等压线峰值，x_px 1540.5, y_px 817，HOB 1,575 ft） × 15^(1/3) = 17313 ft",
+      "read_error": "±5%",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "1 psi is the outermost isobar drawn on Fig. 3.73c; the peak is read where the curve turns around, just to the right of the 7,000 ft gridline",
+      "hob_note": null,
+      "scaled": true,
+      "scaled_label": "scaled from the 1 kt curve (§3.61, p.101)",
+      "scaling": {
+        "law": "cube_root",
+        "formula": "d = d_1kt · W^(1/3)",
+        "section": "§3.61 eq. (3.61.2), restated §3.62 and §3.73",
+        "pages": [
+          101,
+          102,
+          110
+        ]
+      },
+      "base": {
+        "yield_kt": 1,
+        "radius_ft": 7020.0,
+        "hob_ft": 1575.0,
+        "figure": "3.73c",
+        "page": 115,
+        "px": [
+          1540.5,
+          817.0
+        ]
+      }
+    },
+    {
+      "id": "overpressure_1psi.air.100",
+      "effect": "overpressure_1psi",
+      "label": "1 psi overpressure radius",
+      "burst": "air",
+      "yield_kt": 100,
+      "radius_m": 9932,
+      "radius_km": 9.93,
+      "radius_ft": 32584,
+      "hob_ft": 7311,
+      "hob_m": 2228,
+      "value_type": "scaled_curve_read",
+      "citation": {
+        "chapter": 3,
+        "section": "§3.73 / §3.61",
+        "figure": "3.73c",
+        "page": 115
+      },
+      "readout": "1 kt base 7020 ft at HOB 1575 ft (peak of the outermost isobar, x_px 1540.5, y_px 817); scaled from the 1 kt curve (§3.61, p.101): 7020 × 100^(1/3) = 32584 ft",
+      "conversion": "7020 ft × 100^(1/3) = 7020 × 4.6416 = 32584 ft; × 0.3048 = 9932 m = 9.93 km",
+      "raw_reading_cn": "1 kt 基准 7020 ft（最外等压线峰值，x_px 1540.5, y_px 817，HOB 1,575 ft） × 100^(1/3) = 32584 ft",
+      "read_error": "±5%",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "1 psi is the outermost isobar drawn on Fig. 3.73c; the peak is read where the curve turns around, just to the right of the 7,000 ft gridline",
+      "hob_note": null,
+      "scaled": true,
+      "scaled_label": "scaled from the 1 kt curve (§3.61, p.101)",
+      "scaling": {
+        "law": "cube_root",
+        "formula": "d = d_1kt · W^(1/3)",
+        "section": "§3.61 eq. (3.61.2), restated §3.62 and §3.73",
+        "pages": [
+          101,
+          102,
+          110
+        ]
+      },
+      "base": {
+        "yield_kt": 1,
+        "radius_ft": 7020.0,
+        "hob_ft": 1575.0,
+        "figure": "3.73c",
+        "page": 115,
+        "px": [
+          1540.5,
+          817.0
+        ]
+      }
+    },
+    {
+      "id": "overpressure_1psi.air.1000",
+      "effect": "overpressure_1psi",
+      "label": "1 psi overpressure radius",
+      "burst": "air",
+      "yield_kt": 1000,
+      "radius_m": 21397,
+      "radius_km": 21.4,
+      "radius_ft": 70200,
+      "hob_ft": 15750,
+      "hob_m": 4801,
+      "value_type": "scaled_curve_read",
+      "citation": {
+        "chapter": 3,
+        "section": "§3.73 / §3.61",
+        "figure": "3.73c",
+        "page": 115
+      },
+      "readout": "1 kt base 7020 ft at HOB 1575 ft (peak of the outermost isobar, x_px 1540.5, y_px 817); scaled from the 1 kt curve (§3.61, p.101): 7020 × 1000^(1/3) = 70200 ft",
+      "conversion": "7020 ft × 1000^(1/3) = 7020 × 10.0000 = 70200 ft; × 0.3048 = 21397 m = 21.40 km",
+      "raw_reading_cn": "1 kt 基准 7020 ft（最外等压线峰值，x_px 1540.5, y_px 817，HOB 1,575 ft） × 1000^(1/3) = 70200 ft",
+      "read_error": "±5%",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "1 psi is the outermost isobar drawn on Fig. 3.73c; the peak is read where the curve turns around, just to the right of the 7,000 ft gridline",
+      "hob_note": null,
+      "scaled": true,
+      "scaled_label": "scaled from the 1 kt curve (§3.61, p.101)",
+      "scaling": {
+        "law": "cube_root",
+        "formula": "d = d_1kt · W^(1/3)",
+        "section": "§3.61 eq. (3.61.2), restated §3.62 and §3.73",
+        "pages": [
+          101,
+          102,
+          110
+        ]
+      },
+      "base": {
+        "yield_kt": 1,
+        "radius_ft": 7020.0,
+        "hob_ft": 1575.0,
+        "figure": "3.73c",
+        "page": 115,
+        "px": [
+          1540.5,
+          817.0
+        ]
+      }
+    },
+    {
+      "id": "overpressure_1psi.ground.15",
+      "effect": "overpressure_1psi",
+      "label": "1 psi overpressure radius",
+      "burst": "ground",
+      "yield_kt": 15,
+      "radius_m": 2879,
+      "radius_km": 2.88,
+      "radius_ft": 9446,
+      "hob_ft": 0,
+      "hob_m": 0,
+      "value_type": "scaled_curve_read",
+      "citation": {
+        "chapter": 3,
+        "section": "§3.73 / §3.61",
+        "figure": "3.73c",
+        "page": 115
+      },
+      "readout": "1 kt base 3830 ft at HOB = 0 (bottom edge, x_px 894, y_px 1136); scaled from the 1 kt curve (§3.61, p.101): 3830 × 15^(1/3) = 9446 ft",
+      "conversion": "3830 ft × 15^(1/3) = 3830 × 2.4662 = 9446 ft; × 0.3048 = 2879 m = 2.88 km",
+      "raw_reading_cn": "1 kt 基准 3830 ft（底边 HOB = 0，x_px 894, y_px 1136） × 15^(1/3) = 9446 ft",
+      "read_error": "±5%",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": null,
+      "note": "contact surface burst: the handbook reads this by taking the height of burst to be zero (p.106)",
+      "hob_note": null,
+      "scaled": true,
+      "scaled_label": "scaled from the 1 kt curve (§3.61, p.101)",
+      "scaling": {
+        "law": "cube_root",
+        "formula": "d = d_1kt · W^(1/3)",
+        "section": "§3.61 eq. (3.61.2), restated §3.62 and §3.73",
+        "pages": [
+          101,
+          102,
+          110
+        ]
+      },
+      "base": {
+        "yield_kt": 1,
+        "radius_ft": 3830.0,
+        "hob_ft": 0.0,
+        "figure": "3.73c",
+        "page": 115,
+        "px": [
+          894.0,
+          1136.0
+        ]
+      }
+    },
+    {
+      "id": "overpressure_1psi.ground.100",
+      "effect": "overpressure_1psi",
+      "label": "1 psi overpressure radius",
+      "burst": "ground",
+      "yield_kt": 100,
+      "radius_m": 5419,
+      "radius_km": 5.42,
+      "radius_ft": 17777,
+      "hob_ft": 0,
+      "hob_m": 0,
+      "value_type": "scaled_curve_read",
+      "citation": {
+        "chapter": 3,
+        "section": "§3.73 / §3.61",
+        "figure": "3.73c",
+        "page": 115
+      },
+      "readout": "1 kt base 3830 ft at HOB = 0 (bottom edge, x_px 894, y_px 1136); scaled from the 1 kt curve (§3.61, p.101): 3830 × 100^(1/3) = 17777 ft",
+      "conversion": "3830 ft × 100^(1/3) = 3830 × 4.6416 = 17777 ft; × 0.3048 = 5419 m = 5.42 km",
+      "raw_reading_cn": "1 kt 基准 3830 ft（底边 HOB = 0，x_px 894, y_px 1136） × 100^(1/3) = 17777 ft",
+      "read_error": "±5%",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": null,
+      "note": "contact surface burst: the handbook reads this by taking the height of burst to be zero (p.106)",
+      "hob_note": null,
+      "scaled": true,
+      "scaled_label": "scaled from the 1 kt curve (§3.61, p.101)",
+      "scaling": {
+        "law": "cube_root",
+        "formula": "d = d_1kt · W^(1/3)",
+        "section": "§3.61 eq. (3.61.2), restated §3.62 and §3.73",
+        "pages": [
+          101,
+          102,
+          110
+        ]
+      },
+      "base": {
+        "yield_kt": 1,
+        "radius_ft": 3830.0,
+        "hob_ft": 0.0,
+        "figure": "3.73c",
+        "page": 115,
+        "px": [
+          894.0,
+          1136.0
+        ]
+      }
+    },
+    {
+      "id": "overpressure_1psi.ground.1000",
+      "effect": "overpressure_1psi",
+      "label": "1 psi overpressure radius",
+      "burst": "ground",
+      "yield_kt": 1000,
+      "radius_m": 11674,
+      "radius_km": 11.67,
+      "radius_ft": 38300,
+      "hob_ft": 0,
+      "hob_m": 0,
+      "value_type": "scaled_curve_read",
+      "citation": {
+        "chapter": 3,
+        "section": "§3.73 / §3.61",
+        "figure": "3.73c",
+        "page": 115
+      },
+      "readout": "1 kt base 3830 ft at HOB = 0 (bottom edge, x_px 894, y_px 1136); scaled from the 1 kt curve (§3.61, p.101): 3830 × 1000^(1/3) = 38300 ft",
+      "conversion": "3830 ft × 1000^(1/3) = 3830 × 10.0000 = 38300 ft; × 0.3048 = 11674 m = 11.67 km",
+      "raw_reading_cn": "1 kt 基准 3830 ft（底边 HOB = 0，x_px 894, y_px 1136） × 1000^(1/3) = 38300 ft",
+      "read_error": "±5%",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": null,
+      "note": "contact surface burst: the handbook reads this by taking the height of burst to be zero (p.106)",
+      "hob_note": null,
+      "scaled": true,
+      "scaled_label": "scaled from the 1 kt curve (§3.61, p.101)",
+      "scaling": {
+        "law": "cube_root",
+        "formula": "d = d_1kt · W^(1/3)",
+        "section": "§3.61 eq. (3.61.2), restated §3.62 and §3.73",
+        "pages": [
+          101,
+          102,
+          110
+        ]
+      },
+      "base": {
+        "yield_kt": 1,
+        "radius_ft": 3830.0,
+        "hob_ft": 0.0,
+        "figure": "3.73c",
+        "page": 115,
+        "px": [
+          894.0,
+          1136.0
+        ]
+      }
+    },
+    {
+      "id": "thermal_2nd.air.15",
+      "effect": "thermal_2nd",
+      "label": "Thermal radius, 2nd-degree burns",
+      "burst": "air",
+      "yield_kt": 15,
+      "radius_m": 3368,
+      "radius_km": 3.37,
+      "radius_ft": null,
+      "hob_ft": 591,
+      "hob_m": 180,
+      "value_type": "curve_read",
+      "citation": {
+        "chapter": 7,
+        "section": "§7.41-7.42",
+        "figure": "7.42",
+        "page": 291
+      },
+      "readout": "Fig. 7.42 read directly at the 15 kt column (x_px 1756); the curve for 4.5 cal/cm² is the #1 contour from the outside and crosses the column at y_px 1528.0 → 2.09 mi slant range. NOT scaled.",
+      "conversion": "Fig. 7.42 y-axis read at x_px 1756, y_px 1528.0 = 2.09 mi; × 1.609344 = 3368 m = 3.37 km",
+      "raw_reading_cn": "Fig. 7.42 纵轴直读：15 kt 列 x_px 1756，自外向内第 1 条 y_px 1528.0 → 2.09 mi",
+      "read_error": "±6% (±0.3 mi at 1 Mt)",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "lower edge of the handbook's 4.5-6 cal/cm² band; §12.65 (p.563) states that at 4.5-6 cal/cm² about 18 percent of an exposed population receives second-degree burns, the rest first-degree. Light skin, no shielding, no evasive action.",
+      "hob_note": null,
+      "q_cal_cm2": 4.5,
+      "slant_range_mi": 2.093,
+      "skin": "light, unshaded",
+      "burst_height_note": "Fig. 7.42 is drawn for burst heights of 200·W^0.4 ft (§7.42, p.290)"
+    },
+    {
+      "id": "thermal_2nd.air.100",
+      "effect": "thermal_2nd",
+      "label": "Thermal radius, 2nd-degree burns",
+      "burst": "air",
+      "yield_kt": 100,
+      "radius_m": 6990,
+      "radius_km": 6.99,
+      "radius_ft": null,
+      "hob_ft": 1262,
+      "hob_m": 385,
+      "value_type": "curve_read",
+      "citation": {
+        "chapter": 7,
+        "section": "§7.41-7.42",
+        "figure": "7.42",
+        "page": 291
+      },
+      "readout": "Fig. 7.42 read directly at the 100 kt column (x_px 2391); the curve for 4.5 cal/cm² is the #1 contour from the outside and crosses the column at y_px 1279.5 → 4.34 mi slant range. NOT scaled.",
+      "conversion": "Fig. 7.42 y-axis read at x_px 2391, y_px 1279.5 = 4.34 mi; × 1.609344 = 6990 m = 6.99 km",
+      "raw_reading_cn": "Fig. 7.42 纵轴直读：100 kt 列 x_px 2391，自外向内第 1 条 y_px 1279.5 → 4.34 mi",
+      "read_error": "±6% (±0.3 mi at 1 Mt)",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "lower edge of the handbook's 4.5-6 cal/cm² band; §12.65 (p.563) states that at 4.5-6 cal/cm² about 18 percent of an exposed population receives second-degree burns, the rest first-degree. Light skin, no shielding, no evasive action.",
+      "hob_note": null,
+      "q_cal_cm2": 4.5,
+      "slant_range_mi": 4.343,
+      "skin": "light, unshaded",
+      "burst_height_note": "Fig. 7.42 is drawn for burst heights of 200·W^0.4 ft (§7.42, p.290)"
+    },
+    {
+      "id": "thermal_2nd.air.1000",
+      "effect": "thermal_2nd",
+      "label": "Thermal radius, 2nd-degree burns",
+      "burst": "air",
+      "yield_kt": 1000,
+      "radius_m": 16679,
+      "radius_km": 16.68,
+      "radius_ft": null,
+      "hob_ft": 3170,
+      "hob_m": 966,
+      "value_type": "curve_read",
+      "citation": {
+        "chapter": 7,
+        "section": "§7.41-7.42",
+        "figure": "7.42",
+        "page": 291
+      },
+      "readout": "Fig. 7.42 read directly at the 1000 kt column (x_px 3194); the curve for 4.5 cal/cm² is the #1 contour from the outside and crosses the column at y_px 983.5 → 10.36 mi slant range. NOT scaled.",
+      "conversion": "Fig. 7.42 y-axis read at x_px 3194, y_px 983.5 = 10.36 mi; × 1.609344 = 16679 m = 16.68 km",
+      "raw_reading_cn": "Fig. 7.42 纵轴直读：1000 kt 列 x_px 3194，自外向内第 1 条 y_px 983.5 → 10.36 mi",
+      "read_error": "±6% (±0.3 mi at 1 Mt)",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "lower edge of the handbook's 4.5-6 cal/cm² band; §12.65 (p.563) states that at 4.5-6 cal/cm² about 18 percent of an exposed population receives second-degree burns, the rest first-degree. Light skin, no shielding, no evasive action.",
+      "hob_note": null,
+      "q_cal_cm2": 4.5,
+      "slant_range_mi": 10.364,
+      "skin": "light, unshaded",
+      "burst_height_note": "Fig. 7.42 is drawn for burst heights of 200·W^0.4 ft (§7.42, p.290)"
+    },
+    {
+      "id": "thermal_3rd.air.15",
+      "effect": "thermal_3rd",
+      "label": "Thermal radius, 3rd-degree burns",
+      "burst": "air",
+      "yield_kt": 15,
+      "radius_m": 1772,
+      "radius_km": 1.77,
+      "radius_ft": null,
+      "hob_ft": 591,
+      "hob_m": 180,
+      "value_type": "curve_read",
+      "citation": {
+        "chapter": 7,
+        "section": "§7.41-7.42",
+        "figure": "7.42",
+        "page": 291
+      },
+      "readout": "Fig. 7.42 read directly at the 15 kt column (x_px 1756); the curve for 10 cal/cm² is the #4 contour from the outside and crosses the column at y_px 1746.5 → 1.10 mi slant range. NOT scaled.",
+      "conversion": "Fig. 7.42 y-axis read at x_px 1756, y_px 1746.5 = 1.10 mi; × 1.609344 = 1772 m = 1.77 km",
+      "raw_reading_cn": "Fig. 7.42 纵轴直读：15 kt 列 x_px 1756，自外向内第 4 条 y_px 1746.5 → 1.10 mi",
+      "read_error": "±6% (±0.3 mi at 1 Mt)",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "10 cal/cm², third-degree threshold for light skin per Fig. 12.64 (p.564). Light skin, no shielding, no evasive action.",
+      "hob_note": null,
+      "q_cal_cm2": 10.0,
+      "slant_range_mi": 1.101,
+      "skin": "light, unshaded",
+      "burst_height_note": "Fig. 7.42 is drawn for burst heights of 200·W^0.4 ft (§7.42, p.290)"
+    },
+    {
+      "id": "thermal_3rd.air.100",
+      "effect": "thermal_3rd",
+      "label": "Thermal radius, 3rd-degree burns",
+      "burst": "air",
+      "yield_kt": 100,
+      "radius_m": 4023,
+      "radius_km": 4.02,
+      "radius_ft": null,
+      "hob_ft": 1262,
+      "hob_m": 385,
+      "value_type": "curve_read",
+      "citation": {
+        "chapter": 7,
+        "section": "§7.41-7.42",
+        "figure": "7.42",
+        "page": 291
+      },
+      "readout": "Fig. 7.42 read directly at the 100 kt column (x_px 2391); the curve for 10 cal/cm² is the #4 contour from the outside and crosses the column at y_px 1467.5 → 2.50 mi slant range. NOT scaled.",
+      "conversion": "Fig. 7.42 y-axis read at x_px 2391, y_px 1467.5 = 2.50 mi; × 1.609344 = 4023 m = 4.02 km",
+      "raw_reading_cn": "Fig. 7.42 纵轴直读：100 kt 列 x_px 2391，自外向内第 4 条 y_px 1467.5 → 2.50 mi",
+      "read_error": "±6% (±0.3 mi at 1 Mt)",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "10 cal/cm², third-degree threshold for light skin per Fig. 12.64 (p.564). Light skin, no shielding, no evasive action.",
+      "hob_note": null,
+      "q_cal_cm2": 10.0,
+      "slant_range_mi": 2.5,
+      "skin": "light, unshaded",
+      "burst_height_note": "Fig. 7.42 is drawn for burst heights of 200·W^0.4 ft (§7.42, p.290)"
+    },
+    {
+      "id": "thermal_3rd.air.1000",
+      "effect": "thermal_3rd",
+      "label": "Thermal radius, 3rd-degree burns",
+      "burst": "air",
+      "yield_kt": 1000,
+      "radius_m": 10347,
+      "radius_km": 10.35,
+      "radius_ft": null,
+      "hob_ft": 3170,
+      "hob_m": 966,
+      "value_type": "curve_read",
+      "citation": {
+        "chapter": 7,
+        "section": "§7.41-7.42",
+        "figure": "7.42",
+        "page": 291
+      },
+      "readout": "Fig. 7.42 read directly at the 1000 kt column (x_px 3194); the curve for 10 cal/cm² is the #4 contour from the outside and crosses the column at y_px 1146.0 → 6.43 mi slant range. NOT scaled.",
+      "conversion": "Fig. 7.42 y-axis read at x_px 3194, y_px 1146.0 = 6.43 mi; × 1.609344 = 10347 m = 10.35 km",
+      "raw_reading_cn": "Fig. 7.42 纵轴直读：1000 kt 列 x_px 3194，自外向内第 4 条 y_px 1146.0 → 6.43 mi",
+      "read_error": "±6% (±0.3 mi at 1 Mt)",
+      "read_by": "programmatic chart digitization (ring)",
+      "checked_by": "owner, 2026-11-11: phase 0 sign-off — twelve headline values independently recomputed, five spot-checked against the printed figures",
+      "note": "10 cal/cm², third-degree threshold for light skin per Fig. 12.64 (p.564). Light skin, no shielding, no evasive action.",
+      "hob_note": null,
+      "q_cal_cm2": 10.0,
+      "slant_range_mi": 6.429,
+      "skin": "light, unshaded",
+      "burst_height_note": "Fig. 7.42 is drawn for burst heights of 200·W^0.4 ft (§7.42, p.290)"
+    }
+  ]
+}
