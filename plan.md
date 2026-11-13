@@ -371,22 +371,31 @@ export const BASEMAP = {
 
   两条硬要求：① `--project-name apocalab` 必须显式给，且部署返回里的 alias 必须是 `apocalab.pages.dev` / `preview.apocalab.pages.dev` —— 上级目录 `E:\CODEX\wrangler.jsonc` 属于另一个项目（`lumaroot-site`），wrangler 会把它当「用户配置」抓走，不核对就会把产物传到别处；② 直传前本地四个闸门必须已经全绿，直传是分发动作，不是验收动作。
   直传不会篡改 Git 记录，平台恢复后下一次 `git push` 的构建会照常把同一个 commit 再发布一次，内容一致、无需回滚。
-- **上线前检查顺序（硬顺序，不是建议）**：四步里有两步只能在线上成立，本地通过不代表能切。四项按顺序，缺一步都不切：
+- **上线顺序（硬顺序，不是建议）**：六步，缺一步都不往下走。①②④⑥ 的动作与验收全在线上，本地全绿不代表能切。
 
-  | # | 动作（在线上 host 上跑） | 为什么本地验不出来 |
+  | # | 动作 | 为什么不能省 |
   |---|---|---|
-  | ① | `node scripts/verify_map.mjs https://apocalab.pages.dev`（先起 headless Chrome 在 9333 端口），三态全过：瓦片可达 / 瓦片屏蔽 / 关 JS | 考的是 CDN 上 `.geojson` 的 MIME、`_headers` 的实际生效、真实网络下的降级路径 |
-  | ② | `python scripts/check_urls.py --online https://apocalab.pages.dev`，随机不存在的路径必须 **404**、404 响应必须是本站 404 页（五条回收链接在 `<main>` 里）、那五条链接逐个真发请求确认 200、不存在的 `.png` 必须 **404**（Content-Type 只 WARN，理由见下条） | 软 404 是**托管平台的 not-found 行为**，本地静态服务器（`SimpleHTTPRequestHandler`）永远正确 404，复现不出来 |
-  | ③ | 才允许把 `src/lib/site.ts` 的 `SITE_LIVE` 改成 `true` 并构建推送 | —— |
-  | ④ | 才允许改 DNS | —— |
+  | ① | `node scripts/verify_map.mjs https://apocalab.pages.dev`（先起 headless Chrome 在 9333 端口），三态全过：瓦片可达 / 瓦片屏蔽 / 关 JS | 考的是 CDN 上 `.geojson` 的 MIME、`_headers` 的实际生效、真实网络下的降级路径，本地 `astro build` 验不出来 |
+  | ② | `python scripts/check_urls.py --online https://apocalab.pages.dev`：随机不存在的路径必须 **404**、404 响应必须是本站 404 页（五条回收链接在 `<main>` 里）、五条链接逐个真发请求确认 200、不存在的 `.png` 必须 **404**（Content-Type 只 WARN，见下面那条已知偏差） | 软 404 是**托管平台的 not-found 行为**，本地静态服务器（`SimpleHTTPRequestHandler`）永远正确 404，复现不出来 |
+  | ③ | 把 `src/lib/site.ts` 的 `SITE_LIVE` 改成 `true`，构建、推送、等部署完成 | 这一步去掉全站 `X-Robots-Tag: noindex`。canonical 不随它变——每页 canonical 由 `SITE_ORIGIN` 固定为 `https://apocalab.com/`，翻转前它指向的域名还没上线，翻转后才第一次成立 |
+  | ④ | 抓 `https://apocalab.pages.dev/` 的响应头与 HTML：**noindex 必须已经消失**，**canonical 必须仍指向 `https://apocalab.com/`** | 两件事只有这一步同时验得到。③ 改的是一个布尔值，响应头在 `_headers`、canonical 在 HTML，少验一头就可能带着 noindex 上线，或者 canonical 被顺手改成 `pages.dev`。**这一步不通过，不许往下走** |
+  | ⑤ | 绑定自定义域名 + 改 DNS | 等指令后执行，见下 |
+  | ⑥ | `python scripts/check_urls.py --online https://apocalab.com` —— host 从 `apocalab.pages.dev` 换成正式域名再跑一遍 | **不换 host，闸门测的就还是 `pages.dev`，正式域名等于一次都没测过**；DNS、证书、`_headers` 在正式域名上的生效，都是新的东西 |
 
-  **①没过不切，②没过也不切；跑了没过，先修，不许「先上线再看」。**
+  **①没过不切，②没过也不切，④不通过不进 ⑤；跑了没过，先修，不许「先上线再看」。**
+  **⑤ 与 ⑥ 在收到明确指令后才执行**：在那之前不动域名、不动 DNS、不提前绑自定义域名。
 - **404 由产物承担，不由项目设置承担（v1.8）**：`src/pages/404.astro` → `dist/404.html`，CF Pages 对未匹配路径优先用它。这是先手，先证明产物够用，改项目设置（Not Found Handling → `404-page`）是它不生效时才动的第二手，动的时候要贴改前改后。三条约束写死在页面上：**不加 canonical**（这个地址不是页面的地址）、**不加 `<meta name="robots">`**（404 状态本身就是信号，两种信号不叠）、**不进 sitemap**（sitemap 列页面，不列错误态）。页里只放五条回收链接，用的就是 §4.8 那五个锚文本，不另开一套链接规则。
   **实测（2026-11-14，加 404.html 先后只差这一次部署，项目设置一个都没动）**：
   - `/zzz-no-such-page-9f3a/` → **404** + 本站 404 页（改之前是 200 + 首页完整 HTML）；
-  - `/zzz.png` → **404**，Content-Type `text/html`。平台对所有未匹配路径都发 404.html，所以带扩展名的路径也是 HTML 错误页；nginx / Apache 对自己的错误页也是这么标。**要把它变成 `image/png` 只有一条路：在 `_headers` 里给 `/*.png` 写 Content-Type —— 那是把 HTML 字节标成 PNG，比现在这个"状态码对、类型是错误页"更假，所以不做。** 闸门对这条只打 WARN。
-  - `_headers` 对 404 响应同样生效（404 响应上仍带着 `X-Robots-Tag: noindex`），也就是「拿 header 改 404」这条路技术上通，只是上面那条理由让它不该走。
+  - `/zzz.png` → **404**，Content-Type `text/html`。状态码达标，类型不达标——按下面的「已知偏差」结案，不修。
+  - `_headers` 对 404 响应同样生效（404 响应上仍带着 `X-Robots-Tag: noindex`），所以「拿 header 改 404 的类型」这条路技术上通，只是不该走。
   - 所以「改项目设置」这一步**不需要执行**，留着给以后真的出现 200 时用。
+
+  **已知偏差 · 判断为可接受：不存在的 `.png` 返回 404，但 Content-Type 是 `text/html`。**
+  - 现状：平台对所有未匹配路径都发同一张 `404.html`，带扩展名也不例外，所以 `/zzz.png` 拿到的是 404 + 一张 HTML 错误页。
+  - 判断：**可接受，到此为止。** 爬虫读的那个信号是状态码，它已经是 404；剩下的只是「错误页该标什么类型」。`_headers` 确实对 404 响应生效，技术上能给 `/*.png` 写 `Content-Type: image/png`，但那是**把 HTML 字节标成 PNG**——一个自相矛盾的响应，比「404 + 一张 HTML 错误页」更假。nginx 与 Apache 对自家错误页同样标 `text/html`。
+  - 处置：**不修。** 不改 `_headers` 去加 `Content-Type`，不挂成待办，闸门维持 **WARN**（不是 FAIL），也不为了消掉这个 WARN 去改实现或加例外逻辑。
+  - 真正的红线是另一件事：图片路径返回 **200** + HTML。闸门对 200 是 FAIL，所以那条永远拦得住；WARN 只描述「错误页的类型」，不影响判定。
   闸门：`check_urls.py` §4 验本地产物（`dist/404.html` 在、五条链接在 `<main>` 里、无 canonical、无 meta robots），§5 只在 `--online` 时验线上真实状态码、Content-Type、以及那五条链接**逐个真发请求确认 200**。§4 做过反向测试（砍一条链接 + 塞一个 canonical → 正好两条 FAIL）；§5 的断言在修好之前的线上响应上真失败过一次，不是摆设。
 
 
