@@ -364,6 +364,16 @@ export const BASEMAP = {
 - **删掉 `public/_headers` 的理由**：静态副本会在部署时覆盖生成物，谁盖谁取决于平台复制顺序 —— 这种「有时生效」的配置比没有更危险。闸门断言 `public/_headers` 不存在，删它就是构建失败。
 - **`_headers` 还负责 `.geojson` 的 MIME**：Pages 对未知扩展名默认 `application/octet-stream`，降级轮廓那条路径要它明确是 `application/json`。
 - **交付物只有两种**：Cloudflare Pages 的 `*.pages.dev` 预览链接（`SITE_LIVE=false` 期间生产与预览都带 noindex）与正式域名 `apocalab.com`。平台自带的托管预览链接不再作为交付物，也不写进任何文档。
+- **兜底部署路径（平台构建队列堵塞时）**：Git 直连构建会整段时间卡在 `queued`（`clone_repo` 根本没有开始），此时线上停留旧版本。兜底是本地按目标分支口径构建后直传同一份产物：
+
+  ```
+  CF_PAGES_BRANCH=main npm run build
+  npx wrangler@4 pages deploy dist --project-name apocalab --branch main    # 生产
+  npx wrangler@4 pages deploy dist --project-name apocalab --branch preview # 预览别名
+  ```
+
+  两条硬要求：① `--project-name apocalab` 必须显式给，且部署返回里的 alias 必须是 `apocalab.pages.dev` / `preview.apocalab.pages.dev` —— 上级目录 `E:\CODEX\wrangler.jsonc` 属于另一个项目（`lumaroot-site`），wrangler 会把它当「用户配置」抓走，不核对就会把产物传到别处；② 直传前本地四个闸门必须已经全绿，直传是分发动作，不是验收动作。
+  直传不会篡改 Git 记录，平台恢复后下一次 `git push` 的构建会照常把同一个 commit 再发布一次，内容一致、无需回滚。
 
 ---
 
