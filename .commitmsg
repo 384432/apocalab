@@ -1,0 +1,14 @@
+Add the online gate and the Pages status helper
+
+scripts/check_online.py asks the deployed site the two questions that matter
+and cannot be answered from dist/: is the robots header actually served, and
+does every canonical point at apocalab.com rather than at pages.dev. It also
+covers robots.txt, sitemap.xml and the .geojson MIME type, and bypasses the
+system proxy so a proxy cache cannot answer for the origin.
+
+scripts/cf_pages_status.py prints the last few Pages deployments and their
+stages (account id comes from CF_ACCOUNT_ID, not from the repository).
+
+README: the project is now live on Cloudflare Pages — apocalab.pages.dev for
+production (branch main, no robots header) and preview.apocalab.pages.dev for
+the preview build (branch preview, noindex).

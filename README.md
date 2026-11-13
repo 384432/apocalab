@@ -41,6 +41,16 @@ SITE_ENV=production npm run build     && python scripts/check_site.py --expect m
 Cross-checking the wrong pair fails on purpose (a production build has no `noindex`; a preview build
 must have one).
 
+Once deployed, the same two questions are asked over real HTTP:
+
+```bash
+python scripts/check_online.py https://apocalab.pages.dev --expect indexed   # production
+python scripts/check_online.py https://preview.apocalab.pages.dev --expect noindex
+```
+
+It checks the header (not just the file), the canonical on each page, `robots.txt`, the sitemap and
+the `.geojson` MIME type, with proxies bypassed.
+
 ## Deploy — Cloudflare Pages, static, no adapter
 
 This is a hard constraint, not a preference: the whole site rests on "readable with scripting off,
@@ -49,10 +59,13 @@ three away.
 
 | Setting | Value |
 |---|---|
+| Project | `apocalab` — Git-connected to `384432/apocalab` |
 | Build command | `npm run build` |
 | Output directory | `dist` |
 | Node | 20+ |
 | Adapter | none — `astro.config.mjs` stays `output: 'static'` |
+| Production | `https://apocalab.pages.dev`, branch `main` |
+| Preview | `https://preview.apocalab.pages.dev` (branch `preview`) and one URL per deployment |
 
 `wrangler.toml` carries `pages_build_output_dir = "./dist"` so a manual
 `wrangler pages deploy` cannot upload the repository root.
@@ -101,6 +114,7 @@ the nav — with no `rel="nofollow"` and no JS routing.
 | `scripts/fetch_geonames.py` | one-time download of the GeoNames dump into the gitignored work dir |
 | `scripts/check_site.py` | the build gate: citations, JS-off reading, interpolation labels, URL state, canonical, sitemap, `_headers` mode, internal-link loop, map-page prose, promise ledger |
 | `scripts/gen_headers.mjs` | writes `dist/_headers` from `CF_PAGES_BRANCH` (production: no robots header; preview: `noindex`) |
+| `scripts/check_online.py` | the same two questions over real HTTP: header, canonical, robots, sitemap, geojson MIME |
 | `scripts/check_urls.py` | serves `dist/` on a loopback port and fetches every sitemap URL: 200, canonical round-trip, 404 sanity |
 | `scripts/measure_switch.mjs` | drives headless Chromium to time a yield switch (gate: < 300 ms) |
 | `scripts/verify_switch.mjs` | same browser, asserts the numbers actually change |
