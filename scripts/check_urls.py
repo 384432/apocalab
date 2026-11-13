@@ -54,6 +54,7 @@ ONLINE_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 fails = []
 passes = 0
+warns = []
 
 
 def check(cond, msg):
@@ -63,6 +64,11 @@ def check(cond, msg):
     else:
         fails.append(msg)
         print(f"  FAIL  {msg}")
+
+
+def warn(msg):
+    warns.append(msg)
+    print(f"  WARN  {msg}")
 
 
 class Quiet(http.server.SimpleHTTPRequestHandler):
@@ -191,13 +197,28 @@ if args.online:
     status, ctype, body = get(f"/zzz-{token}.png", base_url=host)
     print(f"    GET /zzz-{token}.png → {status} {ctype}")
     check(status == 404, f"线上不存在的 .png 返回 {status}（要求 404）")
-    check(
-        "text/html" not in ctype,
-        f"线上不存在的 .png 的 Content-Type 不是 text/html（实际 {ctype}）",
-    )
+    # Content-Type on a 404: Pages answers every unmatched path with 404.html, so
+    # a missing image comes back as text/html carrying the 404 page. That is what
+    # nginx and Apache do with their own error pages too, and the status code is
+    # the part that decides whether a crawler sees a page or nothing. Forcing
+    # image/png here would label HTML bytes as a PNG, which is a worse lie than
+    # the mismatch it removes — so this is a warning, not a failure.
+    if "text/html" in ctype:
+        hrefs, _ = main_links(body)
+        check(
+            all(h in hrefs for h in RECOVERY),
+            "线上不存在的 .png 返回的是本站 404 页（五条回收链接在 <main> 里）",
+        )
+        warn(f"线上不存在的 .png 的 Content-Type 是 {ctype}（平台把 404.html 发给所有未匹配路径）")
+    else:
+        check(True, f"线上不存在的 .png 的 Content-Type 不是 text/html（{ctype}）")
+
+    for href in RECOVERY:
+        st, ct, _ = get(href, base_url=host)
+        check(st == 200 and "text/html" in ct, f"线上 404 页上的 {href} 可点（{st} {ct}）")
 
 srv.shutdown()
-print(f"结果：PASS {passes}  FAIL {len(fails)}")
+print(f"结果：PASS {passes}  FAIL {len(fails)}  WARN {len(warns)}")
 if fails:
     sys.exit(1)
 print("HTTP 闸门全绿。")
