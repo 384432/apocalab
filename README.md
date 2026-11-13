@@ -21,7 +21,7 @@ Four scripts decide whether the site may ship. All exit non-zero on failure.
 
 ```bash
 python scripts/verify_data.py   # 354 checks on the data layer (provenance, scaling, monotonicity)
-python scripts/check_site.py    # 572 checks on the built HTML (pages, JS-off, citations, canonical, sitemap, internal links, noindex mode)
+python scripts/check_site.py    # 674 checks on the built HTML (pages, JS-off, citations, canonical, sitemap, internal links, noindex mode, query-page rules)
 python scripts/check_urls.py    #  30 checks over real HTTP: every sitemap URL answers 200
 node   scripts/verify_map.mjs   #  browser: tiles, blocked tiles, shared URL, JS off, 390 px
 ```
@@ -35,17 +35,24 @@ deployment:
 
 ```bash
 CF_PAGES_BRANCH=preview npm run build && python scripts/check_site.py --expect preview
-SITE_ENV=production npm run build     && python scripts/check_site.py --expect main
+CF_PAGES_BRANCH=main    npm run build && python scripts/check_site.py --expect main
 ```
 
-Cross-checking the wrong pair fails on purpose (a production build has no `noindex`; a preview build
-must have one).
+`--expect` names the **branch** the artifact came from; what that branch should produce is read from
+`SITE_LIVE` in `src/lib/site.ts`. While `SITE_LIVE = false`, both branches must produce `staged`
+(noindex) and the flag makes no difference. With `SITE_LIVE = true`, `main` must produce a build with
+no `noindex` anywhere and a preview must carry the header. Feeding a production artifact to
+`--expect preview` fails on purpose.
 
 Once deployed, the same two questions are asked over real HTTP:
 
 ```bash
-python scripts/check_online.py https://apocalab.pages.dev --expect indexed   # production
-python scripts/check_online.py https://preview.apocalab.pages.dev --expect noindex
+# while SITE_LIVE = false, both environments must be noindex
+python scripts/check_online.py https://apocalab.pages.dev          --expect noindex
+python scripts/check_online.py https://preview.apocalab.pages.dev  --expect noindex
+
+# after the domain points here and SITE_LIVE = true
+python scripts/check_online.py https://apocalab.pages.dev          --expect indexed
 ```
 
 It checks the header (not just the file), the canonical on each page, `robots.txt`, the sitemap and
@@ -74,13 +81,28 @@ three away.
 from `public/`. Whether the deploy may be indexed depends on the environment, and that is only known
 while building:
 
-| `CF_PAGES_BRANCH` | mode | `_headers` |
-|---|---|---|
-| `main` | production | no `X-Robots-Tag` at all — `robots.txt` and `sitemap.xml` invite crawlers in |
-| anything else, or unset (local) | preview | `X-Robots-Tag: noindex` on `/*` |
+| `SITE_LIVE` | `CF_PAGES_BRANCH` | mode | `_headers` |
+|---|---|---|---|
+| `false` | `main` | **staged** | `X-Robots-Tag: noindex` on `/*` |
+| `false` | anything else / unset | staged | same |
+| `true` | `main` | production | no `X-Robots-Tag` at all — `robots.txt` and `sitemap.xml` invite crawlers in |
+| `true` | anything else / unset | preview | `X-Robots-Tag: noindex` on `/*` |
 
-Pages sets that variable for production and preview deployments alike, so production needs no extra
-configuration. `SITE_ENV=production` overrides it for reproducing the production artifact locally.
+**`SITE_LIVE` is `false` right now.** Every page carries `rel=canonical` pointing at
+`apocalab.com`; until that domain answers, an indexable `*.pages.dev` copy would be what Google
+indexes, and the day the domain goes live the same pages would exist at two hostnames. So production
+is noindexed too, and the sitemap is generated but not submitted.
+
+Going live is one boolean, in `src/lib/site.ts`:
+
+```ts
+export const SITE_LIVE = true;
+```
+
+`gen_headers.mjs` reads that value out of the file (it does not keep a copy) and refuses to build if
+the declaration is missing or appears twice. `check_site.py` reads the same value to decide what the
+artifact should look like, so flipping the flag cannot leave the gate behind. `SITE_ENV=production`
+still forces the `main` rule when you want to reproduce that artifact locally.
 The gate asserts both directions: a production artifact may not contain the word `noindex` in
 `_headers` **or** in any HTML file, and a preview artifact must carry the header. It also fails if a
 static `public/_headers` ever comes back — a leftover copy would win or lose depending on copy order,
@@ -91,7 +113,7 @@ serve as `application/octet-stream`.
 
 ## Internal links
 
-Four pages, one closed loop. Anchor text is fixed (changing it is a contract change, and
+Four core pages, one closed loop. Anchor text is fixed (changing it is a contract change, and
 `check_site.py` §17 fails the build):
 
 | Destination | Anchor text |
@@ -101,8 +123,12 @@ Four pages, one closed loop. Anchor text is fixed (changing it is a contract cha
 | `/` | `nuke simulator` |
 | `/methodology/` | `where these numbers come from` |
 
-Every page links to the other three from inside body paragraphs — not from the footer, not only from
-the nav — with no `rel="nofollow"` and no JS routing.
+Every core page links to the other three from inside body paragraphs — not from the footer, not only
+from the nav — with no `rel="nofollow"` and no JS routing.
+
+City pages (`/nuclear-bomb-map/{city}/`) are leaves: each one links back to at least three core
+pages, always including `/blast-radius/` and `/nuclear-bomb-map/`, with the same fixed anchor text.
+They do not join the loop, so adding cities cannot break it.
 
 ## Pipeline
 
@@ -111,9 +137,10 @@ the nav — with no `rel="nofollow"` and no JS routing.
 | `scripts/build_effects.py` | the 24 transcribed values → `src/data/effects.json` + `data-ledger.csv` |
 | `scripts/verify_data.py` | provenance, unit chain, cube-root recomputation, monotonicity |
 | `scripts/build_cities.py` | GeoNames cities15000 → `src/data/cities.json` (20 gazetteer points) |
+| `scripts/build_city_pop.py` | WorldPop API → `src/data/city-pop.json`: people inside every radius the site draws, per city (cached; `--refresh` to refetch) |
 | `scripts/fetch_geonames.py` | one-time download of the GeoNames dump into the gitignored work dir |
 | `scripts/check_site.py` | the build gate: citations, JS-off reading, interpolation labels, URL state, canonical, sitemap, `_headers` mode, internal-link loop, map-page prose, promise ledger |
-| `scripts/gen_headers.mjs` | writes `dist/_headers` from `CF_PAGES_BRANCH` (production: no robots header; preview: `noindex`) |
+| `scripts/gen_headers.mjs` | writes `dist/_headers` from `SITE_LIVE` + `CF_PAGES_BRANCH` (staged/preview: `noindex`; production: no robots header) |
 | `scripts/check_online.py` | the same two questions over real HTTP: header, canonical, robots, sitemap, geojson MIME |
 | `scripts/check_urls.py` | serves `dist/` on a loopback port and fetches every sitemap URL: 200, canonical round-trip, 404 sanity |
 | `scripts/measure_switch.mjs` | drives headless Chromium to time a yield switch (gate: < 300 ms) |

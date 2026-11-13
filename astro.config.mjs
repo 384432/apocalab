@@ -12,8 +12,8 @@ const pagesHeaders = {
   name: 'apocalab:pages-headers',
   hooks: {
     'astro:build:done': ({ dir, logger }) => {
-      const { mode, reason } = writeHeaders(fileURLToPath(dir));
-      logger.info(`_headers: ${mode} (${reason})`);
+      const { mode, reason, siteLive } = writeHeaders(fileURLToPath(dir));
+      logger.info(`_headers: ${mode} (${reason}) [SITE_LIVE=${siteLive}]`);
     },
   },
 };

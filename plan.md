@@ -1,8 +1,15 @@
 # apocalab.com — v1 实施计划
 
 > 技术负责人 / 全栈工程师：灵
-> 版本：**v1.5（2026-11-13 修订）**。阶段 0 数据层已通过抽检，阶段 1 骨架与 `/blast-radius/`、阶段 2 首页与查表、阶段 3 `/nuclear-bomb-map/` 均已交付；交付形态自 v1.4 起锁定为 **Cloudflare Pages 静态站**（§3.7）。第 8 节 5 个决策点已全部裁决，正文按裁决结果改过。v1.5 改动：`_headers` 改成按分支生成（§3.7）、新增内链契约（§4.8）与承诺台账（§4.9）、地图页正文规格落到 §4.3。
+> 版本：**v1.6（2026-11-13 修订）**。阶段 0 数据层已通过抽检，阶段 1 骨架与 `/blast-radius/`、阶段 2 首页与查表、阶段 3 `/nuclear-bomb-map/` 均已交付；交付形态自 v1.4 起锁定为 **Cloudflare Pages 静态站**（§3.7）。第 8 节 5 个决策点已全部裁决，正文按裁决结果改过。v1.6 改动：收录开关改成 `SITE_LIVE` 布尔值（§3.7）、title 撤回 `20 Cities`（§4.9）、首月页数从 80 改成 **53**（§4.10）、城市页规格与人口口径落地（§4.11）。
 > 本文所有页码、图号、公式，均来自我本机对手册 PDF 的抽取核对（见 2.1），不是从二手网页抄的。
+
+**v1.6 相对 v1.5 改了什么**（只列会改变行为的）：
+
+1. **收录开关加了一层 `SITE_LIVE`（§3.7）**。v1.5 的规则是「main 可收录、其它分支 noindex」，但域名还没指向 Pages，而每页 canonical 都指向 `apocalab.com`。生产可收录、canonical 拿不到，等于把 `*.pages.dev` 那套地址送进索引。现在 `SITE_LIVE = false`，生产与预览都 noindex；上线当天只改这一个布尔值。
+2. **`/nuclear-bomb-map/` 的 title 去掉 `, 20 Cities`（§4.3、§4.9）**。用 20 个城市词（合计月搜不到 100）去抵押一次构建失败不划算；城市页照做，进度不挂在 title 上。新 title：`Nuclear Bomb Map: Rings on Real Ground at True Scale`。
+3. **首月页数 80 → 53（§4.10）**。按美国月搜逐词查过 49 个词，能诚实交付又真有人搜的只有 13 个查询页。53 = 核心 8 + 城市 20 + 武器/历史 12 + 查询 13。**「约 40 个灾害查询页」这个数字作废**，实时数据地图类（飓风/山火/闪电/龙卷/洪水/地震）明令不做。
+4. **城市页规格落地（§4.11）**：URL 放在 `/nuclear-bomb-map/{slug}/`，title 模板 `Nuclear Bomb Effects on {City}: 15 kt to 1 Mt`，三项数据里一项直取 `effects.json`、两项现算，人口口径句写死在页面上。
 
 **v1.4 相对 v1.3 改了什么**（只列会改变行为的）：
 
@@ -342,10 +349,21 @@ export const BASEMAP = {
 
 - **构建**：`npm run build`（即 `astro build`）→ `dist/`。`astro.config.mjs` 保持 `output: 'static'`，不装 `@astrojs/cloudflare` 或任何 adapter。`check_site.py` 断言配置里没有 `adapter:`、没有 `@astrojs/*`、`dist/` 里没有 `functions/`。
 - **Pages 项目设置**：构建命令 `npm run build`，输出目录 `dist`，Node 20+。仓库根的 `wrangler.toml` 用 `pages_build_output_dir = "./dist"` 兜底，手工 `wrangler pages deploy` 也不会把仓库根当成产物。
-- **收录开关按分支走，不是写死一行**：`dist/_headers` 不再是从 `public/` 拷来的静态文件，而是构建结束时由 `scripts/gen_headers.mjs` 按 `CF_PAGES_BRANCH` 生成（`astro.config.mjs` 挂在 `astro:build:done`）。`CF_PAGES_BRANCH=main` → 生产，整份 `_headers` 不写任何 `X-Robots-Tag`；其它分支或本地构建（无该变量）→ 预览，`/*` 带 `X-Robots-Tag: noindex`。两个方向都有硬断言：生产产物里 `_headers` 与全部 HTML 都不许出现 `noindex` 字样；预览产物必须带这个头。手工复现生产产物用 `SITE_ENV=production npm run build`。
+- **收录开关 = 一个布尔值 + 一个分支，不是写死一行**：`dist/_headers` 由 `scripts/gen_headers.mjs` 在 `astro:build:done` 时生成。它**从 `src/lib/site.ts` 读取 `SITE_LIVE`**，不在生成器里复制一份值；读不到或读到多份声明就构建失败，不许猜。
+
+| `SITE_LIVE` | 构建分支 | 产物模式 | `_headers` |
+|---|---|---|---|
+| `false` | `main` | **staged** | `/*` 带 `X-Robots-Tag: noindex` |
+| `false` | 其它 / 本地无变量 | staged | 同上 |
+| `true` | `main` | production | 整份文件不写任何 `X-Robots-Tag` |
+| `true` | 其它 / 本地无变量 | preview | `/*` 带 `X-Robots-Tag: noindex` |
+
+  **当前 `SITE_LIVE = false`**：域名还没指向 Pages，而每页 canonical 都指向 `apocalab.com`。Google 拿不到 canonical 目标时会直接收录 `*.pages.dev` 那套地址，域名上线那天就变成两份同内容。所以生产和预览都先 noindex，sitemap 照常生成、但**不提交**给 GSC。
+  **上线当天只改 `src/lib/site.ts` 里的 `false` → `true`，重新构建**，没有第二个手工步骤。`check_site.py` §16 用同一个文件里的值决定期望：产物模式与它不符即失败，所以「改了值忘了改闸门」这条路不存在。
+  三个方向都有硬断言：staged / preview 必须带这个头；production 整份 `_headers` 与全部 HTML 都不许出现 `noindex` 字样；任何模式下 HTML 都不许出现 `<meta name="robots">`（收录开关只留一条路）。生成器还会把 `# mode:` / `# site-live:` 写进产物，闸门校验这两行自证。
 - **删掉 `public/_headers` 的理由**：静态副本会在部署时覆盖生成物，谁盖谁取决于平台复制顺序 —— 这种「有时生效」的配置比没有更危险。闸门断言 `public/_headers` 不存在，删它就是构建失败。
 - **`_headers` 还负责 `.geojson` 的 MIME**：Pages 对未知扩展名默认 `application/octet-stream`，降级轮廓那条路径要它明确是 `application/json`。
-- **交付物只有两种**：Cloudflare Pages 的预览链接（`*.pages.dev`，带 noindex）与正式域名 `apocalab.com`。平台自带的托管预览链接不再作为交付物，也不写进任何文档。
+- **交付物只有两种**：Cloudflare Pages 的 `*.pages.dev` 预览链接（`SITE_LIVE=false` 期间生产与预览都带 noindex）与正式域名 `apocalab.com`。平台自带的托管预览链接不再作为交付物，也不写进任何文档。
 
 ---
 
@@ -389,22 +407,22 @@ export const BASEMAP = {
 - 工作量：**4 h**（不含数据）
 
 ### 4.3 `/nuclear-bomb-map/` — `nuclear bomb map`（US 2,400/月）
-- Title: `Nuclear Bomb Map: Blast Rings on Real Ground, 20 Cities`
+- Title: `Nuclear Bomb Map: Rings on Real Ground at True Scale`（v1.6 去掉 `, 20 Cities`）
 - H1: `Nuclear Bomb Map — the rings on the ground, not on a chart`
 - 与首页共用 `lib/island.ts` + `panelRows()`，所以同一个组合在两页不可能显示不同的数；但**首页保留 SVG 真比例圆环，不用地图替换**——SVG 关 JS 也看得见，地图看不见，两者不是替代关系。
 - 默认视角 = 按该城最大半径自动 fit（16:9 画幅里外圈占短边 40%），不是固定世界 zoom：世界视图看不出任何一圈的相对大小。
 - 导航一级项，首页与城市页都链过来。
 - **正文不能只有一张图**：一张地图的页面，谷歌判断不了它讲什么。规格固定为：≥ 700 词英文正文、4–6 个 H2、每节 90–150 词，且**每节必须含具体数字并带印刷页码**（`p. 115` / `p. 101` / `p. 110` 这种）。小节按此顺序：5 psi 是什么口径 / 1 psi 是什么口径 / 火球与热辐射环不是一回事 / 为什么圈不随当量线性增长（立方根律 §3.61 p.101）/ 20 城与人口口径 / 这些数字读不出来的时候（爆高越界 p.110）。`check_site.py` §18 逐节判定。
-- Title 里的 `20 Cities` 是承诺，不是修饰词：受 §4.9 台账约束，D7（2026-11-18）城市页没全上线就把它去掉。
+- **title 里不再出现城市数量**（v1.6）。原来的 `20 Cities` 是拿一个 5 天后到期、而 20 个城市词加起来月搜不到 100 的数字去抵押构建失败，不划算。城市页照做，进度记在 §11。
 - 工作量：**4 h**（正文另计 **2 h**）
 
-### 4.4 `/[city]/` × 20
-- Title 模板（**每页手写，不批量套**）：`Nuclear Blast Radius in New York — 15 kt, 100 kt and 1 Mt`
-- H1（各不相同）：`Where the rings land in New York`
-- 内容三件套：① 15/100/1000 kt × 4 效应表（同 4.2 规格）；② 各半径内人口；③ 120–160 词真地名文案（Manhattan / Brooklyn / Jersey City / Newark…，来自 GeoNames + OSM 地名，不编）。
-- 结构数据：`BreadcrumbList`（Home › Cities › New York）。内链：回首页、回 `/blast-radius/`、上/下各一个城市、`/nuclear-bomb-map/`。
+### 4.4 城市页 × 20 — 规格见 §4.11
+- **URL 自 v1.6 起是 `/nuclear-bomb-map/{slug}/`，不是根路径 `/[slug]/`**。§4.11 说明理由（根路径的 `/london/` 抢不过任何站，挂在地图下才有主题归属）。
+- Title 模板：`Nuclear Bomb Effects on {City}: 15 kt to 1 Mt`（v1.6 改；原模板 `Nuclear Blast Radius in New York — …` 与 `/blast-radius/` 抢同一批词）。
+- 内容三件套：① 15/100/1000 kt × 5 效应距离表（直取 `effects.json`，不重算）；② 10 km 人口与各环内人口（现算，两个数分开，不合并）；③ 一段该城独有的说明（只用该页数字能支撑的话，地名不编）。
+- 结构数据：`Dataset`（`BreadcrumbList` 等 20 页齐了再加）。内链：回首页、回 `/blast-radius/`、回 `/nuclear-bomb-map/`、`/methodology/`。
 - 20 城：new-york, los-angeles, chicago, houston, san-francisco, washington-dc, miami, seattle, boston, atlanta, london, paris, tokyo, berlin, sydney, toronto, mexico-city, sao-paulo, new-delhi, johannesburg。
-- 生成门槛写入脚本：某城若 4 效应 × 3 当量有任一缺值 / 人口缺失 / 文案 < 100 词 → 该城**不生成页面**（符合你的「凑不出三项不要生成」）。
+- 生成门槛写入脚本：某城若 5 效应 × 3 当量有任一缺值 / 人口缺失 → 该城**不生成页面**（符合你的「凑不出三项不要生成」）。
 - 工作量：**10 h**（模板 4 h + 20 篇文案 6 h）
 
 ### 4.5 `/nuclear-winter/` — `nuclear winter`（US 9,900/月）
@@ -440,7 +458,8 @@ export const BASEMAP = {
 - 每页正文出链**恰好覆盖其余三页**，入链 3 条；全部是普通 `<a href>`，无 `rel=nofollow`、无 JS 跳转。
 - 每条内链必须落在正文段落 `<p>` 里，不许塞页脚、不许只挂在导航上。导航栏保留（那是 UX，不是内链策略），断言只统计 `<main>` 内的正文链接。
 - `check_site.py` §17 逐条判定：锚文本、目标集合、段落位置、入链数。锚文本改了就是契约破了，构建失败。
-- 城市页上线后按 §4.4 的内链规则接入这张网（回首页 + 回 `/blast-radius/` + 上下城），四页闭环不受影响。
+- **城市页是叶子，只汇入不参与闭环**：每页至少 3 条回核心页，且必须同时命中 `/blast-radius/` 与 `/nuclear-bomb-map/`（锚文本沿用上表）；地图页反过来链到已发布的城市页，锚文本由页面自己写，但闸门禁止 `click here` / `learn more` 一类空锚文本。四页闭环本身不受城市页数量影响。
+- 城市页上线后按 §4.11 接入这张网（回首页 + 回 `/blast-radius/` + 回地图页），上下城互链等城市页铺到 20 个再加。
 
 ### 4.9 承诺台账（title 里的数字必须有到期日）
 
@@ -448,11 +467,81 @@ export const BASEMAP = {
 
 <!-- PROMISE-LEDGER
 # id | 承诺原文 | 出现位置 | 到期日 | 兑现判据（dist:<glob>>=<N>）
-map-cities | 20 Cities | /nuclear-bomb-map/ title | 2026-11-18 | dist:city/*/index.html>=20
 -->
 
-- **到期日是 D7（2026-11-18）**。到那天 20 个城市页没有全部上线，就把 `/nuclear-bomb-map/` 的 title 里的 `, 20 Cities` 去掉，不留空承诺；改完把本表那一行删掉，并在 §11 记一行变更。
+- **2026-11-13 撤回 `map-cities` 那一行**：`/nuclear-bomb-map/` 的 title 不再写 `, 20 Cities`，改成 `Nuclear Bomb Map: Rings on Real Ground at True Scale`。理由不是做不完，是这笔抵押不划算 —— 20 个城市词加起来月搜不到 100，却拿一次构建失败去担保。城市页照 §4.11 做满 20 个，进度记在 §11，不挂在 title 上。
+- **台账现在是空的，这是刻意的**：空台账 + 断言里那条「title 有数量就必须有行」= 现在任何页面都不许拿未交付的数量做标题。要重新加承诺，先加行、先写到期日。
 - 不允许「先写上、以后再补」的第二种写法：要么有到期日，要么不写数量。
+
+### 4.10 首月页面清单：53 页（80 页与「约 40 个灾害页」作废）
+
+按美国月搜逐词核过 49 个词，能**诚实交付**（手册里有对应内容）且**真有人搜**的只有 13 个查询页。首月构成固定为：
+
+| 类型 | 页数 | 说明 |
+|---|---|---|
+| 核心页 | 8 | `/`、`/blast-radius/`、`/nuclear-bomb-map/`、`/methodology/`、`/about/`、`/privacy/`、404、sitemap |
+| 城市页 | 20 | §4.11，`/nuclear-bomb-map/{slug}/` |
+| 武器 / 历史 | 12 | 第 1 章与第 6 章能撑住的条目（原子弹、氢弹、中子弹、当量谱系、试验史等），逐条按词条做事，不拼凑 |
+| 查询页 | 13 | 下表 |
+| **合计** | **53** | |
+
+**13 个查询页（主词 | 美国月搜 | 数据来源）**
+
+| URL | 主词 | 月搜 | 数据来源 |
+|---|---|---|---|
+| `/nuclear-winter/` | nuclear winter | 9,900 | **手册没有核冬天模型，本页不许用手册算**，见下方专门条款 |
+| `/neutron-bomb/` | neutron bomb | 8,100 | 第 1 章 |
+| `/hydrogen-bomb-vs-atomic-bomb/` | hydrogen bomb vs atomic bomb | 8,100 | 第 1 章 |
+| `/fallout-map/` | fallout map | 4,400 | 第 9 章 |
+| `/tsar-bomba/` | tsar bomba blast radius | 2,400 | Fig. 3.73c p.115（50 Mt 按 §3.61 立方根缩放，带固定标签） |
+| `/thermal-radiation/` | thermal radiation | 1,900 | 第 7 章，Fig. 7.42 p.291 |
+| `/hiroshima/` | hiroshima bomb radius | 1,600 | Fig. 3.73c p.115（15 kt，直读） |
+| `/how-to-survive-a-nuclear-blast/` | how to survive a nuclear blast | 1,300 | 第 12 章 |
+| `/overpressure/` | overpressure | 1,000 | 第 3 章 |
+| `/nuclear-strike-map/` | nuclear strike map | 720 | 地图 + 城市页复用，不新造数据 |
+| `/nuclear-weapon-effects/` | nuclear weapon effects | 720 | 全手册总览，做内链枢纽 |
+| `/blast-wave/` | blast wave | 590 | 第 3 章 |
+| `/nuclear-bomb-crater/` | nuclear bomb crater | 480 | 第 6 章 |
+
+**每页硬要求（`check_site.py` §20 逐页判定，页一上线就生效）**
+
+1. ≥700 词英文正文。
+2. 4–6 个 `<h2>` 小节。
+3. 每节至少一个具体数字，且带印刷页码（`p.NNN`）。
+4. 正文里 ≥3 条内链，锚文本只用 §4.8 那四条，且必须命中 `/blast-radius/` 与 `/nuclear-bomb-map/`。
+5. 每节 100–150 词，不堆关键词。
+
+**`/nuclear-winter/` 的专门条款（唯一一页不用手册数据）**
+
+- 手册（1977）**不含核冬天气候模型**，本页不得用手册的任何公式或图表推算温降、烟尘量、减产幅度。
+- 只用已发表研究，逐个给「作者 + 期刊 + 年份 + 图/表号或页码/DOI」：TTAPS（Turco et al., *Science*, 1983）作为原始结论来源；Robock, Oman & Stenchikov（*JGR Atmospheres*, 2007）作为现代模式结果来源。**只引述它们自己发表过的数字**，不做任何插值、不做单位换算之外的加工。
+- 页面顶部一句明写：本页数字来自上述文献，**不是**本站从手册算出来的；与站点其余部分的数据口径不同。
+- 若某个数字找不到可公开核对的出处，就不写，不拿「据说」凑。
+
+**明令不做**（实时数据地图，需接实时源，与本站主题不符）：hurricane tracker / wildfire map / lightning strike map / tornado map / flood map / earthquake map。**不许为了凑页数写没有对应词条的页面。**
+
+### 4.11 城市页规格（20 页，模板一次成型）
+
+- **URL**：`/nuclear-bomb-map/{slug}/`，挂在被它解读的那张地图下面，而不是根路径 `/{slug}/`。理由：根路径的 `/london/`、`/paris/` 是全世界都在抢的词，一个新站拿一页去碰它没有任何胜算；挂在地图下面既有主题归属，也让地图页成为真实的枢纽。slug 沿用 GeoNames 的写法（`new-york`、`sao-paulo`、`new-delhi`、`washington-dc`）。生成物由 `src/lib/cities.ts` 的 `PUBLISHED_CITY_SLUGS` 控制，sitemap 与路由读同一份清单 —— 不在清单里的城市不会出现在 sitemap，也不会生成页面。
+- **title 模板**：`Nuclear Bomb Effects on {City}: 15 kt to 1 Mt`。不写 `15 kt, 100 kt, 1 Mt`，那串词与 `/blast-radius/` 的 title 有 6 词重合；城市名承担唯一性。闸门另断言：城市页 title 必须含城市名、彼此不重复、与四个核心页的最长共同词串 ≤3。
+- **description 模板**：`What 15 kt, 100 kt and 1 Mt air bursts reach over {City}: 5 psi to {x} km, 1 psi to {y} km, and {N} people inside the 5 psi ring.` —— 数字全部来自数据，不手写。
+- **H1**：`Nuclear Bomb Effects on {City} — 15 kt, 100 kt and 1 Mt`。
+- **三项数据，来源必须分开写**：
+
+| 项 | 内容 | 来源 | 直取还是现算 |
+|---|---|---|---|
+| 1 | 15 / 100 / 1000 kt × 5 种效应的距离 | `src/data/effects.json`（`get()` 查表） | **直取**，与 `/blast-radius/` 同一份 JSON，不重算、不四舍五入 |
+| 2 | 城市人口（10 km 圆内） | `src/data/city-pop.json`，由 `scripts/build_city_pop.py` 调 WorldPop API 生成 | **现算**（抓数一次、结果入库缓存，构建时只查表） |
+| 3 | 5 psi / 1 psi / 火球环内人口 | 同上，同一请求换半径 | **现算**，且**不由大环减小环**、**不拿城市人口减环内人口当存活数** |
+
+- **人口口径句（写死在页面上，原文）**：
+
+  > `{N} people live within 10 km of {lat}, {lon} — the GeoNames point for {City} — counted on the WorldPop Global2 R2025A 100 m grid, 2020 estimates, not inside a city boundary.`
+
+  这句话由 `src/lib/city-pop.ts` 的 `populationSentence()` 生成，数字、坐标、数据集名、年份全部来自数据文件，页面模板里不许手写，防止文案和数据各说各话。
+  **与 D4 的偏差要写明**：D4 写的是 1 km 栅格，实际用的是 WorldPop API 提供的 **100 m** 栅格（更细）。这是唯一一处口径变化，页面与 `city-pop.json` 的 `source.note` 都标出来。
+- **城市页不做地爆、不做热辐射地爆**：Fig. 7.42 是空爆图（§7.41 p.290 另有路径），所以城市页统一按空爆给数，页面写一句「air burst」。
+- **上线节奏**：先发 1 页（`new-york`）做样板，人工看过版式与数字，再一次性把 `PUBLISHED_CITY_SLUGS` 放满 20 个。
 
 ---
 
@@ -488,33 +577,33 @@ map-cities | 20 Cities | /nuclear-bomb-map/ title | 2026-11-18 | dist:city/*/ind
 | **3 地图 + 视觉** | MapLibre、Canvas 覆盖层、测地圆、Natural Earth 降级、移动端抽屉 | 16 h | 断网/挂瓦片时轮廓与圈仍在且不空白；4G 首屏 2 s 内 |
 | **4 `/nuclear-bomb-map/`** | 世界视角 + 导航接入 | 4 h | 导航可点达；分享链接可还原 |
 | **5 城市页 ×20** | 模板 + 生成门槛 + 20 篇文案 + og 图 | 10 h | 20 页全过门槛；每页 3 条内链 |
-| **6 内容与法务 + 余量页** | nuclear-winter 2500 词、methodology 定稿、about、privacy、武器页 12、约 40 个灾害/查询页 | 18 h | 引用可点、无自算数字；每页有独立搜索意图 |
+| **6 内容与法务 + 查询页** | nuclear-winter 2500 词、methodology 定稿、about、privacy、武器页 12、**查询页 13**（§4.10） | 18 h | 引用可点、无自算数字；每页 700 词 / 4–6 H2 / 每节带页码（§20 断言） |
 | **7 收口** | sitemap/robots/canonical 断言、Lighthouse、OG 全量核查 | 6 h | 第 5 节清单全绿 |
 | — | **阶段二**（12 当量页，等你确认） | 8 h | 复用同套数据与模板 |
 
 总量回到 **70–85 h**，与 v1.0 一致。城市页固定 20 个，不为它追加任何工时。
 
-### 6.1 首月 80 页怎么堆（你定的第 3 条）
+### 6.1 首月 53 页怎么堆（v1.6：80 页作废）
 
-**先分清两个数**：80 是**首月总页量**，城市页是其中的 **20 页**，不多不少。
+**先分清两个数**：53 是**首月总页量**，城市页是其中的 **20 页**，不多不少。v1.6 把余量页从「约 40」砍到「13」，因为按美国月搜逐词核过 49 个词后，能诚实交付又真有人搜的只有 13 个（清单与月搜见 §4.10）。
 
 | 组成 | 页数 | 说明 |
 |---|---|---|
-| 核心页 | 8 | `/`、`/blast-radius/`、`/nuclear-bomb-map/`、`/fallout-map/`、`/nuclear-winter/`、`/methodology/`、`/about/`、`/privacy/` |
-| 城市页 | 20 | 已列的那 20 城，一城一页 |
-| 武器/历史弹页 | 12 | 先做现有 12 个；扩不扩按后续数据定，不在本期承诺 |
-| 灾害与查询页（余量） | ~40 | 同一赛道里**有独立搜索量**的页面类型，清单待定 |
-| **合计** | **80** | |
+| 核心页 | 8 | `/`、`/blast-radius/`、`/nuclear-bomb-map/`、`/methodology/`、`/about/`、`/privacy/`、404、sitemap |
+| 城市页 | 20 | §4.11，`/nuclear-bomb-map/{slug}/` |
+| 武器/历史弹页 | 12 | 第 1 章与第 6 章能撑住的条目 |
+| 查询页 | 13 | §4.10 的表，逐条带数据来源 |
+| **合计** | **53** | |
 
-**页量来源**：靠有独立搜索量的页面类型补齐，不靠加城市。
+**页量来源**：靠有独立搜索量的页面类型补齐，不靠加城市。**不为了凑页数写没有对应词条的页面。**
 
 **城市页的定位**：不负责流量，负责覆盖与内链。它们把「半径数字」落到地理实体上，给核心页提供锚文本入口，同时让站点在地名类长尾里有落点。
 
-**验收标准（不变）**：每页必须同时具备三项——① 三档当量（15 / 100 / 1000 kt）的半径数值；② 城市中心 10 km 内的背景人口（WorldPop，写明年份与版本）；③ 本地地名文案（120–160 词，含真实地名）。缺任一项 → 该城不生成页面。
+**验收标准（不变）**：每页必须同时具备三项——① 三档当量（15 / 100 / 1000 kt）的效应数值（直取 `effects.json`）；② 城市中心 10 km 内的背景人口（WorldPop，写明年份、版本、栅格分辨率）；③ 环内人口（现算，与②分开）。缺任一项 → 该城不生成页面。
 
 **不为城市页追加任何额外工时**：20 页的模板 + 生成门槛 + 文案已含在阶段 5 的 10 h 里。这 20 页只在收录信号确认后按需微调，不设扩张阶段。
 
-一个仍然成立的判断：**不一次铺满 80 页**。信号顺序是收录 → 外链 → 页量 → 排名，页量排在收录后面。核心 8 页 + 20 城市页先上线，看收录，再补余量页。
+一个仍然成立的判断：**不一次铺满 53 页**。信号顺序是收录 → 外链 → 页量 → 排名，页量排在收录后面。核心 8 页 + 20 城市页先上线，看收录，再补 13 个查询页。
 
 ---
 
@@ -551,9 +640,9 @@ map-cities | 20 Cities | /nuclear-bomb-map/ title | 2026-11-18 | dist:city/*/ind
 | D4 | 城市人口口径（R8） | **城市中心半径 10 km 内 WorldPop 人口**，不用行政边界；效应圈内人口另算，两个数不合并；页面明写半径、年份、版本 | 2.5 / 4.4 |
 | D5 | 备用底图 | **自托管 Natural Earth 110m 公有领域轮廓**（约 120 KB，随站打包）；不用任何第三方免费额度；瓦片挂掉画轮廓 + 半径圈 + 一行说明 | 3.2 / 3.3 |
 
-三条调整同样已落地：`/blast-radius/` 提前到地图之前（6）；关掉地图旋转与俯仰（3.2）；城市页固定 20 个、首月 80 页靠页面类型补齐（6.1）；全站禁 demo 类字样 + 免责恰一行（1）。
+三条调整同样已落地：`/blast-radius/` 提前到地图之前（6）；关掉地图旋转与俯仰（3.2）；城市页固定 20 个、首月 53 页靠页面类型补齐（6.1）；全站禁 demo 类字样 + 免责恰一行（1）。
 
-**仍待你后续定的三件**：约 40 个灾害/查询页的具体清单（你下次给）；阶段二 12 当量页做不做（+8 h）；`/nuclear-bomb-map/` 与首页要不要合并（当前分开，因为两个词各自有量，合并会牺牲其中一个的标题口径）。
+**仍待你后续定的两件**（v1.6：查询页清单你已给定 13 个，此项关闭）：阶段二 12 当量页做不做（+8 h）；`/nuclear-bomb-map/` 与首页要不要合并（当前分开，因为两个词各自有量，合并会牺牲其中一个的标题口径）。
 
 ---
 

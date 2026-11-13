@@ -2,11 +2,14 @@
 """线上断言：把 check_site.py 里能在线验的那几条，在真实 HTTP 上再验一遍。
 
 用法：
-    python scripts/check_online.py https://apocalab.pages.dev --expect indexed
-    python scripts/check_online.py https://<hash>.apocalab.pages.dev --expect noindex
+    python scripts/check_online.py https://apocalab.pages.dev --expect noindex      # SITE_LIVE=false 期间
+    python scripts/check_online.py https://apocalab.pages.dev --expect indexed      # 域名上线之后
 
---expect indexed  → 生产：不许有任何 X-Robots-Tag: noindex，HTML 里也不许有 meta robots noindex
---expect noindex  → 预览：每个页面都必须带 X-Robots-Tag: noindex
+--expect indexed  → 不许有任何 X-Robots-Tag: noindex，HTML 里也不许有 meta robots noindex
+--expect noindex  → 每个页面都必须带 X-Robots-Tag: noindex
+
+期望值由 src/lib/site.ts 的 SITE_LIVE 决定，不由「这是不是生产地址」决定：
+SITE_LIVE=false 时生产也必须 noindex，因为 canonical 指向的域名还没上线。
 
 代理一律绕过：本机开着代理时，urllib 会把 pages.dev 也送进代理，验到的是代理的缓存。
 """
@@ -20,7 +23,13 @@ import xml.etree.ElementTree as ET
 
 NS = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 CANON = "https://apocalab.com"
-PAGES = ["/", "/blast-radius/", "/nuclear-bomb-map/", "/methodology/"]
+PAGES = [
+    "/",
+    "/blast-radius/",
+    "/nuclear-bomb-map/",
+    "/nuclear-bomb-map/new-york/",
+    "/methodology/",
+]
 
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 

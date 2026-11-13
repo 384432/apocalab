@@ -1,45 +1,89 @@
 /**
  * dist/_headers is GENERATED on every build, never copied from public/.
  *
- * Why: whether the site may be indexed depends on which Cloudflare Pages
- * environment is building it, and that is only known at build time.
+ * Whether the site may be indexed is decided by two things, and neither of them
+ * is known until the build runs:
  *
- *   CF_PAGES_BRANCH === 'main'   -> production -> no robots header at all
- *   any other branch, or unset   -> preview    -> X-Robots-Tag: noindex on /*
+ *   SITE_LIVE in src/lib/site.ts   is apocalab.com serving this build?
+ *   CF_PAGES_BRANCH                is this the production branch?
  *
- * Pages sets CF_PAGES_BRANCH for production and preview deployments alike, so
- * production needs no extra configuration. A local build has no branch and is
- * treated as a preview: that is the safe direction to fail in, because a
- * missing noindex on a preview leaks a half-finished copy of the site into
- * search results, while a stray noindex on production removes it from results
- * for as long as it takes someone to notice.
+ *                     SITE_LIVE=false           SITE_LIVE=true
+ *   main              staged:  noindex          production: no header at all
+ *   other branch      preview: noindex          preview:    noindex
+ *   local (unset)     preview: noindex          preview:    noindex
  *
- * Override for reproducing the production artifact locally:
- *   SITE_ENV=production npm run build
+ * The staged case exists because every page carries rel=canonical pointing at
+ * apocalab.com. Until that domain answers, an indexable *.pages.dev copy has a
+ * canonical target nobody can fetch — so the pages.dev copy is what gets
+ * indexed, and the day the domain goes live the same content sits at two
+ * hostnames. Staged keeps both environments out of the index until the switch
+ * is flipped once.
  *
- * The production output must not contain the word "noindex" anywhere — not in
- * a header, not in a comment. scripts/check_site.py asserts exactly that, and
- * also asserts the reverse for preview builds.
+ * The SITE_LIVE value is read out of src/lib/site.ts rather than duplicated
+ * here: one boolean, one file, no second place to forget. If the declaration
+ * cannot be found exactly once, the build fails instead of guessing.
+ *
+ * The production output must not contain the word "noindex" anywhere — not in a
+ * header, not in a comment. scripts/check_site.py asserts exactly that, and
+ * asserts the reverse for the other two modes.
+ *
+ * Reproduce a specific artifact locally:
+ *   CF_PAGES_BRANCH=main   npm run build     -> staged (SITE_LIVE=false)
+ *   SITE_ENV=production    npm run build     -> forces the main-branch rule
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const PRODUCTION_BRANCH = 'main';
 export const PREVIEW_HEADER = 'X-Robots-Tag: noindex';
 
-/** Which behaviour this build gets. */
-export function resolveMode(env = process.env) {
-  const branch = String(env.CF_PAGES_BRANCH ?? '').trim();
-  if (String(env.SITE_ENV ?? '').trim().toLowerCase() === 'production') {
-    return { mode: 'production', branch, reason: 'SITE_ENV=production' };
+const SITE_TS = fileURLToPath(new URL('../src/lib/site.ts', import.meta.url));
+
+/** Read SITE_LIVE out of the source of truth. Exactly one declaration, or throw. */
+export function readSiteLive(file = SITE_TS) {
+  const src = readFileSync(file, 'utf8');
+  const decls = [
+    ...src.matchAll(/export const SITE_LIVE\s*(?::\s*boolean\s*)?=\s*(true|false)\s*;/g),
+  ];
+  if (decls.length !== 1) {
+    throw new Error(
+      `gen_headers: expected exactly one "export const SITE_LIVE = true|false;" in ` +
+        `src/lib/site.ts, found ${decls.length}. The indexing rule cannot be guessed.`,
+    );
   }
-  if (branch === PRODUCTION_BRANCH) {
-    return { mode: 'production', branch, reason: `CF_PAGES_BRANCH=${branch}` };
+  return decls[0][1] === 'true';
+}
+
+/** Which behaviour this build gets. */
+export function resolveMode(env = process.env, siteLive = readSiteLive()) {
+  const branch = String(env.CF_PAGES_BRANCH ?? '').trim();
+  const forced = String(env.SITE_ENV ?? '').trim().toLowerCase() === 'production';
+  const productionBuild = forced || branch === PRODUCTION_BRANCH;
+
+  if (!siteLive) {
+    return {
+      mode: 'staged',
+      siteLive,
+      branch,
+      noindex: true,
+      reason: 'SITE_LIVE=false — apocalab.com does not serve this build yet',
+    };
+  }
+  if (productionBuild) {
+    return {
+      mode: 'production',
+      siteLive,
+      branch,
+      noindex: false,
+      reason: forced ? 'SITE_ENV=production' : `CF_PAGES_BRANCH=${branch}`,
+    };
   }
   return {
     mode: 'preview',
+    siteLive,
     branch,
+    noindex: true,
     reason: branch ? `CF_PAGES_BRANCH=${branch}` : 'no CF_PAGES_BRANCH (local build)',
   };
 }
@@ -47,13 +91,19 @@ export function resolveMode(env = process.env) {
 const GEOJSON_RULE = `/ne_110m_land.geojson
   Content-Type: application/json; charset=utf-8`;
 
+const BANNER = `# Cloudflare Pages header rules — generated by scripts/gen_headers.mjs.
+# Do not edit this file in dist/: edit the generator.`;
+
 /** The exact text of dist/_headers for a given mode. */
-export function headersText(mode, reason = '') {
+export function headersText({ mode, reason = '', branch = '', siteLive = false }) {
   const where = reason ? ` (${reason})` : '';
+  const header = `${BANNER}
+# mode: ${mode}
+# site-live: ${siteLive}
+# branch: ${branch || '(none)'}`;
+
   if (mode === 'production') {
-    return `# Cloudflare Pages header rules — generated by scripts/gen_headers.mjs.
-# Do not edit this file in dist/: edit the generator.
-#
+    return `${header}
 # Environment: production${where}
 # Nothing here restricts crawling, on purpose: this is the address that
 # robots.txt and sitemap.xml invite search engines to. The rule that keeps a
@@ -66,13 +116,22 @@ export function headersText(mode, reason = '') {
 ${GEOJSON_RULE}
 `;
   }
-  return `# Cloudflare Pages header rules — generated by scripts/gen_headers.mjs.
-# Do not edit this file in dist/: edit the generator.
-#
-# Environment: preview${where}
+
+  const why =
+    mode === 'staged'
+      ? `# Staged${where}
+# apocalab.com does not serve this build yet, so every page here has a canonical
+# target nobody can fetch. Indexing this copy would put the same pages at a
+# second hostname the day the domain goes live. Set SITE_LIVE to true in
+# src/lib/site.ts on the day the domain answers — that is the entire switch.`
+      : `# Preview${where}
 # This copy must not enter the index: it duplicates apocalab.com, and a preview
 # is a build in progress. The production branch of the generator omits this
-# rule entirely.
+# rule entirely.`;
+
+  return `${header}
+# Environment: ${mode}${where}
+${why}
 
 /*
   ${PREVIEW_HEADER}
@@ -82,16 +141,16 @@ ${GEOJSON_RULE}
 }
 
 /**
- * Write dist/_headers. Returns { mode, branch, reason, file } so the caller can
- * print what happened instead of leaving it to be discovered later.
+ * Write dist/_headers. Returns what happened so the caller can print it instead
+ * of leaving it to be discovered later.
  */
 export function writeHeaders(distDir, env = process.env) {
-  const { mode, branch, reason } = resolveMode(env);
+  const state = resolveMode(env);
   const dir = distDir instanceof URL ? fileURLToPath(distDir) : distDir;
   mkdirSync(dir, { recursive: true });
   const file = path.join(dir, '_headers');
-  writeFileSync(file, headersText(mode, reason), 'utf8');
-  return { mode, branch, reason, file };
+  writeFileSync(file, headersText(state), 'utf8');
+  return { ...state, file };
 }
 
 // CLI: node scripts/gen_headers.mjs [dist]

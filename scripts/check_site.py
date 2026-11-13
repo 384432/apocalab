@@ -28,6 +28,7 @@ import os
 import pathlib
 import re
 import sys
+import urllib.parse
 import xml.etree.ElementTree as ET
 
 NS = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -75,6 +76,10 @@ PAGES = {
     "blast-radius": DIST / "blast-radius" / "index.html",
     "nuclear-bomb-map": DIST / "nuclear-bomb-map" / "index.html",
     "methodology": DIST / "methodology" / "index.html",
+    # City pages are published one slug at a time (PUBLISHED_CITY_SLUGS in
+    # src/lib/cities.ts). Each one added here must also be added to CANONICAL
+    # and to sitemap expectations, or section 13 fails.
+    "new-york": DIST / "nuclear-bomb-map" / "new-york" / "index.html",
 }
 
 # The one address each page is allowed to claim as its own. Written out in full
@@ -84,6 +89,7 @@ CANONICAL = {
     "blast-radius": "https://apocalab.com/blast-radius/",
     "nuclear-bomb-map": "https://apocalab.com/nuclear-bomb-map/",
     "methodology": "https://apocalab.com/methodology/",
+    "new-york": "https://apocalab.com/nuclear-bomb-map/new-york/",
 }
 
 print("0 产物存在")
@@ -360,9 +366,30 @@ check("blast radius" not in title_map.get("index", "x"), "index: title 不出现
 check("nuke simulator" in title_map.get("index", ""), "index: title 的主词是 nuke simulator")
 check("nuclear bomb blast radius" in title_map.get("blast-radius", ""),
       "blast-radius: title 的主词是 nuclear bomb blast radius")
-for a, b in itertools.combinations(sorted(title_map), 2):
-    n, s = common_run(title_map[a], title_map[b])
+# 闭环四页之间不许抢词。
+CORE_TITLES = {
+    n: title_map[n]
+    for n in ("index", "blast-radius", "nuclear-bomb-map", "methodology")
+    if n in title_map
+}
+for a, b in itertools.combinations(sorted(CORE_TITLES), 2):
+    n, s = common_run(CORE_TITLES[a], CORE_TITLES[b])
     check(n <= 3, f"title {a} 与 {b} 最长共同词串 {n} 词（“{s}”），要求 ≤ 3")
+
+# 城市页是一个模板复制出来的，彼此必然共用「Nuclear Bomb Effects on」这类骨架，
+# 所以它们之间不比词串 —— 比的是唯一性：标题里有没有这个城市名，以及有没有两页
+# 输出了一模一样的标题。对核心页仍然按 ≤3 词要求。
+city_raw = json.loads((ROOT / "src" / "data" / "cities.json").read_text(encoding="utf-8"))["cities"]
+name_of = {c["slug"]: c["name"].lower() for c in city_raw}
+city_titles = {n: t for n, t in title_map.items() if n not in CORE_TITLES}
+check(len(set(city_titles.values())) == len(city_titles),
+      f"城市页 title 互不重复（{len(city_titles)} 页，{len(set(city_titles.values()))} 个不同标题）")
+for n, t in city_titles.items():
+    city_name = name_of.get(n, n.replace("-", " "))
+    check(city_name in t, f"{n}: title 里出现城市名 “{city_name}”")
+    for core, ct in CORE_TITLES.items():
+        run, frag = common_run(t, ct)
+        check(run <= 3, f"title {n} 与 {core} 最长共同词串 {run} 词（“{frag}”），要求 ≤ 3")
 
 print("15 地图页（/nuclear-bomb-map/）")
 mp = raw["nuclear-bomb-map"]
@@ -451,6 +478,23 @@ def parse_headers(text):
     return out
 
 
+# ---- SITE_LIVE：唯一开关，从 site.ts 读，不在这里写 ----------------
+# 这里必须读「真值来源」，而不是自己假设。断言的目的不是证明某个模式存在，
+# 而是证明产物和那一个布尔值一致 —— 上线当天只改 site.ts，闸门自动跟着变。
+site_src = (ROOT / "src" / "lib" / "site.ts").read_text(encoding="utf-8")
+live_decls = re.findall(
+    r"export const SITE_LIVE\s*(?::\s*boolean\s*)?=\s*(true|false)\s*;", site_src
+)
+check(len(live_decls) == 1,
+      f"site.ts 里 SITE_LIVE 恰好声明一次（实际 {len(live_decls)} 次）")
+SITE_LIVE = (live_decls[0] == "true") if live_decls else False
+
+gen_src = (ROOT / "scripts" / "gen_headers.mjs").read_text(encoding="utf-8")
+check("readSiteLive" in gen_src and "site.ts" in gen_src,
+      "gen_headers.mjs 从 src/lib/site.ts 读 SITE_LIVE")
+check(not re.search(r"(?m)^\s*export const SITE_LIVE", gen_src),
+      "gen_headers.mjs 不自己定义 SITE_LIVE（唯一定义在 site.ts）")
+
 # One source of truth: the generator. A leftover static copy in public/ would be
 # copied over dist/ and silently win on a platform that copies public/ last.
 check(not (ROOT / "public" / "_headers").exists(),
@@ -459,6 +503,14 @@ check((ROOT / "scripts" / "gen_headers.mjs").exists(), "scripts/gen_headers.mjs 
 cfg_src = (ROOT / "astro.config.mjs").read_text(encoding="utf-8")
 check("writeHeaders" in cfg_src and "astro:build:done" in cfg_src,
       "astro.config.mjs 在 astro:build:done 里生成 _headers")
+
+# 期望模式由两件事决定：SITE_LIVE 与「这次是哪个分支构建的」。
+if not SITE_LIVE:
+    EXPECTED_MODE = "staged"          # 域名没上线：生产和预览都不许收录
+else:
+    EXPECTED_MODE = "production" if EXPECT == "main" else "preview"
+EXPECT_NOINDEX = EXPECTED_MODE != "production"
+print(f"     SITE_LIVE={SITE_LIVE}  产物模式={EXPECTED_MODE}  noindex={EXPECT_NOINDEX}")
 
 hdr_path = DIST / "_headers"
 check(hdr_path.exists(), "dist/_headers 存在（Pages 只认这个文件名）")
@@ -470,6 +522,14 @@ if hdr_path.exists():
     check(bool(rules), "_headers 至少一条规则")
     check("disallow" not in hdr_low, "_headers 里不塞 robots 指令（那是 robots.txt 的活）")
 
+    # 生成器把决定写进了产物本身，所以产物可以自证是哪种模式。
+    m_mode = re.search(r"(?m)^#\s*mode:\s*(\S+)\s*$", hdr)
+    check(m_mode is not None and m_mode.group(1) == EXPECTED_MODE,
+          f"_headers 自报模式 {EXPECTED_MODE}（实际 {m_mode.group(1) if m_mode else None}）")
+    m_live = re.search(r"(?m)^#\s*site-live:\s*(true|false)\s*$", hdr)
+    check(m_live is not None and (m_live.group(1) == "true") == SITE_LIVE,
+          f"_headers 自报 site-live={str(SITE_LIVE).lower()}（实际 {m_live.group(1) if m_live else None}）")
+
     geo = next((r for r in rules if "geojson" in r["path"]), None)
     check(
         geo is not None
@@ -478,25 +538,32 @@ if hdr_path.exists():
         "_headers 给 .geojson 指定 application/json（Pages 对未知扩展名默认 octet-stream）",
     )
 
-    if EXPECT == "main":
+    if EXPECT_NOINDEX:
+        check(rules[0]["path"] == "/*", f"noindex 模式第一条规则作用于 /*（实际 {rules[:1]}）")
+        if rules:
+            check(
+                any(h.lower().startswith("x-robots-tag:") and "noindex" in h.lower()
+                    for h in rules[0]["headers"]),
+                f"{EXPECTED_MODE} 构建给全部页面加 X-Robots-Tag: noindex",
+            )
+    else:
         # 生产：整份 _headers 不许出现 noindex，连注释里也不许。
         check("noindex" not in hdr_low, "生产构建的 _headers 不含 noindex 字样")
         check("x-robots-tag" not in hdr_low, "生产构建的 _headers 不写 X-Robots-Tag")
         check(not any(r["path"] == "/*" and r["headers"] for r in rules),
               "生产构建没有作用于 /* 的头规则")
-    else:
-        check(rules[0]["path"] == "/*", f"预览构建第一条规则作用于 /*（实际 {rules[:1]}）")
-        if rules:
-            check(
-                any(h.lower().startswith("x-robots-tag:") and "noindex" in h.lower()
-                    for h in rules[0]["headers"]),
-                "预览构建给全部页面加 X-Robots-Tag: noindex",
-            )
 
-# 反向断言：生产产物的 HTML 里也不许出现 noindex（防止有人改成 <meta name="robots">）。
+# HTML 侧：收录开关只有 _headers 一条路。谁把 <meta name="robots" content="noindex">
+# 写进模板，两种模式都会翻车 —— 生产多一条隐形 noindex，或预览以为有头其实没生效。
 htmls = sorted(DIST.rglob("*.html"))
 check(len(htmls) >= len(PAGES), f"dist 里有 {len(htmls)} 个 HTML（页面 {len(PAGES)} 个）")
-if EXPECT == "main":
+meta_robots = [
+    p.relative_to(DIST).as_posix()
+    for p in htmls
+    if re.search(r'name="robots"', p.read_text(encoding="utf-8", errors="replace"), re.I)
+]
+check(not meta_robots, f"没有页面用 meta robots（命中 {meta_robots[:3]}）")
+if not EXPECT_NOINDEX:
     dirty = [
         p.relative_to(DIST).as_posix()
         for p in htmls
@@ -518,7 +585,7 @@ if wr.exists():
     check('pages_build_output_dir = "./dist"' in wr.read_text(encoding="utf-8"),
           "wrangler.toml 的 pages_build_output_dir 指向 dist")
 
-print("17 内链：四页闭环")
+print("17 内链：四页闭环 + 城市页汇入")
 
 # 锚文本固定。改这里就是改契约，所以要连 plan §4 一起改。
 ANCHOR = {
@@ -532,7 +599,12 @@ PAGE_PATH = {
     "blast-radius": "/blast-radius/",
     "nuclear-bomb-map": "/nuclear-bomb-map/",
     "methodology": "/methodology/",
+    "new-york": "/nuclear-bomb-map/new-york/",
 }
+# 闭环是这四页之间的契约；城市页是从地图页分出去的叶子，只汇入、不参与闭环。
+CORE = ["index", "blast-radius", "nuclear-bomb-map", "methodology"]
+CITY = [n for n in PAGE_PATH if n not in CORE]
+CITY_PATHS = {PAGE_PATH[n] for n in CITY}
 
 
 def anchors_in(region):
@@ -556,15 +628,19 @@ for name, body in raw.items():
     links = [(h, a, at) for h, a, at in anchors_in(region) if h and h.startswith("/")]
     link_map[name] = links
 
+    known = set(ANCHOR) | CITY_PATHS
     for h, a, at in links:
-        check(h in ANCHOR, f"{name}: 内链目标 {h} 是四页之一")
-        if h not in ANCHOR:
-            continue
+        check(h in known, f"{name}: 内链目标 {h} 是站内已知页面")
         check(h != own, f"{name}: 不给自己加内链（{h}）")
-        check(a.lower() == ANCHOR[h],
-              f"{name}: → {h} 的锚文本是 “{ANCHOR[h]}”（实际 “{a}”）")
         check("nofollow" not in at.lower(), f"{name}: → {h} 的链接没有 nofollow")
         check("onclick" not in at.lower(), f"{name}: → {h} 的链接不是 JS 跳转")
+        # 锚文本只在四个核心目标上锁死；城市页链接的锚文本由页面自己写，但必须
+        # 是描述性的（不是 click here / learn more）。
+        if h in ANCHOR:
+            check(a.lower() == ANCHOR[h],
+                  f"{name}: → {h} 的锚文本是 “{ANCHOR[h]}”（实际 “{a}”）")
+        check(a.lower() not in ("click here", "learn more", "read more", "here"),
+              f"{name}: → {h} 的锚文本不是 “{a}”")
 
     # 正文段落：所有页面内链都必须落在某个 <p> 里，不许堆在页脚或导航。
     in_p = []
@@ -573,18 +649,25 @@ for name, body in raw.items():
     check(len(in_p) == len(links),
           f"{name}: {len(links)} 条内链全部在正文 <p> 里（段内 {len(in_p)} 条）")
 
-    wanted = set(ANCHOR) - {own}
     got = {h for h, _, _ in links}
-    check(got == wanted, f"{name}: 出链恰好覆盖其余三页（实际 {sorted(got)}）")
-    check(len(links) >= 3, f"{name}: 出链 {len(links)} 条 ≥ 3")
+    if name in CORE:
+        wanted = set(ANCHOR) - {own}
+        check(wanted <= got, f"{name}: 出链覆盖其余三页（缺 {sorted(wanted - got)}）")
+        check(len(links) >= 3, f"{name}: 出链 {len(links)} 条 ≥ 3")
+    else:
+        # 城市页：至少 3 条回核心页，且 /blast-radius/ 与 /nuclear-bomb-map/ 都得到。
+        to_core = got & set(ANCHOR)
+        check(len(to_core) >= 3, f"{name}: 回核心页的内链 {len(to_core)} 条 ≥ 3")
+        check({"/blast-radius/", "/nuclear-bomb-map/"} <= to_core,
+              f"{name}: 同时回到 blast-radius 与 map（实际 {sorted(to_core)}）")
 
-for name in PAGES:
+for name in CORE:
     own = PAGE_PATH[name]
     src = [s for s, ls in link_map.items() if own in {h for h, _, _ in ls}]
     check(len(src) >= 2, f"{name}: 入链 {len(src)} 条 ≥ 2（来自 {src}）")
 
 # 闭环：四页互为入链出链，没有孤岛，也没有指到站外的假内链。
-check(set(link_map) == set(PAGE_PATH), "17: 内链矩阵覆盖四页")
+check(set(link_map) == set(PAGE_PATH), "17: 内链矩阵覆盖四页与已发布城市页")
 
 print("18 地图页正文")
 mtxt = text_of(main_region["nuclear-bomb-map"])
@@ -647,12 +730,88 @@ for pid, text, where, deadline, rule in promises:
         print(f"     承诺 {pid}: “{text}” 截止 {deadline}（剩 {(due - today).days} 天），"
               f"当前 {count}/{need}，位置 {where}")
 
-# title 一旦承诺数字，就必须在台账里有一行；否则 D7 到期没人会记得删。
-claim = re.search(r"(\d+)\s+Cities", title_map.get("nuclear-bomb-map", ""))
-if claim:
-    n = claim.group(1)
-    check(any(text.strip().lower() == f"{n} cities".lower() for _, text, *_ in promises),
-          f"map: title 承诺 “{n} Cities”，台账里有对应行")
+# title 一旦承诺数字，就必须在台账里有一行；否则到期没人会记得删。
+# 反方向也断言：地图页的 title 现在不许再出现城市数量（v1.6 已撤回那个承诺）。
+claim = re.search(r"(\d+)\s+(Cities|city pages|city)", title_map.get("nuclear-bomb-map", ""))
+check(claim is None,
+      f"map: title 里不写城市数量（实际出现 “{claim.group(0) if claim else ''}”）")
+for name, t in title_map.items():
+    c = re.search(r"(\d+)\s+Cities", t)
+    if c:
+        check(any(text.strip().lower() == f"{c.group(1)} cities".lower() for _, text, *_ in promises),
+              f"{name}: title 承诺 “{c.group(1)} Cities”，台账里有对应行")
+
+print("20 首月查询页（页一上线就套用硬要求）")
+
+# 清单来自 plan.md §4.10。这里刻意硬编码而不是去解析 plan 的表格：
+# 表格会被人重排，而「哪 13 页、每页多少月搜」是已经复核过的事实。
+QUERY_PAGES = {
+    "/nuclear-winter/": 9900,
+    "/neutron-bomb/": 8100,
+    "/hydrogen-bomb-vs-atomic-bomb/": 8100,
+    "/fallout-map/": 4400,
+    "/tsar-bomba/": 2400,
+    "/thermal-radiation/": 1900,
+    "/hiroshima/": 1600,
+    "/how-to-survive-a-nuclear-blast/": 1300,
+    "/overpressure/": 1000,
+    "/nuclear-strike-map/": 720,
+    "/nuclear-weapon-effects/": 720,
+    "/blast-wave/": 590,
+    "/nuclear-bomb-crater/": 480,
+}
+check(len(QUERY_PAGES) == 13, f"查询页清单 13 条（实际 {len(QUERY_PAGES)}）")
+
+# 反方向：dist 里出现的页面，必须在 CANONICAL 里登记过。一个页面被构建出来、
+# 却没有登记，就等于绕过 sitemap / canonical / 收录开关的所有断言 —— 那是偷偷加页。
+listed_paths = {urllib.parse.urlparse(u).path for u in CANONICAL.values()}
+built_paths = set()
+for page in DIST.rglob("index.html"):
+    rel = page.parent.relative_to(DIST).as_posix()
+    built_paths.add("/" if rel == "." else f"/{rel}/")
+stray = sorted(built_paths - listed_paths)
+check(not stray, f"dist 里没有未登记的页面（{stray[:4]}）")
+
+live = []
+for path in QUERY_PAGES:
+    page = DIST / path.strip("/") / "index.html"
+    if not page.exists():
+        continue
+    live.append(path)
+    html_ = page.read_text(encoding="utf-8")
+    m = re.search(r"(?is)<main[^>]*>(.*?)</main>", html_)
+    check(m is not None, f"{path}: 有 <main>")
+    region = m.group(1) if m else ""
+    wc = len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'’.-]*", text_of(region)))
+    check(wc >= 700, f"{path}: 正文 {wc} 词 ≥ 700")
+
+    article = re.sub(r"(?is)<figure.*?</figure>", " ", region)
+    h2s = re.findall(r"(?is)<h2[^>]*>(.*?)</h2>", article)
+    check(4 <= len(h2s) <= 6, f"{path}: H2 {len(h2s)} 个（要求 4–6）")
+    for i, sec in enumerate(re.split(r"(?is)<h2[^>]*>", article)[1:], 1):
+        sec_title = text_of(re.split(r"(?is)</h2>", sec)[0])
+        paras = [
+            x for x in re.findall(r"(?is)<p([^>]*)>(.*?)</p>", sec)
+            if "small" not in x[0].lower()
+        ]
+        body_txt = " ".join(text_of(x[1]) for x in paras)
+        check(bool(re.search(r"\d", body_txt)), f"{path} 第 {i} 节 “{sec_title}” 含具体数字")
+        check(bool(re.search(r"p\.\s?\d{2,3}", body_txt)),
+              f"{path} 第 {i} 节 “{sec_title}” 带印刷页码")
+        n = len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'’.-]*", body_txt))
+        check(100 <= n <= 155, f"{path} 第 {i} 节 “{sec_title}” {n} 词（目标 100–150）")
+
+    links = [(h, a, at) for h, a, at in anchors_in(region) if h and h.startswith("/")]
+    for h, a, at in links:
+        if h in ANCHOR:
+            check(a.lower() == ANCHOR[h], f"{path}: → {h} 的锚文本是 “{ANCHOR[h]}”（实际 “{a}”）")
+        check("nofollow" not in at.lower(), f"{path}: → {h} 没有 nofollow")
+    core = {h for h, _, _ in links} & set(ANCHOR)
+    check(len(core) >= 3, f"{path}: 回核心页内链 {len(core)} 条 ≥ 3")
+    check({"/blast-radius/", "/nuclear-bomb-map/"} <= core,
+          f"{path}: 同时回到 blast-radius 与 map（实际 {sorted(core)}）")
+
+print(f"     查询页已上线 {len(live)}/{len(QUERY_PAGES)}")
 
 print(f"结果：PASS {passes}  FAIL {len(fails)}")
 if fails:

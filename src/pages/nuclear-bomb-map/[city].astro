@@ -1,0 +1,192 @@
+---
+/**
+ * /nuclear-bomb-map/{city}/ — one city, one page, three kinds of number.
+ *
+ * WHAT COMES FROM WHERE (this is the whole contract of the page):
+ *
+ *   1. The five distances, at 15 kt / 100 kt / 1 Mt   -> src/data/effects.json,
+ *      looked up by get(). Not recomputed here. Same values as /blast-radius/,
+ *      byte for byte, because both read the same JSON.
+ *   2. People inside a 10 km disc                       -> WorldPop, fetched once
+ *      by scripts/build_city_pop.py and cached in src/data/city-pop.json. This
+ *      is the only number on the page that is not in the manual, and it is the
+ *      only one that depends on where the city is.
+ *   3. People inside the 5 psi ring at 100 kt            -> same WorldPop request,
+ *      a different radius. Computed, never derived by subtracting one ring from
+ *      another, and never subtracted from (2) to imply a survivor count.
+ *
+ * Air burst only. The thermal rows have no contact-burst counterpart (Fig. 7.42
+ * is drawn for air bursts, §7.41 p.290), so a page that mixed the two would be
+ * inventing a number rather than reporting one.
+ */
+import Base from '../../layouts/Base.astro';
+import {
+  YIELDS,
+  EFFECT_ROWS,
+  get,
+  citationLine,
+  fmtKm,
+  manual,
+} from '../../lib/effects';
+import { cities, PUBLISHED_CITY_SLUGS, coordText, type City } from '../../lib/cities';
+import {
+  cityPopulation,
+  peopleWithin,
+  fmtPeople,
+  populationSentence,
+  popSource,
+  CITY_RADIUS_KM,
+} from '../../lib/city-pop';
+
+export function getStaticPaths() {
+  return cities
+    .filter((c) => PUBLISHED_CITY_SLUGS.includes(c.slug))
+    .map((c) => ({ params: { city: c.slug }, props: { city: c } }));
+}
+
+interface Props {
+  city: City;
+}
+
+const { city } = Astro.props;
+const path = `/nuclear-bomb-map/${city.slug}/`;
+
+const cityPop = cityPopulation(city);
+const psi5Pop = peopleWithin(city, get('overpressure_5psi', 'air', 100)!.radius_km);
+const psi1Pop = peopleWithin(city, get('overpressure_1psi', 'air', 100)!.radius_km);
+const fireballPop = peopleWithin(city, get('fireball', 'air', 100)!.radius_km);
+const share = (1000 * psi5Pop) / cityPop;
+const [latText, lonText] = coordText(city).split(', ');
+
+// 标题模板：`Nuclear Bomb Effects on {City}: 15 kt to 1 Mt`
+// 不写「15 kt, 100 kt, 1 Mt」——那串词与 /blast-radius/ 的 title 有 6 词重合，
+// 两个页面会在同一批查询里互相压。城市名承担唯一性。
+const title =
+  `Nuclear Bomb Effects on ${city.name}: 15 kt to 1 Mt`;
+const description =
+  `What 15 kt, 100 kt and 1 Mt air bursts reach over ${city.name}: 5 psi to ` +
+  `${fmtKm(get('overpressure_5psi', 'air', 100)!.radius_km)} km, 1 psi to ` +
+  `${fmtKm(get('overpressure_1psi', 'air', 100)!.radius_km)} km, and ` +
+  `${fmtPeople(psi5Pop)} people inside the 5 psi ring.`;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: `Nuclear weapon effects over ${city.name}`,
+  description: description,
+  url: `https://apocalab.com${path}`,
+  spatialCoverage: { '@type': 'Place', name: city.name },
+  license: 'https://creativecommons.org/publicdomain/mark/1.0/',
+  isBasedOn: {
+    '@type': 'Book',
+    name: 'The Effects of Nuclear Weapons',
+    edition: '3rd',
+    datePublished: '1977',
+    identifier: 'doi:10.2172/6852629',
+  },
+};
+---
+
+<Base title={title} description={description} path={path} current="map" jsonLd={jsonLd}>
+  <p class="eyebrow">
+    Air burst · 15 kt, 100 kt, 1 Mt · {manual.title}, {manual.year}
+  </p>
+  <h1>Nuclear Bomb Effects on {city.name} — 15 kt, 100 kt and 1 Mt</h1>
+
+  <p class="lede">
+    Five distances over {city.name}, plus two population counts. The distances are the same
+    figures as the <a href="/blast-radius/">nuclear bomb blast radius</a> table: read off
+    Fig.&nbsp;3.73c and Fig.&nbsp;7.42, scaled only by the cube-root law the manual prints on
+    p.&nbsp;101. The population counts are the one thing the manual cannot supply — 1977 has no
+    gridded population surface — so they come from WorldPop and are labelled as such.
+  </p>
+
+  <h2 id="distances">What each yield reaches over {city.name}</h2>
+  <p>
+    Measured from {coordText(city)}, the GeoNames point for {city.name} — the same point the
+    population radius is drawn around, so the two halves of this page describe one place.
+    Every row is an air burst at the height of burst that puts the contour at its furthest, which
+    is how the manual reads its own charts (p.&nbsp;114); those heights are printed in the
+    <a href="/blast-radius/">nuclear bomb blast radius</a> table, column by column.
+  </p>
+
+  <p class="tbl-hint">Scroll the table sideways →</p>
+  <div class="tbl-wrap">
+    <table class="data">
+      <caption>Distance from ground zero, in kilometres. Air burst.</caption>
+      <thead>
+        <tr>
+          <th scope="col">Effect</th>
+          {YIELDS.map((y) => <th scope="col">{y.toLocaleString('en-US')} kt</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {
+          EFFECT_ROWS.map((row) => {
+            const first = get(row.id, 'air', 15)!;
+            return (
+              <tr>
+                <th scope="row">
+                  {row.name}
+                  <span class="th-sub">{citationLine(first)}</span>
+                </th>
+                {YIELDS.map((y) => (
+                  <td>
+                    <span class="v">{fmtKm(get(row.id, 'air', y)!.radius_km)}</span>
+                    <span class="th-sub">{fmtPeople(peopleWithin(city, get(row.id, 'air', y)!.radius_km))} inside</span>
+                  </td>
+                ))}
+              </tr>
+            );
+          })
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <p class="note">
+    <strong>The small number under each radius is people, not area.</strong>
+    It is the WorldPop count inside that ring, from the same request as the 10 km figure below.
+    At 1 Mt the two outer rings extend past the 10 km disc, so they are larger than the city
+    figure by construction — the rings and the city are two different questions, not two
+    measurements of one thing.
+  </p>
+
+  <h2 id="five-psi">How many people are inside the 5 psi ring</h2>
+  <p>
+    At 100 kt the 5 psi contour reaches {fmtKm(get('overpressure_5psi', 'air', 100)!.radius_km)} km
+    over {city.name}. Inside that circle live {fmtPeople(psi5Pop)} people — {share.toFixed(1)}% of
+    everyone inside the 10 km disc, concentrated into about a tenth of its area, because cities are
+    not uniformly populated. The 1 psi ring reaches {fmtKm(get('overpressure_1psi', 'air', 100)!.radius_km)}
+    km and holds {fmtPeople(psi1Pop)}; the fireball at breakaway, {fmtKm(get('fireball', 'air', 100)!.radius_km)}
+    km, holds {fmtPeople(fireballPop)}.
+  </p>
+
+  <h2 id="population">What the 10 km population is counting</h2>
+  <p id="population-convention">{populationSentence(city, latText!, lonText!)}</p>
+  <p>
+    Two things follow from that sentence. The count is a disc, not a city: it takes in whatever
+    happens to be within {CITY_RADIUS_KM} km of the point, including water, parks and the next
+    municipality over. And it is a 2020 estimate, not a census — {popSource.name} is a modelled
+    surface, so the figure is reproducible by anyone who re-runs the same query, which is the only
+    property that matters here.
+  </p>
+
+  <h2 id="limits">What this page does not say</h2>
+  <p>
+    It gives distances and head counts. It does not estimate deaths, injuries, or damage to any
+    particular building, because the manual supplies no casualty model and this site does not
+    invent one. It ignores terrain, shelter, time of day and weather, all of which move the real
+    answer by more than the last digit printed here. It covers one warhead, not a salvo. And at
+    1 Mt the two outer rings sit above the 5,000 ft ceiling Fig.&nbsp;3.73c was computed for
+    (§3.73, p.&nbsp;110), so they are the edge of what that chart supports.
+  </p>
+  <p>
+    For all three yields side by side, with the burst height and the printed page behind every
+    cell, the <a href="/blast-radius/">nuclear bomb blast radius</a> table is one page. To move the
+    same rings around on real ground, the <a href="/nuclear-bomb-map/">nuclear bomb map</a> does
+    that for {cities.length} cities. To check any of it against the book, the audit trail is under
+    <a href="/methodology/">where these numbers come from</a>; the interactive version of this
+    single city is the <a href="/">nuke simulator</a>.
+  </p>
+</Base>

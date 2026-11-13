@@ -18,7 +18,7 @@ const defaultBurst = 'air' as const;
 ---
 
 <Base
-  title="Nuclear Bomb Map: Blast Rings on Real Ground, 20 Cities"
+  title="Nuclear Bomb Map: Rings on Real Ground at True Scale"
   description="Pick a city and a yield and see the rings on real ground, north-up and at true scale, with every distance traced to a printed page of the 1977 manual."
   path="/nuclear-bomb-map/"
   current="map"
@@ -112,11 +112,12 @@ const defaultBurst = 'air' as const;
     São Paulo, New Delhi and Johannesburg. Each centre is a GeoNames gazetteer point, not an
     administrative centroid: boundaries differ by country, so rings would not be comparable. A city
     is a place for the numbers, not a new set: every ring comes from Fig.&nbsp;3.73c (p.&nbsp;115)
-    for blast and fireball, Fig.&nbsp;7.42 (p.&nbsp;291) for thermal. Population is not printed here
-    yet; the convention is fixed — residents inside 10&nbsp;km of that point on the WorldPop
-    1&nbsp;km grid, 2020 estimates, with radius, year and dataset beside the number. Ring
-    populations are a separate count, never merged into the city total. One city at a time, rings
-    intact without scripting: the <a href="/">nuke simulator</a>.
+    for blast and fireball, Fig.&nbsp;7.42 (p.&nbsp;291) for thermal. Population is not printed on
+    the map; the city pages carry it, as residents inside 10&nbsp;km of that point on the WorldPop
+    100&nbsp;m grid, 2020 estimates, with radius, year and dataset beside the number. Ring
+    populations are a separate count, never merged into the city total. New York is done:
+    <a href="/nuclear-bomb-map/new-york/">nuclear bomb effects on New York</a>. One city at a time,
+    rings intact without scripting: the <a href="/">nuke simulator</a>.
   </p>
 
   <h2>Where these numbers stop being readable</h2>

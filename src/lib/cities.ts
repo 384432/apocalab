@@ -38,6 +38,20 @@ export const cities = raw.cities as City[];
 export const citySource = raw.source as CitySource;
 export const DEFAULT_CITY = 'new-york';
 
+/**
+ * Which city pages are actually built.
+ *
+ * The order of `cities` is the display order; this list is the publication
+ * switch. sitemap.xml and the /nuclear-bomb-map/[city]/ route both read it, so a
+ * slug can never be in the sitemap without a page, and adding a city is a
+ * one-line change here rather than twenty template copies.
+ *
+ * Phase 4 rolls this out to all 20. Until then exactly one page is published,
+ * because the "20 Cities" claim was removed from the map title and the site
+ * should not promise what it does not have.
+ */
+export const PUBLISHED_CITY_SLUGS: string[] = ['new-york'];
+
 const bySlug = new Map(cities.map((c) => [c.slug, c]));
 
 export function getCity(slug: string | null | undefined): City | undefined {
