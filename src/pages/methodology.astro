@@ -1,9 +1,31 @@
 ---
 import Base from '../layouts/Base.astro';
-import { crossChecks, entries, fmtFt, manual } from '../lib/effects';
+import { crossChecks, entries, fmtFt, fmtKm, get, manual } from '../lib/effects';
+import { getCity } from '../lib/cities';
+import {
+  CATCH_RADIUS_KM,
+  CITY_RADIUS_KM,
+  MAX_RING_KM,
+  fmtPeople,
+  peopleWithin,
+  popSource,
+} from '../lib/city-pop';
 
 const checked = entries.filter((e) => e.checked_by !== null).length;
 const total = entries.length;
+
+// The dataset name carries a comma from the API ("Global2 R2025A, 100 m"); in
+// running text that comma reads as a list separator, so it becomes one name.
+const datasetName = popSource.name.replace(/,\s*/, ' ');
+
+// One disc, two surfaces. 780,593 is read from city-pop.json at build time;
+// 831,462 is the same disc summed over the downloadable constrained 2020
+// GeoTIFF by scripts/check_raster_sum.py. The gap is a release difference and
+// it is printed, not smoothed away.
+const PARIS_TIF_SUM = 831462;
+const parisKm = get('overpressure_5psi', 'air', 100)!.radius_km;
+const parisApi = peopleWithin(getCity('paris')!, parisKm);
+const versionGapPct = (100 * (PARIS_TIF_SUM - parisApi)) / parisApi;
 ---
 
 <Base
@@ -311,17 +333,45 @@ const total = entries.length;
   <h2 id="population">Population figures</h2>
 
   <p>
-    No population figure is published on the site yet. When city pages are added, the convention is
-    fixed in advance: population is counted <strong>within 10 km of the city centre</strong> on the
-    WorldPop 1 km grid, 2020 estimates, and the radius, year and dataset version are printed beside
-    the number.
+    Five city pages print population, and all five are built the same way: people counted
+    <strong>inside a {CITY_RADIUS_KM} km disc around the GeoNames point</strong> of the city, on the
+    {datasetName} surface, {popSource.year} estimates. Radius, year, dataset and release are printed
+    beside the number rather than filed here, because a head count without a radius and a version
+    is not a fact.
   </p>
   <p>
     Administrative city boundaries are deliberately not used: every country defines a city
-    differently, so boundary figures from different countries cannot be compared with each other.
-    Population inside an effect ring is a separate figure computed from the same grid and is never
-    merged into the city figure. These are resident-population counts, not footfall, and not
-    casualties.
+    differently, so a boundary figure from one country cannot be set beside one from another, and
+    comparability is the only thing these numbers are for. Population inside an effect ring is a
+    separate figure taken from the same surface and is never merged into the city figure; no ring
+    count is ever subtracted from the city count to imply a number of survivors, because the manual
+    gives no basis for treating people as an arithmetic remainder. These are resident-population
+    counts — not footfall, not daytime population, not casualties.
+  </p>
+  <p>
+    One query per city, run at {CATCH_RADIUS_KM} km rather than {CITY_RADIUS_KM} km. The widest ring
+    any city page draws is the 1 Mt 1 psi contour at {fmtKm(MAX_RING_KM)} km, so a
+    {CITY_RADIUS_KM} km query would hand back the edge of the catchment and the page would label
+    that as the ring — the one error such a page could not survive. {CATCH_RADIUS_KM} km clears the
+    widest contour by {fmtKm(CATCH_RADIUS_KM - MAX_RING_KM)} km and returns every other radius in
+    the same response. Each ring is its own cumulative count inside that single catchment: fireball,
+    5 psi, 1 psi and both thermal contours are read at their own radius, never obtained by
+    subtracting a smaller ring from a larger one. The {CITY_RADIUS_KM} km city figure is the
+    cumulative at {CITY_RADIUS_KM} km from the same request.
+  </p>
+  <p>
+    The request is <code>POST {popSource.api}</code>, release <strong>{popSource.name}</strong>,
+    retrieved {popSource.retrieved}, licence {popSource.license}. It is not the same surface as the
+    GeoTIFF files WorldPop publishes for download, and the difference is measurable: inside a
+    {fmtKm(parisKm)} km disc over Paris — the 100 kt 5 psi ring — the API returns
+    {fmtPeople(parisApi)} people, while the downloadable constrained 2020 GeoTIFF returns
+    {fmtPeople(PARIS_TIF_SUM)}, {versionGapPct.toFixed(1)}% more. The gap is a release difference,
+    not an integration difference: the two downloadable 2020 files agree with each other to 0.3%,
+    and the API's two endpoints agree to 0.6% while taking a 96-sided polygon and a disc. The site
+    uses the API surface throughout, so every city page is consistent with every other and
+    reproducible against one named release; the gap is recorded here rather than hidden, and anyone
+    re-running the query against the older GeoTIFF should expect to land about
+    {versionGapPct.toFixed(1)}% away.
   </p>
 
   <h2 id="not">What this site does not compute</h2>

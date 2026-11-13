@@ -14,7 +14,6 @@ import type { City } from '../lib/cities';
 import { coordText } from '../lib/cities';
 import { BURST_LABEL, panelRows } from '../lib/panel';
 import { buildIsland } from '../lib/island';
-import { SITE_ORIGIN } from '../lib/site';
 
 interface Props {
   city: City;
@@ -125,8 +124,8 @@ const heaviest = rows.reduce((m, r) => (r.r !== null && r.r > m ? r.r : m), 0);
   </ul>
 
   <p class="small map-scale">
-    Outermost ring {heaviest.toFixed(2)} km. Data: {SITE_ORIGIN}/blast-radius/ — the same
-    JSON, the same figures, the same printed pages.
+    Outermost ring {heaviest.toFixed(2)} km. Figures from the{" "}
+    <a href="/blast-radius/">nuclear bomb blast radius</a> table — same JSON, same printed pages.
   </p>
 
   <script type="application/json" id="apoca-map-island" set:html={JSON.stringify(island)} />

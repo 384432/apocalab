@@ -10,11 +10,17 @@ import Base from '../layouts/Base.astro';
 import BombMap from '../components/BombMap.astro';
 import { YIELDS } from '../lib/effects';
 import type { YieldKt } from '../lib/effects';
-import { DEFAULT_CITY, cities, getCity } from '../lib/cities';
+import { DEFAULT_CITY, PUBLISHED_CITY_SLUGS, cities, getCity } from '../lib/cities';
 
 const city = getCity(DEFAULT_CITY) ?? cities[0];
 const defaultYield: YieldKt = 100;
 const defaultBurst = 'air' as const;
+
+// Published city pages get a real link here; the rest stay in the picker as
+// plain text, because linking to a page that does not exist is how a site tells
+// a crawler it is unfinished.
+const published = cities.filter((c) => PUBLISHED_CITY_SLUGS.includes(c.slug));
+const unpublished = cities.filter((c) => !PUBLISHED_CITY_SLUGS.includes(c.slug));
 ---
 
 <Base
@@ -107,17 +113,20 @@ const defaultBurst = 'air' as const;
   <h2>The 20 cities, and the population measure</h2>
 
   <p>
-    The map offers 20 cities: New York, Los Angeles, Chicago, Houston, San Francisco, Washington,
-    Miami, Seattle, Boston, Atlanta, London, Paris, Tokyo, Berlin, Sydney, Toronto, Mexico City,
-    São Paulo, New Delhi and Johannesburg. Each centre is a GeoNames gazetteer point, not an
-    administrative centroid: boundaries differ by country, so rings would not be comparable. A city
-    is a place for the numbers, not a new set: every ring comes from Fig.&nbsp;3.73c (p.&nbsp;115)
-    for blast and fireball, Fig.&nbsp;7.42 (p.&nbsp;291) for thermal. Population is not printed on
-    the map; the city pages carry it, as residents inside 10&nbsp;km of that point on the WorldPop
-    100&nbsp;m grid, 2020 estimates, with radius, year and dataset beside the number. Ring
-    populations are a separate count, never merged into the city total. New York is done:
-    <a href="/nuclear-bomb-map/new-york/">nuclear bomb effects on New York</a>. One city at a time,
-    rings intact without scripting: the <a href="/">nuke simulator</a>.
+    Twenty centres are in the picker, each a GeoNames gazetteer point, not an administrative
+    centroid: boundaries differ by country, so rings would not compare. Five now have a page of
+    their own —{" "}
+    {published.map((c, i) => (
+      <Fragment>{i > 0 ? (i === published.length - 1 ? " and " : ", ") : ""}<a href={`/nuclear-bomb-map/${c.slug}/`}>nuclear bomb effects on {c.name}</a></Fragment>
+    ))}
+    {" "}— each carrying residents inside 10&nbsp;km of that point on the WorldPop 100&nbsp;m grid,
+    2020 estimates, radius and release beside the number.
+  </p>
+  <p>
+    The other fifteen stay in the picker: {unpublished.map((c) => c.name).join(", ")}. Rings come
+    from Fig.&nbsp;3.73c (p.&nbsp;115) for blast and fireball and Fig.&nbsp;7.42 (p.&nbsp;291) for
+    thermal; ring populations are a separate count, never merged into the city total. One city at a
+    time, rings intact with scripting off: the <a href="/">nuke simulator</a>.
   </p>
 
   <h2>Where these numbers stop being readable</h2>

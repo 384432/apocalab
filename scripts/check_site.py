@@ -686,6 +686,40 @@ for name in CORE:
     src = [s for s, ls in link_map.items() if own in {h for h, _, _ in ls}]
     check(len(src) >= 2, f"{name}: 入链 {len(src)} 条 ≥ 2（来自 {src}）")
 
+# 城市页不是孤岛。地图页链全部已发布城市，每页再链其余各页 —— 一页只有 sitemap
+# 一条发现路径，等于把它的收录押在爬虫愿意走 sitemap 上。
+CITY_NAME = {
+    c["slug"]: c["name"]
+    for c in json.loads((ROOT / "src" / "data" / "cities.json").read_text(encoding="utf-8"))["cities"]
+}
+CITY_ANCHOR = {f"/nuclear-bomb-map/{s}/": f"nuclear bomb effects on {CITY_NAME[s]}"
+               for s in CITY_SLUGS}
+
+# 锚文本只有一种写法：nuclear bomb effects on {City}。页面自己另起一套就会让这套
+# 互链变成「五个不同锚文本指向同一个模板」。
+for name, links in link_map.items():
+    for h, a, _ in links:
+        if h in CITY_ANCHOR:
+            check(a.strip().lower() == CITY_ANCHOR[h].lower(),
+                  f"{name}: → {h} 的锚文本是 “{CITY_ANCHOR[h]}”（实际 “{a}”）")
+
+for slug in CITY_SLUGS:
+    own = f"/nuclear-bomb-map/{slug}/"
+    src_core = [s for s in CORE if own in {h for h, _, _ in link_map[s]}]
+    src_city = [s for s in CITY if s != slug and own in {h for h, _, _ in link_map[s]}]
+    total = len(src_core) + len(src_city)
+    check("nuclear-bomb-map" in src_core, f"{slug}: 地图页正文链到它")
+    check(len(src_city) == len(CITY) - 1,
+          f"{slug}: 其余 {len(CITY) - 1} 个城市页都链到它（实际 {len(src_city)}）")
+    check(total >= 4, f"{slug}: 入链 {total} 条 ≥ 4")
+
+# 一层就够：城市页只链兄弟，不链兄弟的兄弟，也不按大洲分组。出链数恰好是已发布
+# 城市数减一，多挂一条就是第二层。
+for name in CITY:
+    n = len([h for h, _, _ in link_map[name]
+             if h in CITY_PATHS and h != PAGE_PATH[name]])
+    check(n == len(CITY) - 1, f"{name}: 到其它城市页的出链 {n} 条（恰好 {len(CITY) - 1}）")
+
 # 闭环：四页互为入链出链，没有孤岛，也没有指到站外的假内链。
 check(set(link_map) == set(PAGE_PATH), "17: 内链矩阵覆盖四页与已发布城市页")
 
@@ -891,6 +925,41 @@ if NW.exists():
               "nuclear-winter: 没有一张表同时出现模型引文与手册页码")
 else:
     print("     /nuclear-winter/ 未构建，跳过引文纪律（§20 会在它上线后套用硬要求）")
+
+print("23 /methodology/ 的人口节：页面只有一套口径")
+
+# 这一节曾经写着「人口还没有发布」和「WorldPop 1 km 格网」，而五个城市页早已印了
+# 人口、用的是 100 m 的 R2025A。页面说假话比没有这一节更糟，所以逐条钉住。
+meth_html = raw["methodology"]
+meth_txt = txt["methodology"]
+check("1 km grid" not in meth_txt, "methodology 全页不再出现 “1 km grid”")
+check("No population figure is published" not in meth_txt,
+      "methodology 不再声称人口尚未发布")
+
+m = re.search(r'(?is)<h2[^>]*id="population"[^>]*>(.*?)(?=<h2\b|</main>)', meth_html)
+check(m is not None, 'methodology: 有 id="population" 的 H2 一节')
+if m:
+    sect = text_of(m.group(1))
+    check("100 m" in sect, "methodology 人口节写明 100 m 栅格")
+    check("1 km" not in sect, "methodology 人口节里没有 “1 km”")
+    check(popdata["source"]["name"] in sect,
+          f"methodology 人口节写明 release 名（{popdata['source']['name']}）")
+    check(str(popdata["source"]["year"]) in sect, "methodology 人口节写明 2020 估算")
+    check(popdata["source"]["api"] in sect, "methodology 人口节写明 API 端点")
+    check(popdata["source"]["retrieved"] in sect, "methodology 人口节写明抓取日期")
+    check(str(popdata["source"]["radius_km"]).rstrip("0").rstrip(".") + " km" in sect,
+          "methodology 人口节保留 10 km 城市圆")
+    check(f"{catch_km:g} km" in sect, f"methodology 人口节写明查询半径 {catch_km:g} km")
+    check(f"{air_max:.2f} km" in sect, f"methodology 人口节写明最大环 {air_max:.2f} km")
+    check("catchment" in sect, "methodology 人口节写明所有半径共用一份 catchment")
+    check("subtract" in sect, "methodology 人口节写明不做环减环")
+
+    # 版本差必须带着两个实测数字，光说「有差异」等于没说。
+    paris_api = popdata["cities"]["paris"]["ring_population"]["3.220"]
+    gap = 100 * (831462 - paris_api) / paris_api
+    check(f"{paris_api:,}" in sect, f"methodology 人口节写出 API 实测值 {paris_api:,}")
+    check("831,462" in sect, "methodology 人口节写出 GeoTIFF 实测值 831,462")
+    check(f"{gap:.1f}%" in sect, f"methodology 人口节写出 {gap:.1f}% 版本差")
 
 print(f"结果：PASS {passes}  FAIL {len(fails)}")
 if fails:

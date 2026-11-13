@@ -56,6 +56,11 @@ const path = `/nuclear-bomb-map/${city.slug}/`;
 
 const cityPop = cityPopulation(city);
 const places = placesOf(city);
+// Exactly one hop: this page links its four siblings, and they link back to it.
+// No city page links a city page's city page, and there is no grouping by region.
+const otherCities = cities.filter(
+  (c) => PUBLISHED_CITY_SLUGS.includes(c.slug) && c.slug !== city.slug,
+);
 const inside5 = places.filter((p) => p.distance_km <= get('overpressure_5psi', 'air', 100)!.radius_km).length;
 const past1 = places.filter((p) => p.distance_km > get('overpressure_1psi', 'air', 100)!.radius_km).length;
 const psi5km = get('overpressure_5psi', 'air', 100)!.radius_km;
@@ -195,8 +200,8 @@ const jsonLd = {
     The count is a disc, not a city: it takes in whatever happens to be within
     {CITY_RADIUS_KM} km of the point, including water, parks and the next municipality over.
     And it is a 2020 estimate, not a census — {popSource.name} is a modelled surface, so the
-    figure is reproducible by anyone who re-runs the same query, which is the only property
-    that matters here.
+    figure is reproducible by anyone who re-runs the same query against the same release, which is
+    the only property that matters here.
   </p>
 
   <h2 id="places">Three places this page could only be about {city.name}</h2>
@@ -243,5 +248,14 @@ const jsonLd = {
     that for {cities.length} cities. To check any of it against the book, the audit trail is under
     <a href="/methodology/">where these numbers come from</a>; the interactive version of this
     single city is the <a href="/">nuke simulator</a>.
+  </p>
+
+  <h2 id="other-cities">The same rings over other cities</h2>
+  <p>
+    Same five contours, same table, same {CATCH_RADIUS_KM} km catchment per city, different ground:{" "}
+    {otherCities.map((c, i) => (
+      <Fragment>{i > 0 ? (i === otherCities.length - 1 ? " and " : ", ") : ""}<a href={`/nuclear-bomb-map/${c.slug}/`}>nuclear bomb effects on {c.name}</a></Fragment>
+    ))}. Each of those pages counts its own population from one query around its own gazetteer
+    point, so the figures are comparable between them and are not a ranking of anything.
   </p>
 </Base>
