@@ -33,46 +33,103 @@ const defaultBurst = 'air' as const;
   <h1>Nuclear Bomb Map — the rings on the ground, not on a chart</h1>
 
   <p class="lede">
-    The same five distances as the <a href="/blast-radius/">blast radius table</a>, drawn where
-    they actually land. Pick a city, pick a yield, and the rings are laid over the ground at
-    true scale, north-up. Every number behind a ring still carries the figure and printed page
-    it came from.
+    The same five distances as the <a href="/blast-radius/">nuclear bomb blast radius</a> table,
+    drawn where they actually land. Pick a city, pick a yield, and the rings are laid over the
+    ground at true scale, north-up. Every number behind a ring still carries the figure and printed
+    page it came from.
   </p>
 
   <BombMap city={city} y={defaultYield} burst={defaultBurst} cities={cities} />
 
-  <h2>What the map adds, and what it does not</h2>
-
   <p>
-    A radius in a table is a number you have to imagine. Here the rings are geodesic circles —
-    true ground distances — projected onto the basemap, so at 60° of latitude they are visibly
-    not the same shape as at the equator. The centre is a gazetteer point, and each ring is
-    drawn from that point outward, so what you see is the distance, not a stylised target.
+    The rings are geodesic circles — true ground distances — projected onto the basemap, so at 60°
+    of latitude they are visibly not the same shape as at the equator. Each one is drawn from a
+    gazetteer point outward, which means what you see is the distance from that point, not a
+    stylised target. What the map does not know is the ground itself: hills, shorelines, a dense
+    core of buildings and a field of the same beige are all one surface here, and the manual's
+    distances assume flat terrain at sea level. Nothing on this page corrects for that.
   </p>
 
+  <h2>What the 5 psi ring means</h2>
+
   <p>
-    What it does not add is any new information about the effects themselves. It does not know
-    where buildings are, what they are made of, whether anyone is outdoors, or which way the
-    wind is blowing. The manual's distances are to a given overpressure on flat terrain at sea
-    level; a city with hills, a shoreline, or a dense core is not flat, and this page makes no
-    correction for that. See <a href="/methodology/">methodology</a>.
+    Five psi is the overpressure the manual ties to most residential buildings being destroyed. On
+    this map that ring sits at 1.71&nbsp;km for 15&nbsp;kt, 3.22&nbsp;km for 100&nbsp;kt and
+    6.93&nbsp;km for 1&nbsp;Mt, all of it from Fig.&nbsp;3.73c on p.&nbsp;115, read at 1&nbsp;kt and
+    multiplied by the cube root of the yield. The chart prints 1, 2, 4, 6, 8 and 10 psi contours and
+    never 5, so each of those values is interpolated between the 4 and 6 psi curves: at 1&nbsp;kt
+    the 5 psi position is 2,275&nbsp;ft from ground zero, at a burst height of 1,017&nbsp;ft. The
+    quantity is peak overpressure on the ground, which already contains the reflected shock — not
+    the incident pressure in free air — so a tool quoting incident pressure will draw a visibly
+    smaller ring under the same label.
   </p>
 
-  <h2>Two things worth knowing before you read the rings</h2>
+  <h2>What the 1 psi ring means</h2>
 
   <p>
-    <strong>Burst height is inside the number, not beside it.</strong> Each overpressure ring is
-    read at the peak of its own contour, so its burst height differs from its neighbours'. The
-    readout under the map gives each row's figure and page; the table gives each row's burst
-    height in feet.
+    One psi is the weakest contour the chart draws and the one that reaches furthest; it is roughly
+    where window glass breaks. The ring measures 5.28&nbsp;km at 15&nbsp;kt, 9.93&nbsp;km (6.17&nbsp;mi)
+    at 100&nbsp;kt and 21.40&nbsp;km (13.30&nbsp;mi) at 1&nbsp;Mt, again from Fig.&nbsp;3.73c,
+    p.&nbsp;115. It is also the most sensitive of the five to burst height: at 1&nbsp;kt this
+    contour reaches 7,020&nbsp;ft when the burst is at 1,575&nbsp;ft, against 3,830&nbsp;ft for a
+    contact burst — a factor of 1.8 from burst height alone. That sensitivity is why every ring
+    here is read at the peak of its own curve instead of at one burst height chosen in advance; the
+    contact-burst convention is the one stated on p.&nbsp;106.
   </p>
 
+  <h2>The fireball is not a thermal ring</h2>
+
   <p>
-    <strong>The 1 Mt rows leave the chart's stated assumptions behind.</strong> Reading at the
-    peak puts the 1 Mt burst heights at 10,174 ft (5 psi) and 15,750 ft (1 psi), while
-    Fig.&nbsp;3.73c is computed for a homogeneous sea-level atmosphere at 5,000 ft or less
-    (§3.73, p.&nbsp;110). Those two rings are the manual's curve multiplied by the manual's
-    scaling law, and should be read as the edge of what the chart supports.
+    The innermost ring is the fireball at the moment the shock front separates from it: 0.21&nbsp;km
+    at 100&nbsp;kt, from R&nbsp;=&nbsp;110·W<sup>0.4</sup>&nbsp;ft, Eq.&nbsp;(2.127.1) on p.&nbsp;70.
+    §2.129 notes it can later grow to about twice that radius, so the ring is a breakaway value, not
+    a maximum. The thermal rings are a different claim: slant ranges to a given irradiance.
+    4.5&nbsp;cal/cm² — second-degree burns on unshaded light skin — reaches 6.99&nbsp;km at
+    100&nbsp;kt and 16.68&nbsp;km at 1&nbsp;Mt; 10&nbsp;cal/cm² — third-degree — 4.02&nbsp;km and
+    10.35&nbsp;km, both read directly off Fig.&nbsp;7.42 (p.&nbsp;291), computed at
+    200·W<sup>0.4</sup>&nbsp;ft with 12-mile visibility (§7.42, p.&nbsp;290). No thermal ring is
+    drawn for a contact burst: the manual handles that case by a separate route (§7.41,
+    p.&nbsp;290).
+  </p>
+
+  <h2>Why ten times the yield is not ten times the radius</h2>
+
+  <p>
+    For a given overpressure, distance scales as W<sup>1/3</sup> — the manual's own law,
+    Eq.&nbsp;(3.61.2) on p.&nbsp;101, restated in §3.62 (p.&nbsp;102) and applied to these figures in
+    §3.73 (p.&nbsp;110). From 100&nbsp;kt to 1&nbsp;Mt that factor is 10<sup>1/3</sup> = 2.15, and
+    the map shows it: the 5 psi ring goes from 3.22&nbsp;km to 6.93&nbsp;km, a factor of 2.15; the
+    1 psi ring from 9.93&nbsp;km to 21.40&nbsp;km, 2.16. Area grows with the square of the radius,
+    so ten times the yield covers about 4.6 times the ground. That is why a 1&nbsp;Mt ring is not
+    ten times wider than a 100&nbsp;kt ring, and why one zoom holds all three yields.
+  </p>
+
+  <h2>The 20 cities, and the population measure</h2>
+
+  <p>
+    The map offers 20 cities: New York, Los Angeles, Chicago, Houston, San Francisco, Washington,
+    Miami, Seattle, Boston, Atlanta, London, Paris, Tokyo, Berlin, Sydney, Toronto, Mexico City,
+    São Paulo, New Delhi and Johannesburg. Each centre is a GeoNames gazetteer point, not an
+    administrative centroid: boundaries differ by country, so rings would not be comparable. A city
+    is a place for the numbers, not a new set: every ring comes from Fig.&nbsp;3.73c (p.&nbsp;115)
+    for blast and fireball, Fig.&nbsp;7.42 (p.&nbsp;291) for thermal. Population is not printed here
+    yet; the convention is fixed — residents inside 10&nbsp;km of that point on the WorldPop
+    1&nbsp;km grid, 2020 estimates, with radius, year and dataset beside the number. Ring
+    populations are a separate count, never merged into the city total. One city at a time, rings
+    intact without scripting: the <a href="/">nuke simulator</a>.
+  </p>
+
+  <h2>Where these numbers stop being readable</h2>
+
+  <p>
+    Three cells here sit at the edge of what Fig.&nbsp;3.73c supports. Reading each contour at its
+    peak puts the 1&nbsp;Mt burst heights at 10,174&nbsp;ft for 5 psi and 15,750&nbsp;ft for
+    1 psi, and even the 100&nbsp;kt 1 psi ring at 7,311&nbsp;ft. The chart is computed for a
+    homogeneous sea-level atmosphere at burst heights of 5,000&nbsp;ft or less (§3.73, p.&nbsp;110),
+    so those rings extrapolate its assumption by up to a factor of three. They stay: dropping
+    1&nbsp;Mt would hide the limit, not state it. No altitude correction (§3.64–3.66) is applied,
+    which pushes them low, not high. Read them as the edge of what the chart supports; the trail is
+    under <a href="/methodology/">where these numbers come from</a>.
   </p>
 
   <p class="small">

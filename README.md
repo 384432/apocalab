@@ -21,7 +21,7 @@ Four scripts decide whether the site may ship. All exit non-zero on failure.
 
 ```bash
 python scripts/verify_data.py   # 354 checks on the data layer (provenance, scaling, monotonicity)
-python scripts/check_site.py    # 452 checks on the built HTML (pages, JS-off, citations, canonical, sitemap)
+python scripts/check_site.py    # 572 checks on the built HTML (pages, JS-off, citations, canonical, sitemap, internal links, noindex mode)
 python scripts/check_urls.py    #  30 checks over real HTTP: every sitemap URL answers 200
 node   scripts/verify_map.mjs   #  browser: tiles, blocked tiles, shared URL, JS off, 390 px
 ```
@@ -29,6 +29,17 @@ node   scripts/verify_map.mjs   #  browser: tiles, blocked tiles, shared URL, JS
 `check_site.py` and `check_urls.py` need `dist/` to exist first (`npm run build`). `check_urls.py`
 starts its own loopback server, so it needs nothing running; `verify_map.mjs` drives headless
 Chromium on `--remote-debugging-port=9333` against the built site on `:4322`.
+
+`check_site.py` also checks *which artifact* it is looking at, because the indexing rule differs by
+deployment:
+
+```bash
+CF_PAGES_BRANCH=preview npm run build && python scripts/check_site.py --expect preview
+SITE_ENV=production npm run build     && python scripts/check_site.py --expect main
+```
+
+Cross-checking the wrong pair fails on purpose (a production build has no `noindex`; a preview build
+must have one).
 
 ## Deploy — Cloudflare Pages, static, no adapter
 
@@ -46,12 +57,39 @@ three away.
 `wrangler.toml` carries `pages_build_output_dir = "./dist"` so a manual
 `wrangler pages deploy` cannot upload the repository root.
 
-`public/_headers` adds `X-Robots-Tag: noindex` to every path while the site is only on
-`*.pages.dev`. **Delete that rule when `apocalab.com` points at Pages** — otherwise production
-inherits it and the site drops out of every search engine. `check_site.py` fails if the rule is
-missing, so it cannot be forgotten; it does not fail when the domain goes live, so that removal
-is a deliberate commit. The same file pins the MIME type of `ne_110m_land.geojson`, which Pages
-would otherwise serve as `application/octet-stream`.
+`dist/_headers` is **generated at the end of every build** by `scripts/gen_headers.mjs`, not copied
+from `public/`. Whether the deploy may be indexed depends on the environment, and that is only known
+while building:
+
+| `CF_PAGES_BRANCH` | mode | `_headers` |
+|---|---|---|
+| `main` | production | no `X-Robots-Tag` at all — `robots.txt` and `sitemap.xml` invite crawlers in |
+| anything else, or unset (local) | preview | `X-Robots-Tag: noindex` on `/*` |
+
+Pages sets that variable for production and preview deployments alike, so production needs no extra
+configuration. `SITE_ENV=production` overrides it for reproducing the production artifact locally.
+The gate asserts both directions: a production artifact may not contain the word `noindex` in
+`_headers` **or** in any HTML file, and a preview artifact must carry the header. It also fails if a
+static `public/_headers` ever comes back — a leftover copy would win or lose depending on copy order,
+which is worse than having none.
+
+The same generated file pins the MIME type of `ne_110m_land.geojson`, which Pages would otherwise
+serve as `application/octet-stream`.
+
+## Internal links
+
+Four pages, one closed loop. Anchor text is fixed (changing it is a contract change, and
+`check_site.py` §17 fails the build):
+
+| Destination | Anchor text |
+|---|---|
+| `/blast-radius/` | `nuclear bomb blast radius` |
+| `/nuclear-bomb-map/` | `nuclear bomb map` |
+| `/` | `nuke simulator` |
+| `/methodology/` | `where these numbers come from` |
+
+Every page links to the other three from inside body paragraphs — not from the footer, not only from
+the nav — with no `rel="nofollow"` and no JS routing.
 
 ## Pipeline
 
@@ -61,7 +99,8 @@ would otherwise serve as `application/octet-stream`.
 | `scripts/verify_data.py` | provenance, unit chain, cube-root recomputation, monotonicity |
 | `scripts/build_cities.py` | GeoNames cities15000 → `src/data/cities.json` (20 gazetteer points) |
 | `scripts/fetch_geonames.py` | one-time download of the GeoNames dump into the gitignored work dir |
-| `scripts/check_site.py` | the build gate: citations, JS-off reading, interpolation labels, URL state, canonical, sitemap, `_headers` |
+| `scripts/check_site.py` | the build gate: citations, JS-off reading, interpolation labels, URL state, canonical, sitemap, `_headers` mode, internal-link loop, map-page prose, promise ledger |
+| `scripts/gen_headers.mjs` | writes `dist/_headers` from `CF_PAGES_BRANCH` (production: no robots header; preview: `noindex`) |
 | `scripts/check_urls.py` | serves `dist/` on a loopback port and fetches every sitemap URL: 200, canonical round-trip, 404 sanity |
 | `scripts/measure_switch.mjs` | drives headless Chromium to time a yield switch (gate: < 300 ms) |
 | `scripts/verify_switch.mjs` | same browser, asserts the numbers actually change |

@@ -1,7 +1,7 @@
 # apocalab.com — v1 实施计划
 
 > 技术负责人 / 全栈工程师：灵
-> 版本：**v1.4（2026-11-11 修订）**。阶段 0 数据层已通过抽检，阶段 1 骨架与 `/blast-radius/`、阶段 2 首页与查表、阶段 3 `/nuclear-bomb-map/` 均已交付；交付形态自 v1.4 起锁定为 **Cloudflare Pages 静态站**（§3.7）。第 8 节 5 个决策点已全部裁决，正文按裁决结果改过。
+> 版本：**v1.5（2026-11-13 修订）**。阶段 0 数据层已通过抽检，阶段 1 骨架与 `/blast-radius/`、阶段 2 首页与查表、阶段 3 `/nuclear-bomb-map/` 均已交付；交付形态自 v1.4 起锁定为 **Cloudflare Pages 静态站**（§3.7）。第 8 节 5 个决策点已全部裁决，正文按裁决结果改过。v1.5 改动：`_headers` 改成按分支生成（§3.7）、新增内链契约（§4.8）与承诺台账（§4.9）、地图页正文规格落到 §4.3。
 > 本文所有页码、图号、公式，均来自我本机对手册 PDF 的抽取核对（见 2.1），不是从二手网页抄的。
 
 **v1.4 相对 v1.3 改了什么**（只列会改变行为的）：
@@ -342,7 +342,8 @@ export const BASEMAP = {
 
 - **构建**：`npm run build`（即 `astro build`）→ `dist/`。`astro.config.mjs` 保持 `output: 'static'`，不装 `@astrojs/cloudflare` 或任何 adapter。`check_site.py` 断言配置里没有 `adapter:`、没有 `@astrojs/*`、`dist/` 里没有 `functions/`。
 - **Pages 项目设置**：构建命令 `npm run build`，输出目录 `dist`，Node 20+。仓库根的 `wrangler.toml` 用 `pages_build_output_dir = "./dist"` 兜底，手工 `wrangler pages deploy` 也不会把仓库根当成产物。
-- **预览期禁收录**：`public/_headers` 给 `/*` 加 `X-Robots-Tag: noindex`，避免 `*.pages.dev` 被搜成重复内容。**正式域名指向 Pages 之后必须删掉这一行**，否则生产页也带 noindex，整站从搜索结果里消失。`check_site.py` 断言这行在场，删文件就是构建失败，不会「顺手忘了」。
+- **收录开关按分支走，不是写死一行**：`dist/_headers` 不再是从 `public/` 拷来的静态文件，而是构建结束时由 `scripts/gen_headers.mjs` 按 `CF_PAGES_BRANCH` 生成（`astro.config.mjs` 挂在 `astro:build:done`）。`CF_PAGES_BRANCH=main` → 生产，整份 `_headers` 不写任何 `X-Robots-Tag`；其它分支或本地构建（无该变量）→ 预览，`/*` 带 `X-Robots-Tag: noindex`。两个方向都有硬断言：生产产物里 `_headers` 与全部 HTML 都不许出现 `noindex` 字样；预览产物必须带这个头。手工复现生产产物用 `SITE_ENV=production npm run build`。
+- **删掉 `public/_headers` 的理由**：静态副本会在部署时覆盖生成物，谁盖谁取决于平台复制顺序 —— 这种「有时生效」的配置比没有更危险。闸门断言 `public/_headers` 不存在，删它就是构建失败。
 - **`_headers` 还负责 `.geojson` 的 MIME**：Pages 对未知扩展名默认 `application/octet-stream`，降级轮廓那条路径要它明确是 `application/json`。
 - **交付物只有两种**：Cloudflare Pages 的预览链接（`*.pages.dev`，带 noindex）与正式域名 `apocalab.com`。平台自带的托管预览链接不再作为交付物，也不写进任何文档。
 
@@ -393,7 +394,9 @@ export const BASEMAP = {
 - 与首页共用 `lib/island.ts` + `panelRows()`，所以同一个组合在两页不可能显示不同的数；但**首页保留 SVG 真比例圆环，不用地图替换**——SVG 关 JS 也看得见，地图看不见，两者不是替代关系。
 - 默认视角 = 按该城最大半径自动 fit（16:9 画幅里外圈占短边 40%），不是固定世界 zoom：世界视图看不出任何一圈的相对大小。
 - 导航一级项，首页与城市页都链过来。
-- 工作量：**4 h**
+- **正文不能只有一张图**：一张地图的页面，谷歌判断不了它讲什么。规格固定为：≥ 700 词英文正文、4–6 个 H2、每节 90–150 词，且**每节必须含具体数字并带印刷页码**（`p. 115` / `p. 101` / `p. 110` 这种）。小节按此顺序：5 psi 是什么口径 / 1 psi 是什么口径 / 火球与热辐射环不是一回事 / 为什么圈不随当量线性增长（立方根律 §3.61 p.101）/ 20 城与人口口径 / 这些数字读不出来的时候（爆高越界 p.110）。`check_site.py` §18 逐节判定。
+- Title 里的 `20 Cities` 是承诺，不是修饰词：受 §4.9 台账约束，D7（2026-11-18）城市页没全上线就把它去掉。
+- 工作量：**4 h**（正文另计 **2 h**）
 
 ### 4.4 `/[city]/` × 20
 - Title 模板（**每页手写，不批量套**）：`Nuclear Blast Radius in New York — 15 kt, 100 kt and 1 Mt`
@@ -423,6 +426,34 @@ export const BASEMAP = {
 - privacy：无账号、无 cookie、无追踪（GA4/Clarity 先不加，v1 保持 zero-tracking，这也省掉一类合规问题）、CDN 日志说明、外链。
 - 工作量：**2 h**
 
+### 4.8 内链契约（四页闭环）
+
+新站没有外链权重，四页之间的内链是爬虫唯一的路径，也是唯一能分配权重的杠杆。所以锚文本写死，不做「多样化」，也不许出现 `click here` / `learn more`：
+
+| 目标 | 唯一允许的锚文本 |
+|---|---|
+| `/blast-radius/` | `nuclear bomb blast radius` |
+| `/nuclear-bomb-map/` | `nuclear bomb map` |
+| `/` | `nuke simulator` |
+| `/methodology/` | `where these numbers come from` |
+
+- 每页正文出链**恰好覆盖其余三页**，入链 3 条；全部是普通 `<a href>`，无 `rel=nofollow`、无 JS 跳转。
+- 每条内链必须落在正文段落 `<p>` 里，不许塞页脚、不许只挂在导航上。导航栏保留（那是 UX，不是内链策略），断言只统计 `<main>` 内的正文链接。
+- `check_site.py` §17 逐条判定：锚文本、目标集合、段落位置、入链数。锚文本改了就是契约破了，构建失败。
+- 城市页上线后按 §4.4 的内链规则接入这张网（回首页 + 回 `/blast-radius/` + 上下城），四页闭环不受影响。
+
+### 4.9 承诺台账（title 里的数字必须有到期日）
+
+凡是在 title / H1 里写了一个**尚未交付的数量**，必须在下面这块里登记一行，带到期日与机器可判的兑现条件。`check_site.py` §19 每次构建都读它：到期未兑现即失败；title 里出现 `N Cities` 但台账里没有对应行，同样失败。
+
+<!-- PROMISE-LEDGER
+# id | 承诺原文 | 出现位置 | 到期日 | 兑现判据（dist:<glob>>=<N>）
+map-cities | 20 Cities | /nuclear-bomb-map/ title | 2026-11-18 | dist:city/*/index.html>=20
+-->
+
+- **到期日是 D7（2026-11-18）**。到那天 20 个城市页没有全部上线，就把 `/nuclear-bomb-map/` 的 title 里的 `, 20 Cities` 去掉，不留空承诺；改完把本表那一行删掉，并在 §11 记一行变更。
+- 不允许「先写上、以后再补」的第二种写法：要么有到期日，要么不写数量。
+
 ---
 
 ## 5. SEO 落地清单（逐条可勾）
@@ -437,7 +468,8 @@ export const BASEMAP = {
 - [ ] canonical 全部指向 `https://apocalab.com/...`（构建时断言不含 `vercel.app` / `pages.dev`）
 - [ ] `sitemap.xml`（`@astrojs/sitemap`，自动含 20 城）
 - [ ] `robots.txt` 指 sitemap
-- [ ] 内链 ≥3 条/页；城市页必链首页 + `/blast-radius/`
+- [x] 内链四页闭环：出链覆盖其余三页、入链 ≥2、锚文本锁死（§4.8，`check_site.py` §17）
+- [x] 收录开关按分支条件生成：生产无 `noindex`、预览必带（§3.7，`check_site.py` §16）
 - [ ] 构建断言：无 `lorem`、无 `TODO`、无 `undefined`；禁词按词边界匹配（`\bdemo\b` 等）
 - [ ] 构建断言：`/blast-radius/` 的四条硬门（4.2）逐条过
 - [ ] Lighthouse 移动端：Perf ≥ 90，SEO = 100，A11y ≥ 90

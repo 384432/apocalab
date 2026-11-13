@@ -70,6 +70,12 @@ const jsonLd = {
     under a minute.
   </p>
 
+  <p>
+    For one city at a time instead of three yields in a row, the <a href="/">nuke simulator</a>
+    shows the rings around a chosen city; the <a href="/nuclear-bomb-map/">nuclear bomb map</a>
+    lays the same five rings over real ground, north-up.
+  </p>
+
   <h2 id="air">Air burst — the default reading</h2>
   <p>
     Height of burst is not chosen here. Each contour is read at its own peak — the point where it
@@ -126,8 +132,8 @@ const jsonLd = {
     contour does not exist on the chart at all: Fig.&nbsp;3.73c prints 1, 2, 4, 6, 8 and 10 psi
     only, so 5 psi is placed between the 4 and 6 psi curves at the logarithmic pressure position
     0.5503. <code>read directly off Fig. 7.42</code> means no scaling was used. A star (*) marks a
-    value that has not been individually spot-checked; see
-    <a href="/methodology/#verification">verification</a>.
+    value that has not been individually spot-checked; the verification section of the audit trail
+    lists which ones.
   </p>
 
   <h2 id="ground">Contact surface burst</h2>
@@ -270,9 +276,10 @@ const jsonLd = {
     It is a set of distances from ground zero, and nothing more. It does not estimate deaths,
     injuries, building damage at a specific address, fallout, or what would happen in any actual
     event. It also does not cover underwater, underground or high-altitude bursts, multiple
-    warheads, or terrain shielding. The <a href="/methodology/">methodology page</a> lists what is
-    left out and why, including how the two thermal thresholds were placed and where the 1 Mt rows
-    leave the chart's assumptions behind.
+    warheads, or terrain shielding. The audit trail —
+    <a href="/methodology/">where these numbers come from</a> — lists what is left out and why,
+    including how the two thermal thresholds were placed and where the 1 Mt rows leave the chart's
+    assumptions behind.
   </p>
   <p>
     To reproduce any value: open the cited figure at the cited printed page, read the distance at

@@ -9,11 +9,22 @@ G-d 1 Mt 带爆高边界    —— "5,000 ft" 与 "10,174 ft" 出现在同一段
 
 另外三条全站约束：免责恰一行、禁词（词边界）、无占位残渣。
 
-用法：python scripts/check_site.py     （先跑 astro build）
+阶段 3 追加：
+16  _headers 按 CF_PAGES_BRANCH 条件生成 —— 生产（main）整份产物不许出现 noindex，
+    预览必须带 X-Robots-Tag: noindex；两种模式各自反向断言一次。
+17  内链四页闭环 —— 出链恰好覆盖其余三页、入链 ≥ 2、锚文本固定、全部落在正文 <p> 里。
+18  地图页正文 —— ≥ 700 词、4–6 个 H2、每节都有具体数字与印刷页码。
+19  承诺台账 —— title 里的 “N Cities” 必须在 plan.md 的 PROMISE-LEDGER 里有一条带到期日的行，
+    过期未兑现即失败。
+
+用法：python scripts/check_site.py [--expect main|preview] [--branch main]
+     不带参数时按环境变量 CF_PAGES_BRANCH 推断，未设置即按预览产物验收。
 """
+import datetime
 import html
 import itertools
 import json
+import os
 import pathlib
 import re
 import sys
@@ -405,7 +416,24 @@ if chunks:
     for token in ("dragRotate", "touchPitch", "pitchWithRotate", "maxPitch", "disableRotation"):
         check(token in js, f"map: 构建产物里带旋转/俯仰锁定 {token}")
 
-print("16 Cloudflare Pages 产物契约")
+print("16 Cloudflare Pages 产物契约（noindex 条件生效）")
+
+
+def arg_value(flag, default=None):
+    if flag in sys.argv:
+        i = sys.argv.index(flag)
+        if i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+    return default
+
+
+# Which artifact is on the floor. Default comes from the same variable the
+# generator used, so a production build checked without flags still fails
+# loudly instead of being read as a preview.
+BRANCH = arg_value("--branch", os.environ.get("CF_PAGES_BRANCH", "") or "")
+EXPECT = arg_value("--expect", "main" if BRANCH == "main" else "preview")
+check(EXPECT in ("main", "preview"), f"--expect 只能是 main 或 preview（实际 {EXPECT!r}）")
+print(f"     产物模式：{EXPECT}（CF_PAGES_BRANCH={BRANCH or 'unset'}）")
 
 
 def parse_headers(text):
@@ -423,20 +451,25 @@ def parse_headers(text):
     return out
 
 
+# One source of truth: the generator. A leftover static copy in public/ would be
+# copied over dist/ and silently win on a platform that copies public/ last.
+check(not (ROOT / "public" / "_headers").exists(),
+      "public/_headers 不存在（唯一来源是 scripts/gen_headers.mjs）")
+check((ROOT / "scripts" / "gen_headers.mjs").exists(), "scripts/gen_headers.mjs 存在")
+cfg_src = (ROOT / "astro.config.mjs").read_text(encoding="utf-8")
+check("writeHeaders" in cfg_src and "astro:build:done" in cfg_src,
+      "astro.config.mjs 在 astro:build:done 里生成 _headers")
+
 hdr_path = DIST / "_headers"
 check(hdr_path.exists(), "dist/_headers 存在（Pages 只认这个文件名）")
 rules = []
 if hdr_path.exists():
     hdr = hdr_path.read_text(encoding="utf-8")
+    hdr_low = hdr.lower()
     rules = parse_headers(hdr)
-    check(bool(rules) and rules[0]["path"] == "/*", f"_headers 第一条规则作用于 /*（实际 {rules[:1]}）")
-    if rules:
-        check(
-            any(h.lower().startswith("x-robots-tag:") and "noindex" in h.lower()
-                for h in rules[0]["headers"]),
-            "_headers 给全部预览页加 noindex",
-        )
-    check("disallow" not in hdr.lower(), "_headers 里不塞 robots 指令（那是 robots.txt 的活）")
+    check(bool(rules), "_headers 至少一条规则")
+    check("disallow" not in hdr_low, "_headers 里不塞 robots 指令（那是 robots.txt 的活）")
+
     geo = next((r for r in rules if "geojson" in r["path"]), None)
     check(
         geo is not None
@@ -444,6 +477,34 @@ if hdr_path.exists():
                 for h in geo["headers"]),
         "_headers 给 .geojson 指定 application/json（Pages 对未知扩展名默认 octet-stream）",
     )
+
+    if EXPECT == "main":
+        # 生产：整份 _headers 不许出现 noindex，连注释里也不许。
+        check("noindex" not in hdr_low, "生产构建的 _headers 不含 noindex 字样")
+        check("x-robots-tag" not in hdr_low, "生产构建的 _headers 不写 X-Robots-Tag")
+        check(not any(r["path"] == "/*" and r["headers"] for r in rules),
+              "生产构建没有作用于 /* 的头规则")
+    else:
+        check(rules[0]["path"] == "/*", f"预览构建第一条规则作用于 /*（实际 {rules[:1]}）")
+        if rules:
+            check(
+                any(h.lower().startswith("x-robots-tag:") and "noindex" in h.lower()
+                    for h in rules[0]["headers"]),
+                "预览构建给全部页面加 X-Robots-Tag: noindex",
+            )
+
+# 反向断言：生产产物的 HTML 里也不许出现 noindex（防止有人改成 <meta name="robots">）。
+htmls = sorted(DIST.rglob("*.html"))
+check(len(htmls) >= len(PAGES), f"dist 里有 {len(htmls)} 个 HTML（页面 {len(PAGES)} 个）")
+if EXPECT == "main":
+    dirty = [
+        p.relative_to(DIST).as_posix()
+        for p in htmls
+        if "noindex" in p.read_text(encoding="utf-8", errors="replace").lower()
+    ]
+    check(not dirty, f"生产产物 HTML 里没有 noindex（命中 {dirty[:3]}）")
+else:
+    check(len(htmls) >= 4, "预览产物四页齐全")
 
 cfg = (ROOT / "astro.config.mjs").read_text(encoding="utf-8")
 check(not re.search(r"(?m)^\s*adapter\s*:", cfg), "astro.config.mjs 没有 adapter（纯静态，Pages 不跑函数）")
@@ -457,9 +518,145 @@ if wr.exists():
     check('pages_build_output_dir = "./dist"' in wr.read_text(encoding="utf-8"),
           "wrangler.toml 的 pages_build_output_dir 指向 dist")
 
+print("17 内链：四页闭环")
+
+# 锚文本固定。改这里就是改契约，所以要连 plan §4 一起改。
+ANCHOR = {
+    "/": "nuke simulator",
+    "/blast-radius/": "nuclear bomb blast radius",
+    "/nuclear-bomb-map/": "nuclear bomb map",
+    "/methodology/": "where these numbers come from",
+}
+PAGE_PATH = {
+    "index": "/",
+    "blast-radius": "/blast-radius/",
+    "nuclear-bomb-map": "/nuclear-bomb-map/",
+    "methodology": "/methodology/",
+}
+
+
+def anchors_in(region):
+    """Every <a> in a fragment, as (href, anchor text, raw attrs)."""
+    out = []
+    for attrs, inner in re.findall(r"(?is)<a\b([^>]*)>(.*?)</a>", region):
+        m = re.search(r'href="([^"]*)"', attrs)
+        out.append((m.group(1) if m else None, text_of(inner).strip(), attrs))
+    return out
+
+
+link_map = {}
+main_region = {}
+for name, body in raw.items():
+    m = re.search(r"(?is)<main\b[^>]*>(.*?)</main>", body)
+    check(m is not None, f"{name}: 有 <main>")
+    region = m.group(1) if m else ""
+    main_region[name] = region
+    own = PAGE_PATH[name]
+
+    links = [(h, a, at) for h, a, at in anchors_in(region) if h and h.startswith("/")]
+    link_map[name] = links
+
+    for h, a, at in links:
+        check(h in ANCHOR, f"{name}: 内链目标 {h} 是四页之一")
+        if h not in ANCHOR:
+            continue
+        check(h != own, f"{name}: 不给自己加内链（{h}）")
+        check(a.lower() == ANCHOR[h],
+              f"{name}: → {h} 的锚文本是 “{ANCHOR[h]}”（实际 “{a}”）")
+        check("nofollow" not in at.lower(), f"{name}: → {h} 的链接没有 nofollow")
+        check("onclick" not in at.lower(), f"{name}: → {h} 的链接不是 JS 跳转")
+
+    # 正文段落：所有页面内链都必须落在某个 <p> 里，不许堆在页脚或导航。
+    in_p = []
+    for blk in re.findall(r"(?is)<p\b[^>]*>(.*?)</p>", region):
+        in_p += [(h, a) for h, a, _ in anchors_in(blk) if h and h.startswith("/")]
+    check(len(in_p) == len(links),
+          f"{name}: {len(links)} 条内链全部在正文 <p> 里（段内 {len(in_p)} 条）")
+
+    wanted = set(ANCHOR) - {own}
+    got = {h for h, _, _ in links}
+    check(got == wanted, f"{name}: 出链恰好覆盖其余三页（实际 {sorted(got)}）")
+    check(len(links) >= 3, f"{name}: 出链 {len(links)} 条 ≥ 3")
+
+for name in PAGES:
+    own = PAGE_PATH[name]
+    src = [s for s, ls in link_map.items() if own in {h for h, _, _ in ls}]
+    check(len(src) >= 2, f"{name}: 入链 {len(src)} 条 ≥ 2（来自 {src}）")
+
+# 闭环：四页互为入链出链，没有孤岛，也没有指到站外的假内链。
+check(set(link_map) == set(PAGE_PATH), "17: 内链矩阵覆盖四页")
+
+print("18 地图页正文")
+mtxt = text_of(main_region["nuclear-bomb-map"])
+wcount = len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'’.-]*", mtxt))
+check(wcount >= 700, f"map: 正文 {wcount} 词 ≥ 700")
+
+# 两样东西不是「文章小节」：地图控件的标题 <h2 id="map-title">（随选城变化，
+# 是控件的标签不是段落标题）和 <figure> 内部内容。先摘掉再切段，
+# 否则 H2 计数与第一节词数都会偏。
+article = raw["nuclear-bomb-map"]
+article = re.sub(r'(?is)<h2[^>]*\bid="map-title"[^>]*>.*?</h2>', " ", article)
+article = re.sub(r"(?is)<figure\b.*?</figure>", " ", article)
+h2s = re.findall(r"(?is)<h2\b[^>]*>(.*?)</h2>", article)
+check(4 <= len(h2s) <= 6, f"map: 文章 H2 小节 {len(h2s)} 个（要求 4–6）")
+sections = re.split(r"(?is)<h2\b[^>]*>", article)[1:]
+for i, sec in enumerate(sections, 1):
+    title = text_of(re.split(r"(?is)</h2>", sec)[0])
+    # 章节正文 = 该节内的正文段落；页脚注（class 含 small）是页面级说明，不算进小节词数。
+    paras = [
+        p for p in re.findall(r"(?is)<p\b([^>]*)>(.*?)</p>", sec)
+        if "small" not in p[0].lower()
+    ]
+    body_txt = " ".join(text_of(p[1]) for p in paras)
+    check(any(re.search(r"\d", text_of(p[1])) for p in paras),
+          f"map 第 {i} 节 “{title}” 含具体数字")
+    check(any(re.search(r"p\.\s?\d{2,3}", text_of(p[1])) for p in paras),
+          f"map 第 {i} 节 “{title}” 带印刷页码")
+    wc = len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'’.-]*", body_txt))
+    check(100 <= wc <= 155, f"map 第 {i} 节 “{title}” {wc} 词（目标 100–150，闸门 155）")
+
+print("19 承诺台账（title 里的数字必须有到期日）")
+
+plan_txt = (ROOT / "plan.md").read_text(encoding="utf-8")
+ledger = re.search(r"(?s)<!--\s*PROMISE-LEDGER\s*(.*?)-->", plan_txt)
+check(ledger is not None, "plan.md 有 PROMISE-LEDGER 块")
+
+promises = []
+if ledger:
+    for line in ledger.group(1).splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = [p.strip() for p in line.split("|")]
+        check(len(parts) == 5, f"承诺行应为 5 段：{line!r}")
+        if len(parts) == 5:
+            promises.append(parts)
+
+today = datetime.date.today()
+for pid, text, where, deadline, rule in promises:
+    due = datetime.date.fromisoformat(deadline)
+    mrule = re.match(r"dist:(.+?)>=(\d+)$", rule)
+    count, need = 0, 0
+    if mrule:
+        count = len(list(DIST.glob(mrule.group(1))))
+        need = int(mrule.group(2))
+    if today > due:
+        check(count >= need,
+              f"承诺 {pid}（{text}）{deadline} 已到期：{count}/{need} 兑现")
+    else:
+        print(f"     承诺 {pid}: “{text}” 截止 {deadline}（剩 {(due - today).days} 天），"
+              f"当前 {count}/{need}，位置 {where}")
+
+# title 一旦承诺数字，就必须在台账里有一行；否则 D7 到期没人会记得删。
+claim = re.search(r"(\d+)\s+Cities", title_map.get("nuclear-bomb-map", ""))
+if claim:
+    n = claim.group(1)
+    check(any(text.strip().lower() == f"{n} cities".lower() for _, text, *_ in promises),
+          f"map: title 承诺 “{n} Cities”，台账里有对应行")
+
 print(f"结果：PASS {passes}  FAIL {len(fails)}")
 if fails:
     for f in fails:
         print("  -", f)
     sys.exit(1)
-print("阶段 1 构建闸门全绿。")
+print("阶段 3 构建闸门全绿。")
