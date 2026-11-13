@@ -371,19 +371,21 @@ export const BASEMAP = {
 
   两条硬要求：① `--project-name apocalab` 必须显式给，且部署返回里的 alias 必须是 `apocalab.pages.dev` / `preview.apocalab.pages.dev` —— 上级目录 `E:\CODEX\wrangler.jsonc` 属于另一个项目（`lumaroot-site`），wrangler 会把它当「用户配置」抓走，不核对就会把产物传到别处；② 直传前本地四个闸门必须已经全绿，直传是分发动作，不是验收动作。
   直传不会篡改 Git 记录，平台恢复后下一次 `git push` 的构建会照常把同一个 commit 再发布一次，内容一致、无需回滚。
-- **上线顺序（硬顺序，不是建议）**：六步，缺一步都不往下走。①②④⑥ 的动作与验收全在线上，本地全绿不代表能切。
+- **上线顺序（硬顺序，不是建议）**：六步，缺一步都不往下走。①②④⑥ 的动作与验收全在线上，本地全绿不代表能切。**顺序的要义是：绑域名在前、翻开关在后**——`SITE_LIVE` 唯一控制的输出就是全站 `X-Robots-Tag: noindex`（2026-11-14 逐项核过：`robots.txt`、`sitemap.xml`、页面 HTML、canonical/`og:url`、页面脚本都不受它影响；见 `scripts/gen_headers.mjs` 与 `astro.config.mjs`，全仓库只有这两处读它），noindex 期间绑域名没有任何 SEO 损失（noindex 就是不让收录），反而能让正式域名先过一遍闸门；把「正式域名实测」排在翻开关之后，真出问题时站已经可以被收录了。
 
   | # | 动作 | 为什么不能省 |
   |---|---|---|
   | ① | `node scripts/verify_map.mjs https://apocalab.pages.dev`（先起 headless Chrome 在 9333 端口），三态全过：瓦片可达 / 瓦片屏蔽 / 关 JS | 考的是 CDN 上 `.geojson` 的 MIME、`_headers` 的实际生效、真实网络下的降级路径，本地 `astro build` 验不出来 |
   | ② | `python scripts/check_urls.py --online https://apocalab.pages.dev`：随机不存在的路径必须 **404**、404 响应必须是本站 404 页（五条回收链接在 `<main>` 里）、五条链接逐个真发请求确认 200、不存在的 `.png` 必须 **404**（Content-Type 只 WARN，见下面那条已知偏差） | 软 404 是**托管平台的 not-found 行为**，本地静态服务器（`SimpleHTTPRequestHandler`）永远正确 404，复现不出来 |
-  | ③ | 把 `src/lib/site.ts` 的 `SITE_LIVE` 改成 `true`，构建、推送、等部署完成 | 这一步去掉全站 `X-Robots-Tag: noindex`。canonical 不随它变——每页 canonical 由 `SITE_ORIGIN` 固定为 `https://apocalab.com/`，翻转前它指向的域名还没上线，翻转后才第一次成立 |
-  | ④ | 抓 `https://apocalab.pages.dev/` 的响应头与 HTML：**noindex 必须已经消失**，**canonical 必须仍指向 `https://apocalab.com/`** | 两件事只有这一步同时验得到。③ 改的是一个布尔值，响应头在 `_headers`、canonical 在 HTML，少验一头就可能带着 noindex 上线，或者 canonical 被顺手改成 `pages.dev`。**这一步不通过，不许往下走** |
-  | ⑤ | 绑定自定义域名 + 改 DNS | 等指令后执行，见下 |
-  | ⑥ | `python scripts/check_urls.py --online https://apocalab.com` —— host 从 `apocalab.pages.dev` 换成正式域名再跑一遍 | **不换 host，闸门测的就还是 `pages.dev`，正式域名等于一次都没测过**；DNS、证书、`_headers` 在正式域名上的生效，都是新的东西 |
+  | ③ | 绑定 `apocalab.com` + 改 DNS | **noindex 期间绑域名没有任何 SEO 损失**（noindex 就是不让收录），反而能让正式域名先过一遍闸门；反过来把这一步排到翻开关之后，真出问题时站已经可以被收录了。此刻整站仍在 noindex，域名指过来只是让内容在一个「不许被收录」的地址上先跑通 |
+  | ④ | `python scripts/check_urls.py --online https://apocalab.com` —— host 从 `apocalab.pages.dev` 换成正式域名再跑一遍。**不通过不许往下走** | **不换 host，闸门测的就还是 `pages.dev`，正式域名等于一次都没测过**；DNS、证书、`_headers` 在正式域名上的生效，都是新的东西。这一步之前，正式域名从未被任何闸门碰过 |
+  | ⑤ | 把 `src/lib/site.ts` 的 `SITE_LIVE` 改成 `true`，构建、推送、等部署完成——去掉全站 `noindex` | 这是**唯一一个放开收录的动作**，排在域名已经验收之后，所以放开的那一刻，被放开的地址是新的、已验过的那个 |
+  | ⑥ | 抓首页响应头与 HTML（`https://apocalab.com/`，顺带 `https://apocalab.pages.dev/`）：**noindex 必须已经消失**，**canonical 必须仍指向 `https://apocalab.com/`** | 这一步验的是**两件来源不同的事**，缺一不可：noindex 响应头来自 `SITE_LIVE`，canonical 来自 `SITE_ORIGIN`。前者不消失 = 没真正放开收录；后者若被顺手改到 `pages.dev` = 把正式域名上的页面自己否掉 |
 
-  **①没过不切，②没过也不切，④不通过不进 ⑤；跑了没过，先修，不许「先上线再看」。**
-  **⑤ 与 ⑥ 在收到明确指令后才执行**：在那之前不动域名、不动 DNS、不提前绑自定义域名。
+  **①没过不切，②没过也不切，④不通过不翻开关；跑了没过，先修，不许「先上线再看」。**
+  **口径（③ 与 ⑥ 的关系）**：canonical 从头到尾都由 `SITE_ORIGIN` 固定为 `https://apocalab.com/`，**翻转前就已经指向它**，不随 `SITE_LIVE` 变。所以「翻开关」改变的是收录许可，不是 canonical 指向；⑥ 才会同时验这两件事。
+  **③–⑥ 必须在同一天连续做完，不许隔夜。** 两个方向的后果不对称，危险的那个是「只翻开关、没绑域名」：production 立刻可被收录，而 canonical 指向的 `apocalab.com` 还没有内容——爬虫拿到的是 `pages.dev` 一份、canonical 打不开，域名上线那天同一内容就落在两个 hostname 上，正是 `SITE_LIVE` 存在的理由。反过来「只绑域名、没翻开关」不会进索引（两边都还 noindex），但会让正式域名空转，并且「已经绑了」这个状态很容易被当成已经上线，所以同样不许隔夜。
+  **③ 起的所有动作（绑域名、DNS、翻开关）在收到明确指令后才执行**，在那之前不提前绑自定义域名、不动 DNS。
 - **404 由产物承担，不由项目设置承担（v1.8）**：`src/pages/404.astro` → `dist/404.html`，CF Pages 对未匹配路径优先用它。这是先手，先证明产物够用，改项目设置（Not Found Handling → `404-page`）是它不生效时才动的第二手，动的时候要贴改前改后。三条约束写死在页面上：**不加 canonical**（这个地址不是页面的地址）、**不加 `<meta name="robots">`**（404 状态本身就是信号，两种信号不叠）、**不进 sitemap**（sitemap 列页面，不列错误态）。页里只放五条回收链接，用的就是 §4.8 那五个锚文本，不另开一套链接规则。
   **实测（2026-11-14，加 404.html 先后只差这一次部署，项目设置一个都没动）**：
   - `/zzz-no-such-page-9f3a/` → **404** + 本站 404 页（改之前是 200 + 首页完整 HTML）；
