@@ -307,8 +307,9 @@ const versionGapPct = (100 * (PARIS_TIF_SUM - parisApi)) / parisApi;
   <h2 id="verification">Verification status</h2>
 
   <p>
-    <strong>{checked} of {total} rows</strong> carry an individual sign-off; the rest are marked
-    with a star wherever they appear. The distinction is not decorative:
+    <strong>{checked} of {total} rows</strong> carry an individual sign-off. The star that marks an
+    unsigned row is still wired into the table component and would appear on any row added without
+    one, but every row currently published is signed:
   </p>
   <ul>
     <li>
@@ -318,9 +319,15 @@ const versionGapPct = (100 * (PARIS_TIF_SUM - parisApi)) / parisApi;
       original figures. The third-degree column was read off the same chart and accepted with them.
     </li>
     <li>
-      The nine contact-burst values reuse the same 1 kt base readings taken from a different edge
-      of the same two charts. They have been through the automated checks but not through an
-      individual human reading, and they are marked with a star rather than quietly promoted.
+      The nine contact-burst values carry a sign-off dated 14 November 2026. They read a different
+      edge of the same two charts — height of burst zero, the bottom edge of Fig.&nbsp;3.73c on
+      p.&nbsp;115 — and that edge was re-read from a 600 dpi render of the printed page rather than
+      taken from the earlier digitization: 4 psi at 1,655 ft, 6 psi at 1,121 ft and 1 psi at
+      3,830 ft for 1 kt, each within 0.6 percent of where the digitized curve meets the edge. The
+      5 psi row is interpolated between the 4 and 6 psi readings, as it is everywhere else on this
+      site, and the remaining six radii are those 1 kt bases put through the cube-root scaling of
+      §3.61. Nothing in the table moved as a result of the re-read; the sign-off confirms the
+      numbers that were already published.
     </li>
   </ul>
   <p>

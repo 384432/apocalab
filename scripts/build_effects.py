@@ -358,13 +358,36 @@ caveats = [
 # ── 签核状态 ───────────────────────────────────────────────────────────────
 # 空爆 15 条：owner 在 2026-11-11 独立重算了 12 个主值（火球/5psi/1psi/二度），
 # 其中 5 条对过原图；三度那一列由同一张图直读、随主值一起签收。
-# 地爆 9 条：复用同一批 1 kt 基准读数（同两张图的另一条边），未逐条人工读数，
-#           所以保持 None —— 页面上会带 * 标记，不假装核过。
-SIGNED_OFF = ("owner, 2026-11-11: phase 0 sign-off — twelve headline values independently "
-              "recomputed, five spot-checked against the printed figures")
+# 地爆 9 条：owner 在 2026-11-14 把 Fig. 3.73c（p.115）的 HOB = 0 底边用 600 dpi
+#           重渲染后独立重读：三个 1 kt 基准 — 4 psi 1655 ft、6 psi 1121 ft、
+#           1 psi 3830 ft — 与曲线和底边的数字化交点（1665 / 1122 / 3832 ft）全部
+#           相差 ≤0.6%，都在 ±5% 读数误差内，故一并签收，不再挂 *。
+# 渲染层的 * 保留：以后新加的行只要 checked_by 还是 None 就会带星，不会被混进已签核的堆里。
+SIGN_OFF_AIR = ("owner, 2026-11-11: phase 0 sign-off — twelve headline values independently "
+                "recomputed, five spot-checked against the printed figures")
+SIGN_OFF_GROUND_FIREBALL = ("owner, 2026-11-14: contact-burst sign-off — eq. (2.127.2) recomputed "
+                            "at 145·W^0.4 for 15, 100 and 1,000 kt against p.71; the ground-burst "
+                            "branch of the equation already signed off for the air-burst rows")
+SIGN_OFF_GROUND_1PSI = ("owner, 2026-11-14: contact-burst sign-off — 1 kt base re-read at the bottom "
+                        "edge (HOB = 0) of Fig. 3.73c, p.115, from a 600 dpi render of the page: "
+                        "3,830 ft, within 0.05% of the digitized 3,832 ft; the three scaled radii "
+                        "recomputed from that base")
+SIGN_OFF_GROUND_5PSI = ("owner, 2026-11-14: contact-burst sign-off — both 1 kt bases re-read at the "
+                        "bottom edge (HOB = 0) of Fig. 3.73c, p.115, from a 600 dpi render: 4 psi "
+                        "1,655 ft and 6 psi 1,121 ft, both within 0.6% of the digitized 1,665 / "
+                        "1,122 ft; log-pressure fraction 0.5503 rechecked → 1,361 ft at 1 kt, and "
+                        "the three scaled radii recomputed from it")
 for e in entries:
     if e["burst"] == "air":
-        e["checked_by"] = SIGNED_OFF
+        e["checked_by"] = SIGN_OFF_AIR
+    elif e["effect"] == "fireball":
+        e["checked_by"] = SIGN_OFF_GROUND_FIREBALL
+    elif e["effect"] == "overpressure_1psi":
+        e["checked_by"] = SIGN_OFF_GROUND_1PSI
+    elif e["effect"] == "overpressure_5psi":
+        e["checked_by"] = SIGN_OFF_GROUND_5PSI
+    else:  # 地爆没有热辐射行；真出现了必须当场决定签核来源，而不是静默留 None
+        raise SystemExit(f"unsigned contact-burst effect: {e['effect']} ({e['id']})")
 
 doc = {
     "manual": manual,
