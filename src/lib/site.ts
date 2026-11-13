@@ -23,6 +23,20 @@ export interface PageDef {
 export const SITE_ORIGIN = 'https://apocalab.com';
 
 /**
+ * When this site's content was first published, as a date — not a year.
+ *
+ * Every page carried the manual's 1977 as its `datePublished`, which is a
+ * different claim entirely: 1977 is when the source was printed, not when this
+ * page appeared. Structured data now takes its page date from here, and 1977
+ * stays where it belongs, on the Book node under `isBasedOn`.
+ *
+ * 2026-11-13 is the first production deployment that served this content
+ * publicly. It is one constant because the alternative — a date per page,
+ * copied by hand — drifts the moment a page is rebuilt.
+ */
+export const SITE_PUBLISHED = '2026-11-13';
+
+/**
  * Is apocalab.com serving this build?
  *
  * false — the domain is not pointed at Cloudflare Pages yet. Every deployment,

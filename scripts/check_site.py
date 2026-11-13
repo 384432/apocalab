@@ -16,6 +16,8 @@ G-d 1 Mt 带爆高边界    —— "5,000 ft" 与 "10,174 ft" 出现在同一段
 18  地图页正文 —— ≥ 700 词、4–6 个 H2、每节都有具体数字与印刷页码。
 19  承诺台账 —— title 里的 “N Cities” 必须在 plan.md 的 PROMISE-LEDGER 里有一条带到期日的行，
     过期未兑现即失败。
+24  每个 URL 至少 2 条站内入链 —— 按 dist 里真实构建的页面统计，加一页就套用一次。
+25  结构化数据里的日期 —— 页面级 datePublished 是真实发布日，1977 只出现在 Book（数据来源）上。
 
 用法：python scripts/check_site.py [--expect main|preview] [--branch main]
      不带参数时按环境变量 CF_PAGES_BRANCH 推断，未设置即按预览产物验收。
@@ -39,6 +41,7 @@ JSON_PATH = ROOT / "src" / "data" / "effects.json"
 
 fails = []
 passes = 0
+warns = []
 
 
 def check(cond, msg):
@@ -48,6 +51,12 @@ def check(cond, msg):
     else:
         fails.append(msg)
         print(f"  FAIL  {msg}")
+
+
+def warn(msg):
+    """记录但不失败。只用于「能更好，但不算错」的那一类判断。"""
+    warns.append(msg)
+    print(f"  WARN  {msg}")
 
 
 def text_of(h):
@@ -614,6 +623,7 @@ ANCHOR = {
     "/blast-radius/": "nuclear bomb blast radius",
     "/nuclear-bomb-map/": "nuclear bomb map",
     "/methodology/": "where these numbers come from",
+    "/nuclear-winter/": "nuclear winter",
 }
 PAGE_PATH = {
     "index": "/",
@@ -662,12 +672,13 @@ for name, body in raw.items():
         check(a.lower() not in ("click here", "learn more", "read more", "here"),
               f"{name}: → {h} 的锚文本不是 “{a}”")
 
-    # 正文段落：所有页面内链都必须落在某个 <p> 里，不许堆在页脚或导航。
-    in_p = []
-    for blk in re.findall(r"(?is)<p\b[^>]*>(.*?)</p>", region):
-        in_p += [(h, a) for h, a, _ in anchors_in(blk) if h and h.startswith("/")]
-    check(len(in_p) == len(links),
-          f"{name}: {len(links)} 条内链全部在正文 <p> 里（段内 {len(in_p)} 条）")
+    # 正文链接：必须落在正文段落或列表项里，不许堆在页脚、导航或标题上。
+    # 列表项算正文 —— 「本站不算什么」那种清单，链接天然在 <li> 里。
+    outside = re.sub(r"(?is)<p\b[^>]*>.*?</p>", " ", region)
+    outside = re.sub(r"(?is)<li\b[^>]*>.*?</li>", " ", outside)
+    stray = [h for h, _, _ in anchors_in(outside) if h and h.startswith("/")]
+    check(not stray,
+          f"{name}: {len(links)} 条内链全部在正文段落/列表里（段外 {stray[:3]}）")
 
     got = {h for h, _, _ in links}
     if name in CORE:
@@ -720,6 +731,12 @@ for name in CITY:
              if h in CITY_PATHS and h != PAGE_PATH[name]])
     check(n == len(CITY) - 1, f"{name}: 到其它城市页的出链 {n} 条（恰好 {len(CITY) - 1}）")
 
+# 每一页都要链到 /nuclear-winter/。它曾经只有 sitemap 一条发现路径：全站九个页面
+# 一个入链都没有，等于把 9,900 月搜的页面交给爬虫去猜。
+for name in CORE + CITY:
+    got = {h for h, _, _ in link_map[name]}
+    check("/nuclear-winter/" in got, f"{name}: 正文链到 /nuclear-winter/")
+
 # 闭环：四页互为入链出链，没有孤岛，也没有指到站外的假内链。
 check(set(link_map) == set(PAGE_PATH), "17: 内链矩阵覆盖四页与已发布城市页")
 
@@ -750,7 +767,11 @@ for i, sec in enumerate(sections, 1):
     check(any(re.search(r"p\.\s?\d{2,3}", text_of(p[1])) for p in paras),
           f"map 第 {i} 节 “{title}” 带印刷页码")
     wc = len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'’.-]*", body_txt))
-    check(100 <= wc <= 155, f"map 第 {i} 节 “{title}” {wc} 词（目标 100–150，闸门 155）")
+    # 只有下限是硬约束。上限做成警告：为了守一个字数删掉有用的事实是本末倒置，
+    # 但一节两百六十词以上通常说明这段该拆了，所以只在超 250 时提示，不算失败。
+    check(wc >= 100, f"map 第 {i} 节 “{title}” {wc} 词 ≥ 100")
+    if wc > 250:
+        warn(f"map 第 {i} 节 “{title}” {wc} 词 > 250，考虑拆节")
 
 print("19 承诺台账（title 里的数字必须有到期日）")
 
@@ -860,7 +881,9 @@ for path in QUERY_PAGES:
         else:
             check(has_page, f"{path} 第 {i} 节 “{sec_title}” 带印刷页码")
         n = len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'’.-]*", body_txt))
-        check(100 <= n <= 155, f"{path} 第 {i} 节 “{sec_title}” {n} 词（目标 100–150）")
+        check(n >= 100, f"{path} 第 {i} 节 “{sec_title}” {n} 词 ≥ 100")
+        if n > 250:
+            warn(f"{path} 第 {i} 节 “{sec_title}” {n} 词 > 250，考虑拆节")
 
     links = [(h, a, at) for h, a, at in anchors_in(region) if h and h.startswith("/")]
     for h, a, at in links:
@@ -961,9 +984,92 @@ if m:
     check("831,462" in sect, "methodology 人口节写出 GeoTIFF 实测值 831,462")
     check(f"{gap:.1f}%" in sect, f"methodology 人口节写出 {gap:.1f}% 版本差")
 
-print(f"结果：PASS {passes}  FAIL {len(fails)}")
+print("24 sitemap 里每个 URL 至少 2 条站内入链")
+
+# 数的是 dist 里真实构建出来的页面，不是上面那张手写清单 —— 所以以后每加一页它都会咬人，
+# 而不是只保 /nuclear-winter/ 这一次。导航和页脚不算：只数 <main> 里的链接，否则任何页面
+# 都能靠站头混到两条入链，这条断言就白写了。
+inbound = {}
+for page in DIST.rglob("index.html"):
+    rel = page.parent.relative_to(DIST).as_posix()
+    src_path = "/" if rel == "." else f"/{rel}/"
+    html_ = page.read_text(encoding="utf-8")
+    mm = re.search(r"(?is)<main\b[^>]*>(.*?)</main>", html_)
+    for h, _, _ in anchors_in(mm.group(1) if mm else ""):
+        if not h or not h.startswith("/"):
+            continue
+        h = h.split("#")[0].split("?")[0]
+        if not h.endswith("/"):
+            h += "/"
+        if h != src_path:
+            inbound.setdefault(h, set()).add(src_path)
+
+sm_txt = (DIST / "sitemap.xml").read_text(encoding="utf-8")
+sm_locs = re.findall(r"<loc>([^<]+)</loc>", sm_txt)
+check(bool(sm_locs), "sitemap 里至少 1 个 URL")
+for loc in sm_locs:
+    p = urllib.parse.urlparse(loc).path
+    src = sorted(inbound.get(p, set()))
+    check(len(src) >= 2, f"{p}: 站内入链 {len(src)} 条 ≥ 2（来自 {src}）")
+print("     " + " · ".join(
+    f"{urllib.parse.urlparse(u).path} {len(inbound.get(urllib.parse.urlparse(u).path, ()))}" for u in sm_locs))
+
+print("25 结构化数据里的日期")
+
+# 1977 是手册的出版年，不是这些页面的发布日。把两者混用，等于告诉搜索引擎这一页 1977 年
+# 就在网上。日期只有一个真值来源，和 SITE_LIVE 一样从 site.ts 读。
+site_ts = (ROOT / "src" / "lib" / "site.ts").read_text(encoding="utf-8")
+mpub = re.search(r"SITE_PUBLISHED\s*=\s*'(\d{4}-\d{2}-\d{2})'", site_ts)
+check(mpub is not None, "site.ts 里有完整日期的 SITE_PUBLISHED")
+PUBLISHED = mpub.group(1) if mpub else ""
+check(PUBLISHED not in ("", "1977"), f"页面发布日不是 1977（实际 {PUBLISHED}）")
+
+# 说「这一页何时发布」的类型。FAQPage 没有日期字段，所以不在必填之列。
+DATED_TYPES = {"Dataset", "Article", "NewsArticle", "TechArticle", "WebPage"}
+
+
+def ld_nodes(obj):
+    """JSON-LD 树里所有带 @type 的节点。"""
+    if isinstance(obj, dict):
+        if isinstance(obj.get("@type"), str):
+            yield obj
+        for v in obj.values():
+            yield from ld_nodes(v)
+    elif isinstance(obj, list):
+        for v in obj:
+            yield from ld_nodes(v)
+
+
+for name, body in raw.items():
+    blocks = re.findall(r'(?is)<script type="application/ld\+json">(.*?)</script>', body)
+    for blk in blocks:
+        try:
+            ld = json.loads(blk)
+        except Exception as exc:            # noqa: BLE001 — 报出来比抛出去有用
+            check(False, f"{name}: JSON-LD 可以解析（{exc}）")
+            continue
+        for node in ld_nodes(ld):
+            t, dp = node["@type"], node.get("datePublished")
+            if t == "Book":
+                # 手册年份只能待在这里：isBasedOn 的数据来源。
+                check(str(dp) == "1977",
+                      f"{name}: Book 节点的 datePublished 是 1977（实际 {dp}）")
+                continue
+            if dp is None:
+                check(t not in DATED_TYPES,
+                      f"{name}: {t} 节点带 datePublished")
+                continue
+            check(str(dp) == PUBLISHED,
+                  f"{name}: {t} 的 datePublished 是页面发布日 {PUBLISHED}（实际 {dp}）")
+            check(str(dp) != "1977",
+                  f"{name}: {t} 的 datePublished 不是手册年份 1977")
+
+print(f"结果：PASS {passes}  FAIL {len(fails)}  WARN {len(warns)}")
 if fails:
     for f in fails:
         print("  -", f)
     sys.exit(1)
+if warns:
+    for w in warns:
+        print("  · ", w)
 print("阶段 3 构建闸门全绿。")

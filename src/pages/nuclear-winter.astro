@@ -10,6 +10,7 @@
  * numbers into the model results would blur two different kinds of claim.
  */
 import Base from '../layouts/Base.astro';
+import { SITE_PUBLISHED } from '../lib/site';
 
 const title = 'Nuclear Winter: What the Published Research Actually Says';
 const description =
@@ -23,6 +24,7 @@ const jsonLd = {
   headline: title,
   description,
   url: 'https://apocalab.com/nuclear-winter/',
+  datePublished: SITE_PUBLISHED,
   about: { '@type': 'Thing', name: 'Nuclear winter' },
   citation: [
     'Turco, Toon, Ackerman, Pollack & Sagan, Science 222, 1283–1292 (1983)',

@@ -40,6 +40,7 @@ import {
   MAX_RING_KM,
 } from '../../lib/city-pop';
 import { placesOf, ringAt } from '../../lib/city-places';
+import { SITE_PUBLISHED } from '../../lib/site';
 
 export function getStaticPaths() {
   return cities
@@ -97,6 +98,7 @@ const jsonLd = {
   name: `Nuclear weapon effects over ${city.name}`,
   description: description,
   url: `https://apocalab.com${path}`,
+  datePublished: SITE_PUBLISHED,
   spatialCoverage: { '@type': 'Place', name: city.name },
   license: 'https://creativecommons.org/publicdomain/mark/1.0/',
   isBasedOn: {
@@ -240,6 +242,12 @@ const jsonLd = {
     answer by more than the last digit printed here. It covers one warhead, not a salvo. And at
     1 Mt the two outer rings sit above the 5,000 ft ceiling Fig.&nbsp;3.73c was computed for
     (§3.73, p.&nbsp;110), so they are the edge of what that chart supports.
+  </p>
+  <p>
+    It says nothing about the days after the burst either. Fallout is not counted here, and what
+    smoke from a large exchange would do to sunlight and temperature is a separate published
+    literature with its own citations — under <a href="/nuclear-winter/">nuclear winter</a>, not
+    in any number on this page.
   </p>
   <p>
     For all three yields side by side, with the burst height and the printed page behind every
