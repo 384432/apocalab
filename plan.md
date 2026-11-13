@@ -371,11 +371,19 @@ export const BASEMAP = {
 
   两条硬要求：① `--project-name apocalab` 必须显式给，且部署返回里的 alias 必须是 `apocalab.pages.dev` / `preview.apocalab.pages.dev` —— 上级目录 `E:\CODEX\wrangler.jsonc` 属于另一个项目（`lumaroot-site`），wrangler 会把它当「用户配置」抓走，不核对就会把产物传到别处；② 直传前本地四个闸门必须已经全绿，直传是分发动作，不是验收动作。
   直传不会篡改 Git 记录，平台恢复后下一次 `git push` 的构建会照常把同一个 commit 再发布一次，内容一致、无需回滚。
-- **切域名之前必须先对线上 host 跑一次地图闸门（硬顺序，不是建议）**：`node scripts/verify_map.mjs https://apocalab.pages.dev`（先起一个 headless Chrome 在 9333 端口）。这条验的是**瓦片被屏蔽时轮廓与圈仍然在、且不空白**，本地 `astro build` 验不出来 —— 它考的是 CDN 上的 `.geojson` MIME、`_headers`、真实网络下的降级路径，三者都只在线上成立。上线当日顺序固定为：
-  1. 线上跑 `verify_map.mjs`，三态（瓦片可达 / 瓦片屏蔽 / 关 JS）全过；
-  2. 才允许把 `SITE_LIVE` 改成 `true` 并构建推送；
-  3. 才允许改 DNS。
-  **没跑过第 1 步，不切域名**；跑了没过，先修，不许「先上线再看」。
+- **上线前检查顺序（硬顺序，不是建议）**：三步里有两步只能在线上成立，本地通过不代表能切。四项按顺序，缺一步都不切：
+
+  | # | 动作（在线上 host 上跑） | 为什么本地验不出来 |
+  |---|---|---|
+  | ① | `node scripts/verify_map.mjs https://apocalab.pages.dev`（先起 headless Chrome 在 9333 端口），三态全过：瓦片可达 / 瓦片屏蔽 / 关 JS | 考的是 CDN 上 `.geojson` 的 MIME、`_headers` 的实际生效、真实网络下的降级路径 |
+  | ② | `python scripts/check_urls.py --online https://apocalab.pages.dev`，随机不存在的路径必须 404、不存在的 `.png` 必须 404 且 Content-Type 不是 `text/html`、404 响应的 `<main>` 里必须含那五条回收链接 | 软 404 是**托管平台的 not-found 行为**，本地静态服务器（`SimpleHTTPRequestHandler`）永远正确 404，复现不出来 |
+  | ③ | 才允许把 `src/lib/site.ts` 的 `SITE_LIVE` 改成 `true` 并构建推送 | —— |
+  | ④ | 才允许改 DNS | —— |
+
+  **①没过不切，②没过也不切；跑了没过，先修，不许「先上线再看」。**
+- **404 由产物承担，不由项目设置承担（v1.8）**：`src/pages/404.astro` → `dist/404.html`，CF Pages 对未匹配路径优先用它。这是先手，先证明产物够用，改项目设置（Not Found Handling → `404-page`）是它不生效时才动的第二手，动的时候要贴改前改后。三条约束写死在页面上：**不加 canonical**（这个地址不是页面的地址）、**不加 `<meta name="robots">`**（404 状态本身就是信号，两种信号不叠）、**不进 sitemap**（sitemap 列页面，不列错误态）。页里只放五条回收链接，用的就是 §4.8 那五个锚文本，不另开一套链接规则。
+  闸门：`check_urls.py` §4 验本地产物（`dist/404.html` 在、五条链接在 `<main>` 里、无 canonical、无 meta robots），§5 只在 `--online` 时验线上真实状态码与 Content-Type。两段各自反向测试过（砍一条链接 + 塞一个 canonical → 正好两条 FAIL）。
+
 
 ---
 

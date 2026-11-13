@@ -4,15 +4,20 @@ import '../styles/global.css';
 interface Props {
   title: string;
   description: string;
-  /** Canonical path, e.g. '/blast-radius/'. Resolved against `site` in astro.config.mjs. */
-  path: string;
+  /**
+   * Canonical path, e.g. '/blast-radius/'. Resolved against `site` in astro.config.mjs.
+   * Omit it and no canonical is written at all — only the 404 page does that, because
+   * a page that answers "whatever you asked for does not exist" has no address of
+   * its own to claim.
+   */
+  path?: string;
   current?: 'blast-radius' | 'methodology' | 'map' | 'home';
   jsonLd?: Record<string, unknown>;
 }
 
 const { title, description, path, current, jsonLd } = Astro.props;
 const site = Astro.site ?? new URL('https://apocalab.com');
-const canonical = new URL(path, site).toString();
+const canonical = path ? new URL(path, site).toString() : null;
 
 const nav = [
   { key: 'blast-radius', href: '/blast-radius/', label: 'Blast radius' },
@@ -31,7 +36,7 @@ const disclaimer =
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
+    {canonical && <link rel="canonical" href={canonical} />}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta name="theme-color" content="#0b0d10" />
     <meta name="color-scheme" content="dark" />
@@ -40,7 +45,7 @@ const disclaimer =
     <meta property="og:site_name" content="apocalab" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:url" content={canonical} />
+    {canonical && <meta property="og:url" content={canonical} />}
     <meta name="twitter:card" content="summary" />
 
     <!-- og:image (1200x630) is generated in a later phase; nothing is referenced

@@ -1,0 +1,51 @@
+---
+/**
+ * 404 — what Cloudflare Pages answers for any path that is not a built page.
+ *
+ * Three deliberate omissions, each of which would otherwise fight the status code:
+ *  - no canonical: this URL is not an address, and claiming one would invite a
+ *    crawler to index an address that answers 200 only by accident;
+ *  - no <meta name="robots">: a 404 already says "not here", and stacking noindex
+ *    on top gives a crawler two different instructions for one response;
+ *  - no entry in sitemap.xml, which lists pages, not error states.
+ *
+ * The five links are the same five anchor texts the rest of the site is allowed
+ * to use (§4.8), so a person who lands here by a stale link is one click from
+ * every page that actually carries numbers.
+ */
+import Base from '../layouts/Base.astro';
+
+const title = 'Page not found — apocalab';
+const description =
+  'This address does not exist. apocalab transcribes blast, fireball and thermal ' +
+  'radii from a 1977 public-domain U.S. government manual.';
+---
+
+<Base title={title} description={description}>
+  <p class="eyebrow">404 · this address is not a page</p>
+  <h1>This page does not exist</h1>
+  <p class="lede">
+    apocalab holds one subject: the blast, fireball and thermal radii printed in
+    <em>The Effects of Nuclear Weapons</em> (1977), a public-domain U.S. government manual, together
+    with the pages that say where each number came from. Nothing is stored at this address, so the
+    link you followed is either out of date or was never here.
+  </p>
+
+  <h2>Where the numbers are</h2>
+  <ul>
+    <li><a href="/">nuke simulator</a> — pick a city and a yield, see the rings on real ground.</li>
+    <li>
+      <a href="/blast-radius/">nuclear bomb blast radius</a> — every radius for 15 kt, 100 kt and
+      1 Mt, each cell with its printed page.
+    </li>
+    <li><a href="/nuclear-bomb-map/">nuclear bomb map</a> — the same rings drawn at true scale.</li>
+    <li>
+      <a href="/methodology/">where these numbers come from</a> — the readings, the scaling, and
+      what this site does not compute.
+    </li>
+    <li>
+      <a href="/nuclear-winter/">nuclear winter</a> — what the published climate studies found,
+      kept separate from the manual.
+    </li>
+  </ul>
+</Base>
