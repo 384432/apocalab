@@ -1,0 +1,498 @@
+{
+ "places": {
+  "new-york": [
+   {
+    "geonameid": 5110309,
+    "name": "Brooklyn Heights",
+    "kind": "district",
+    "fclass": "P",
+    "fcode": "PPLX",
+    "lat": 40.69538,
+    "lon": -73.99375,
+    "distance_km": 2.34,
+    "bearing": "south-east",
+    "curated": true
+   },
+   {
+    "geonameid": 5121521,
+    "name": "Hudson River",
+    "kind": "river",
+    "fclass": "H",
+    "fcode": "STM",
+    "lat": 40.69677,
+    "lon": -74.0282,
+    "distance_km": 2.7,
+    "bearing": "south-west",
+    "curated": true
+   },
+   {
+    "geonameid": 6930482,
+    "name": "Central Park",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 40.77115,
+    "lon": -73.96391,
+    "distance_km": 7.25,
+    "bearing": "north-east",
+    "curated": true
+   }
+  ],
+  "los-angeles": [
+   {
+    "geonameid": 5367260,
+    "name": "Little Tokyo",
+    "kind": "district",
+    "fclass": "P",
+    "fcode": "PPLX",
+    "lat": 34.04779,
+    "lon": -118.24118,
+    "distance_km": 0.54,
+    "bearing": "south-east",
+    "curated": true
+   },
+   {
+    "geonameid": 5345287,
+    "name": "Echo Park",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 34.07251,
+    "lon": -118.26063,
+    "distance_km": 2.74,
+    "bearing": "north-west",
+    "curated": true
+   },
+   {
+    "geonameid": 5354332,
+    "name": "Griffith Park",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 34.13655,
+    "lon": -118.2942,
+    "distance_km": 10.47,
+    "bearing": "north-west",
+    "curated": true
+   }
+  ],
+  "chicago": [
+   {
+    "geonameid": 11377271,
+    "name": "Cortez Basin",
+    "kind": "bay",
+    "fclass": "H",
+    "fcode": "BAY",
+    "lat": 41.84167,
+    "lon": -87.67722,
+    "distance_km": 2.44,
+    "bearing": "west",
+    "population": 0
+   },
+   {
+    "geonameid": 4896589,
+    "name": "Hoyne Park",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 41.8317,
+    "lon": -87.67811,
+    "distance_km": 3.09,
+    "bearing": "south-west",
+    "population": 0
+   },
+   {
+    "geonameid": 4903589,
+    "name": "New Patch",
+    "kind": "district",
+    "fclass": "P",
+    "fcode": "PPLX",
+    "lat": 41.81726,
+    "lon": -87.65866,
+    "distance_km": 3.71,
+    "bearing": "south",
+    "population": 0
+   }
+  ],
+  "houston": [
+   {
+    "geonameid": 4707014,
+    "name": "Little Whiteoak Bayou",
+    "kind": "river",
+    "fclass": "H",
+    "fcode": "STM",
+    "lat": 29.77828,
+    "lon": -95.36994,
+    "distance_km": 1.78,
+    "bearing": "north",
+    "population": 0
+   },
+   {
+    "geonameid": 4689145,
+    "name": "Emancipation Park",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 29.73578,
+    "lon": -95.36494,
+    "distance_km": 3.06,
+    "bearing": "south",
+    "population": 0
+   },
+   {
+    "geonameid": 11876586,
+    "name": "Second Ward",
+    "kind": "district",
+    "fclass": "P",
+    "fcode": "PPLX",
+    "lat": 29.75096,
+    "lon": -95.32793,
+    "distance_km": 3.68,
+    "bearing": "east",
+    "population": 0
+   }
+  ],
+  "san-francisco": [
+   {
+    "geonameid": 7838982,
+    "name": "Pacific Heights",
+    "kind": "district",
+    "fclass": "P",
+    "fcode": "PPLX",
+    "lat": 37.79249,
+    "lon": -122.43495,
+    "distance_km": 2.39,
+    "bearing": "north-west",
+    "population": 0
+   },
+   {
+    "geonameid": 5351950,
+    "name": "George Sterling Memorial",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 37.80187,
+    "lon": -122.41969,
+    "distance_km": 3.0,
+    "bearing": "north",
+    "population": 0
+   },
+   {
+    "geonameid": 5351709,
+    "name": "Gashouse Cove",
+    "kind": "bay",
+    "fclass": "H",
+    "fcode": "BAY",
+    "lat": 37.80604,
+    "lon": -122.43303,
+    "distance_km": 3.66,
+    "bearing": "north",
+    "population": 0
+   }
+  ],
+  "washington-dc": [
+   {
+    "geonameid": 4139430,
+    "name": "Loeflers Gardens",
+    "kind": "area",
+    "fclass": "L",
+    "fcode": "AREA",
+    "lat": 38.9065,
+    "lon": -77.01331,
+    "distance_km": 2.37,
+    "bearing": "north-east",
+    "population": 0
+   },
+   {
+    "geonameid": 9675425,
+    "name": "Truxton Park",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 38.91119,
+    "lon": -77.00899,
+    "distance_km": 2.97,
+    "bearing": "north-east",
+    "population": 0
+   },
+   {
+    "geonameid": 4782148,
+    "name": "Roaches Run",
+    "kind": "river",
+    "fclass": "H",
+    "fcode": "STM",
+    "lat": 38.86289,
+    "lon": -77.03581,
+    "distance_km": 3.58,
+    "bearing": "south",
+    "population": 0
+   }
+  ],
+  "miami": [
+   {
+    "geonameid": 4164219,
+    "name": "Miami South Cannel",
+    "kind": "river",
+    "fclass": "H",
+    "fcode": "CHN",
+    "lat": 25.75704,
+    "lon": -80.18421,
+    "distance_km": 2.14,
+    "bearing": "south-east",
+    "population": 0
+   },
+   {
+    "geonameid": 4176548,
+    "name": "Vizcaya Park",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 25.74843,
+    "lon": -80.20477,
+    "distance_km": 3.08,
+    "bearing": "south",
+    "population": 0
+   },
+   {
+    "geonameid": 6332582,
+    "name": "Little Havana",
+    "kind": "district",
+    "fclass": "P",
+    "fcode": "PPL",
+    "lat": 25.76806,
+    "lon": -80.23306,
+    "distance_km": 4.0,
+    "bearing": "west",
+    "population": 53430
+   }
+  ],
+  "seattle": [
+   {
+    "geonameid": 5789123,
+    "name": "Capitol Hill",
+    "kind": "district",
+    "fclass": "P",
+    "fcode": "PPLX",
+    "lat": 47.62343,
+    "lon": -122.31957,
+    "distance_km": 2.13,
+    "bearing": "north-east",
+    "population": 0
+   },
+   {
+    "geonameid": 5804403,
+    "name": "Myrtle Edwards Park",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 47.62149,
+    "lon": -122.36374,
+    "distance_km": 2.92,
+    "bearing": "north-west",
+    "population": 0
+   },
+   {
+    "geonameid": 5792999,
+    "name": "Duwamish West Waterway",
+    "kind": "river",
+    "fclass": "H",
+    "fcode": "CHN",
+    "lat": 47.57926,
+    "lon": -122.35985,
+    "distance_km": 3.65,
+    "bearing": "south-west",
+    "population": 0
+   }
+  ],
+  "boston": [
+   {
+    "geonameid": 4941787,
+    "name": "Lechmere Canal",
+    "kind": "canal",
+    "fclass": "H",
+    "fcode": "CNL",
+    "lat": 42.36954,
+    "lon": -71.07366,
+    "distance_km": 1.68,
+    "bearing": "north-west",
+    "population": 0
+   },
+   {
+    "geonameid": 4934959,
+    "name": "Donnelly Field",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 42.37065,
+    "lon": -71.092,
+    "distance_km": 2.98,
+    "bearing": "north-west",
+    "population": 0
+   },
+   {
+    "geonameid": 4932005,
+    "name": "Cambridgeport",
+    "kind": "district",
+    "fclass": "P",
+    "fcode": "PPLX",
+    "lat": 42.35843,
+    "lon": -71.10366,
+    "distance_km": 3.6,
+    "bearing": "west",
+    "population": 13438
+   }
+  ],
+  "atlanta": [
+   {
+    "geonameid": 12217942,
+    "name": "Old Fourth Ward",
+    "kind": "area",
+    "fclass": "L",
+    "fcode": "RGN",
+    "lat": 33.76562,
+    "lon": -84.3716,
+    "distance_km": 2.39,
+    "bearing": "north-east",
+    "population": 0
+   },
+   {
+    "geonameid": 4214088,
+    "name": "Old Fourth Ward Park",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 33.76816,
+    "lon": -84.3652,
+    "distance_km": 3.0,
+    "bearing": "north-east",
+    "population": 0
+   },
+   {
+    "geonameid": 4215681,
+    "name": "Lake Clara Meer",
+    "kind": "reservoir",
+    "fclass": "H",
+    "fcode": "RSV",
+    "lat": 33.78483,
+    "lon": -84.37354,
+    "distance_km": 4.2,
+    "bearing": "north",
+    "population": 0
+   }
+  ],
+  "london": [
+   {
+    "geonameid": 2652222,
+    "name": "Covent Garden",
+    "kind": "district",
+    "fclass": "P",
+    "fcode": "PPLX",
+    "lat": 51.51424,
+    "lon": -0.12471,
+    "distance_km": 0.64,
+    "bearing": "north",
+    "curated": true
+   },
+   {
+    "geonameid": 10174595,
+    "name": "The Serpentine",
+    "kind": "lake",
+    "fclass": "H",
+    "fcode": "PND",
+    "lat": 51.50524,
+    "lon": -0.16643,
+    "distance_km": 2.84,
+    "bearing": "west",
+    "curated": true
+   },
+   {
+    "geonameid": 6619474,
+    "name": "Regent's Park",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 51.53075,
+    "lon": -0.15415,
+    "distance_km": 3.16,
+    "bearing": "north-west",
+    "curated": true
+   }
+  ],
+  "paris": [
+   {
+    "geonameid": 6452692,
+    "name": "Jardin du Luxembourg",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 48.84693,
+    "lon": 2.33716,
+    "distance_km": 1.11,
+    "bearing": "south-west",
+    "curated": true
+   },
+   {
+    "geonameid": 6545271,
+    "name": "Champs-Elysees",
+    "kind": "district",
+    "fclass": "P",
+    "fcode": "PPLX",
+    "lat": 48.86985,
+    "lon": 2.30721,
+    "distance_km": 3.55,
+    "bearing": "north-west",
+    "curated": true
+   },
+   {
+    "geonameid": 3032063,
+    "name": "Bois de Boulogne",
+    "kind": "park",
+    "fclass": "L",
+    "fcode": "PRK",
+    "lat": 48.86267,
+    "lon": 2.24882,
+    "distance_km": 7.39,
+    "bearing": "west",
+    "curated": true
+   }
+  ],
+  "tokyo": [
+   {
+    "geonameid": 6930379,
+    "name": "Kabukicho",
+    "kind": "district",
+    "fclass": "P",
+    "fcode": "PPLX",
+    "lat": 35.6946,
+    "lon": 139.70228,
+    "distance_km": 1.11,
+    "bearing": "north-east",
+    "curated": true
+   },
+   {
+    "geonameid": 8573474,
+    "name": "Shinjuku Gyoen",
+    "kind": "garden",
+    "fclass": "S",
+    "fcode": "GDN",
+    "lat": 35.68484,
+    "lon": 139.71027,
+    "distance_km": 1.76,
+    "bearing": "east",
+    "curated": true
+   },
+   {
+    "geonameid": 1851453,
+    "name": "Sumida Gawa",
+    "kind": "river",
+    "fclass": "H",
+    "fcode": "STM",
+    "lat": 35.65137,
+    "lon": 139.76455,
+    "distance_km": 7.83,
+    "bearing": "south-east",
+    "curated": true
+   }
+  ]
+ }
+}

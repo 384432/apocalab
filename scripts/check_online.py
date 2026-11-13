@@ -29,6 +29,11 @@ PAGES = [
     "/blast-radius/",
     "/nuclear-bomb-map/",
     "/nuclear-bomb-map/new-york/",
+    "/nuclear-bomb-map/los-angeles/",
+    "/nuclear-bomb-map/london/",
+    "/nuclear-bomb-map/tokyo/",
+    "/nuclear-bomb-map/paris/",
+    "/nuclear-winter/",
     "/methodology/",
 ]
 

@@ -17,12 +17,14 @@
  */
 import raw from '../data/city-pop.json';
 import type { City } from './cities';
+import { EFFECT_ROWS, get, YIELDS } from './effects';
 
 export interface PopSource {
   name: string;
   api: string;
   year: number;
   radius_km: number;
+  catch_radius_km: number;
   retrieved: string;
   license: string;
   note: string;
@@ -31,6 +33,7 @@ export interface PopSource {
 interface CityPop {
   geonameid: number;
   data_year: number;
+  catchRadiusKm: number;
   city_pop_10km: number;
   ring_population: Record<string, number>;
 }
@@ -43,6 +46,35 @@ const data = raw as unknown as {
 
 export const popSource = data.source;
 export const CITY_RADIUS_KM = data.source.radius_km;
+export const CATCH_RADIUS_KM = data.source.catch_radius_km;
+
+/**
+ * The widest ring any city page draws: 1 Mt 1 psi, 21.40 km.
+ *
+ * Read from effects.json rather than typed, so a new yield or a re-read contour
+ * cannot quietly outgrow the catchment. If it does, this module throws and the
+ * build stops — a truncated ring is exactly the number this site must not print.
+ */
+export const MAX_RING_KM = Math.max(
+  ...YIELDS.flatMap((y) => EFFECT_ROWS.map((row) => get(row.id, 'air', y)?.radius_km ?? 0)),
+);
+
+function assertCatchWideEnough(slug: string, r: CityPop): void {
+  if (!r.catchRadiusKm) {
+    throw new Error(
+      `city-pop.json entry "${slug}" has no catchRadiusKm — re-run ` +
+        `python scripts/build_city_pop.py --refresh`,
+    );
+  }
+  if (r.catchRadiusKm < MAX_RING_KM) {
+    throw new Error(
+      `city-pop.json catchment for "${slug}" is ${r.catchRadiusKm} km, but the ` +
+        `widest ring on the page is ${MAX_RING_KM} km: that ring would be cut off ` +
+        `by the catchment and the number printed for it would be the catchment, ` +
+        `not the ring.`,
+    );
+  }
+}
 
 function record(slug: string): CityPop {
   const r = data.cities[slug];
@@ -51,6 +83,7 @@ function record(slug: string): CityPop {
       `city-pop.json has no entry for "${slug}" — run python scripts/build_city_pop.py`,
     );
   }
+  assertCatchWideEnough(slug, r);
   return r;
 }
 
@@ -96,9 +129,18 @@ export function populationSentence(city: City, lat: string, lon: string): string
   // The API returns "WorldPop Global2 R2025A, 100 m"; in a sentence the comma
   // reads as a list separator, so it becomes one name.
   const dataset = popSource.name.replace(/,\s*/, ' ');
+  // Both radii, always: a reader who sees 10,166,583 inside a 21.4 km ring and
+  // 3,743,585 "in the city" is owed the fact that one request produced both.
   return (
-    `${n} people live within ${CITY_RADIUS_KM} km of ${lat}, ${lon} — the GeoNames point for ` +
-    `${city.name} — counted on the ${dataset} grid, ${popSource.year} estimates, ` +
+    `${n} people live within ${CITY_RADIUS_KM} km of ${lat}, ${lon} ` +
+    `(rings up to ${MAX_RING_KM.toFixed(2).replace(/0$/, '')} km counted from the same ` +
+    `${CATCH_RADIUS_KM} km catchment) — the GeoNames point for ${city.name} — ` +
+    `counted on the ${dataset} grid, ${popSource.year} estimates, ` +
     `not inside a city boundary.`
   );
+}
+
+/** How many people inside a ring, as a share of the 10 km disc. Never a survivor count. */
+export function shareOfCity(city: City, km: number): number {
+  return (100 * peopleWithin(city, km)) / cityPopulation(city);
 }

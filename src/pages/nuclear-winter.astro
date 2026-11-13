@@ -1,0 +1,133 @@
+---
+/**
+ * /nuclear-winter/ — literature summary, not a calculation.
+ *
+ * Every number in the body is a published result and carries the paper it came
+ * from in parentheses. Nothing here is computed by this site: the manual has no
+ * climate model, and the model papers have no printed page to cite. The manual
+ * gets one section of its own (Chapter 9, fallout physics) because that is the
+ * only part of the subject a 1977 handbook can actually support, and mixing its
+ * numbers into the model results would blur two different kinds of claim.
+ */
+import Base from '../layouts/Base.astro';
+
+const title = 'Nuclear Winter: What the Published Research Actually Says';
+const description =
+  'The 1983 TTAPS paper, the 2007 and 2019 climate-model runs, and what each one ' +
+  'actually found — with the 1977 manual’s Chapter 9 fallout kept separate.';
+const path = '/nuclear-winter/';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: title,
+  description,
+  url: 'https://apocalab.com/nuclear-winter/',
+  about: { '@type': 'Thing', name: 'Nuclear winter' },
+  citation: [
+    'Turco, Toon, Ackerman, Pollack & Sagan, Science 222, 1283–1292 (1983)',
+    'Robock, Oman & Stenchikov, J. Geophys. Res. 112, D13107 (2007)',
+    'Toon et al., Science Advances 5, eaay5478 (2019)',
+    'Coupe, Bardeen, Robock & Toon, J. Geophys. Res. Atmos. 124 (2019)',
+  ],
+  isBasedOn: {
+    '@type': 'Book',
+    name: 'The Effects of Nuclear Weapons',
+    edition: '3rd',
+    datePublished: '1977',
+    identifier: 'doi:10.2172/6852629',
+  },
+};
+---
+
+<Base title={title} description={description} path={path} jsonLd={jsonLd}>
+  <p class="eyebrow">Literature summary · four published studies · no page numbers, because this is not the manual</p>
+  <h1>Nuclear winter, from the 1983 paper to the 2019 model runs</h1>
+
+  <p class="lede" id="model-studies-note">
+    <strong>These are published model studies, not figures from the 1977 manual.
+    Nothing on this page is our own calculation.</strong>
+    Every number below carries the paper it came from. Where the manual does have something to
+    say — the physics of the fallout itself, Chapter 9 — it is in a section of its own, with
+    printed page numbers, and it is not mixed into the model results.
+  </p>
+
+  <h2 id="what-it-means">What the term means</h2>
+  <p>
+    Nuclear winter is the name given to the global cooling that follows a large nuclear war, and
+    the mechanism is smoke, not blast. Fires started by air bursts in cities lift soot into the
+    stratosphere, where rain cannot wash it out; the smoke absorbs sunlight above the surface and
+    cools the ground below it. The 1983 paper that coined the term simulated exchanges of several
+    thousand megatons and found that dust and smoke would encircle the Earth within 1 to 2 weeks,
+    reducing average light levels to a few percent of normal and taking land temperatures to
+    &minus;15 to &minus;25&nbsp;°C (Turco 1983). None of that is in the 1977 manual, which stops
+    at the effects of a single explosion.
+  </p>
+
+  <h2 id="1983">1983: the first quantitative claim</h2>
+  <p>
+    The 1983 result was not only about an all-out exchange. Roughly 100 megatons detonated over
+    major urban centres was enough to push hemispheric smoke optical depth above 2 for weeks and
+    to keep land subfreezing for months even in summer (Turco 1983). The same paper recorded a
+    second, separate hazard: in a 5,000-megaton war, fallout at northern mid-latitude sites far
+    from any target could deliver chronic mean whole-body gamma doses of up to 50 rads over days
+    to weeks (Turco 1983). These were model runs built on atmospheric models first used for
+    volcanic eruptions, and the authors were explicit that the results were imprecise — but that
+    the first-order effects were serious.
+  </p>
+
+  <h2 id="2007">2007: the same question, a modern model</h2>
+  <p>
+    Twenty years later the question was asked again with a model that reached 80&nbsp;km and ran
+    for ten years. Robock and colleagues simulated two loadings, 50 and 150&nbsp;Tg of smoke,
+    using moderate and large shares of the arsenal that existed at the time. Both produced
+    significant climatic responses; the 150&nbsp;Tg case still qualified as nuclear winter; and
+    the response was more long-lasting than the earlier work suggested, because the model lifted
+    the plume into the middle and upper stratosphere, where aerosol lifetimes are measured in
+    years rather than weeks (Robock 2007). The finding was not that 1983 had overstated the
+    danger, but that it had understated how long the danger would persist.
+  </p>
+
+  <h2 id="2019-regional">2019: a regional war is enough</h2>
+  <p>
+    A regional exchange, not a superpower war: India using 100 strategic weapons against
+    Pakistani cities and Pakistan using 150. Fatalities could reach 50 to 125 million, and fires
+    could release 16 to 36&nbsp;Tg of black carbon. That smoke would cut surface sunlight by 20
+    to 35 percent, cool the global surface by 2 to 5&nbsp;°C, reduce precipitation by 15 to 30
+    percent, and take more than ten years to clear; net primary productivity would fall 15 to 30
+    percent on land and 5 to 15 percent in the oceans (Toon 2019). The authors put both arsenals
+    at 400 to 500 weapons by 2025, with yields from 12 to 45&nbsp;kt up to a few hundred
+    kilotons.
+  </p>
+
+  <h2 id="2019-global">2019: and in a second model</h2>
+  <p>
+    Coupe and colleagues ran the full United States–Russia case, 150&nbsp;Tg of soot, in WACCM4
+    at 2° resolution with 66 layers reaching 140&nbsp;km, and compared it with the 2007 ModelE
+    run. The two models differ in detail and agree on the outcome: WACCM4 removes smoke more
+    quickly and still produces larger temperature and precipitation reductions than ModelE, with
+    below-freezing temperatures over much of the Northern Hemisphere in summer (Coupe 2019). Two
+    generations of model, twelve years apart, land on nuclear winter for the same smoke loading.
+    These are the only two comprehensive climate-model simulations of that scenario published so
+    far.
+  </p>
+
+  <h2 id="manual">What the 1977 manual can and cannot say</h2>
+  <p>
+    The manual predates all of this and cannot check it: it has no climate model and no soot.
+    What it has is the physics of fallout. Early, or local, fallout is defined as the material
+    reaching the ground during the first 14 hours after the explosion, with surface, subsurface
+    and low air bursts the cases that produce it (§9.01, p.&nbsp;388). A 1-kiloton fission
+    explosion yields fission products whose activity is of the order of 10<sup>21</sup>
+    disintegrations per second (§9.13, p.&nbsp;390), and early fallout consists of particles
+    contaminated mainly, but not entirely, with fission products (§9.15, p.&nbsp;391). That is
+    the manual's subject: one explosion, close in, on the ground.
+  </p>
+
+  <p>
+    Single-warhead distances are in the <a href="/blast-radius/">nuclear bomb blast radius</a>
+    table; the same rings on real ground, with people inside them, are on the
+    <a href="/nuclear-bomb-map/">nuclear bomb map</a>; the audit trail for every figure is under
+    <a href="/methodology/">where these numbers come from</a>.
+  </p>
+</Base>

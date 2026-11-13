@@ -71,15 +71,22 @@ def citation_line(e):
     return f"{label} · p. {c['page']}"
 
 
+CITY_SLUGS = ["new-york", "los-angeles", "london", "tokyo", "paris"]
+# 闭环是这四页之间的契约；城市页是从地图页分出去的叶子，只汇入、不参与闭环。
+CORE = ["index", "blast-radius", "nuclear-bomb-map", "methodology"]
+# 城市页（模板复制）走唯一性断言；其余非核心页走各自的小节断言。
+CITY = CITY_SLUGS
+
 PAGES = {
     "index": DIST / "index.html",
     "blast-radius": DIST / "blast-radius" / "index.html",
     "nuclear-bomb-map": DIST / "nuclear-bomb-map" / "index.html",
     "methodology": DIST / "methodology" / "index.html",
-    # City pages are published one slug at a time (PUBLISHED_CITY_SLUGS in
-    # src/lib/cities.ts). Each one added here must also be added to CANONICAL
-    # and to sitemap expectations, or section 13 fails.
-    "new-york": DIST / "nuclear-bomb-map" / "new-york" / "index.html",
+    "nuclear-winter": DIST / "nuclear-winter" / "index.html",
+    # City pages are published by slug (PUBLISHED_CITY_SLUGS in src/lib/cities.ts).
+    # Each one added here must also be added to CANONICAL and to sitemap
+    # expectations, or section 13 fails.
+    **{s: DIST / "nuclear-bomb-map" / s / "index.html" for s in CITY_SLUGS},
 }
 
 # The one address each page is allowed to claim as its own. Written out in full
@@ -89,7 +96,8 @@ CANONICAL = {
     "blast-radius": "https://apocalab.com/blast-radius/",
     "nuclear-bomb-map": "https://apocalab.com/nuclear-bomb-map/",
     "methodology": "https://apocalab.com/methodology/",
-    "new-york": "https://apocalab.com/nuclear-bomb-map/new-york/",
+    "nuclear-winter": "https://apocalab.com/nuclear-winter/",
+    **{s: f"https://apocalab.com/nuclear-bomb-map/{s}/" for s in CITY_SLUGS},
 }
 
 print("0 产物存在")
@@ -381,15 +389,28 @@ for a, b in itertools.combinations(sorted(CORE_TITLES), 2):
 # 输出了一模一样的标题。对核心页仍然按 ≤3 词要求。
 city_raw = json.loads((ROOT / "src" / "data" / "cities.json").read_text(encoding="utf-8"))["cities"]
 name_of = {c["slug"]: c["name"].lower() for c in city_raw}
-city_titles = {n: t for n, t in title_map.items() if n not in CORE_TITLES}
+city_titles = {n: t for n, t in title_map.items() if n in CITY}
 check(len(set(city_titles.values())) == len(city_titles),
       f"城市页 title 互不重复（{len(city_titles)} 页，{len(set(city_titles.values()))} 个不同标题）")
 for n, t in city_titles.items():
     city_name = name_of.get(n, n.replace("-", " "))
     check(city_name in t, f"{n}: title 里出现城市名 “{city_name}”")
+    # 城市名是这些页面唯一合法的差异来源，所以比对时先把它摘掉：
+    # 摘掉之后剩下的骨架不许和核心页共用超过 3 个连续词。
+    # 现在剩下的是 ": 15 kt to 1 mt"，与 /blast-radius/ 的 "15 kt, 100 kt, 1 mt"
+    # 只共用 2 个词；再往这边加词就会撞上，撞上就改模板，不要改这条断言。
+    stripped = t.replace(city_name, " ")
     for core, ct in CORE_TITLES.items():
-        run, frag = common_run(t, ct)
-        check(run <= 3, f"title {n} 与 {core} 最长共同词串 {run} 词（“{frag}”），要求 ≤ 3")
+        run, frag = common_run(stripped, ct)
+        check(run <= 3, f"title {n} 去掉城市名后与 {core} 最长共同词串 {run} 词（“{frag}”），要求 ≤ 3")
+        full, ffrag = common_run(t, ct)
+        check(full <= 4, f"title {n} 与 {core} 最长共同词串 {full} 词（“{ffrag}”），要求 ≤ 4（城市名占 1 词）")
+
+# 查询页是独立成篇的内容页，和核心页也要错开词，但不必互相比较骨架。
+for q in [n for n in title_map if n in CANONICAL and n not in CORE and n not in CITY]:
+    for core, ct in CORE_TITLES.items():
+        run, frag = common_run(title_map[q], ct)
+        check(run <= 3, f"title {q} 与 {core} 最长共同词串 {run} 词（“{frag}”），要求 ≤ 3")
 
 print("15 地图页（/nuclear-bomb-map/）")
 mp = raw["nuclear-bomb-map"]
@@ -599,11 +620,10 @@ PAGE_PATH = {
     "blast-radius": "/blast-radius/",
     "nuclear-bomb-map": "/nuclear-bomb-map/",
     "methodology": "/methodology/",
-    "new-york": "/nuclear-bomb-map/new-york/",
+    "nuclear-winter": "/nuclear-winter/",
+    **{s: f"/nuclear-bomb-map/{s}/" for s in CITY_SLUGS},
 }
-# 闭环是这四页之间的契约；城市页是从地图页分出去的叶子，只汇入、不参与闭环。
-CORE = ["index", "blast-radius", "nuclear-bomb-map", "methodology"]
-CITY = [n for n in PAGE_PATH if n not in CORE]
+QUERY = [n for n in PAGE_PATH if n not in CORE and n not in CITY]
 CITY_PATHS = {PAGE_PATH[n] for n in CITY}
 
 
@@ -779,25 +799,32 @@ for path in QUERY_PAGES:
         continue
     live.append(path)
     html_ = page.read_text(encoding="utf-8")
-    m = re.search(r"(?is)<main[^>]*>(.*?)</main>", html_)
+    m = re.search(r"(?is)<main\b[^>]*>(.*?)</main>", html_)
     check(m is not None, f"{path}: 有 <main>")
     region = m.group(1) if m else ""
     wc = len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'’.-]*", text_of(region)))
     check(wc >= 700, f"{path}: 正文 {wc} 词 ≥ 700")
 
-    article = re.sub(r"(?is)<figure.*?</figure>", " ", region)
-    h2s = re.findall(r"(?is)<h2[^>]*>(.*?)</h2>", article)
+    article = re.sub(r"(?is)<figure\b.*?</figure>", " ", region)
+    h2s = re.findall(r"(?is)<h2\b[^>]*>(.*?)</h2>", article)
     check(4 <= len(h2s) <= 6, f"{path}: H2 {len(h2s)} 个（要求 4–6）")
-    for i, sec in enumerate(re.split(r"(?is)<h2[^>]*>", article)[1:], 1):
+    for i, sec in enumerate(re.split(r"(?is)<h2\b[^>]*>", article)[1:], 1):
         sec_title = text_of(re.split(r"(?is)</h2>", sec)[0])
         paras = [
-            x for x in re.findall(r"(?is)<p([^>]*)>(.*?)</p>", sec)
+            x for x in re.findall(r"(?is)<p\b([^>]*)>(.*?)</p>", sec)
             if "small" not in x[0].lower()
         ]
         body_txt = " ".join(text_of(x[1]) for x in paras)
         check(bool(re.search(r"\d", body_txt)), f"{path} 第 {i} 节 “{sec_title}” 含具体数字")
-        check(bool(re.search(r"p\.\s?\d{2,3}", body_txt)),
-              f"{path} 第 {i} 节 “{sec_title}” 带印刷页码")
+        has_page = bool(re.search(r"p\.\s?\d{2,3}", body_txt))
+        has_study = bool(re.search(r"\((?:Turco|Robock|Toon|Coupe)\s+\d{4}\)", body_txt))
+        if path == "/nuclear-winter/":
+            # 这一页引的是已发表的气候模型研究，不是手册：页码只对手册那一节有意义。
+            # 所以每节要么带 (作者 年份)，要么带印刷页码 —— 二者必居其一，不许都没有。
+            check(has_study or has_page,
+                  f"{path} 第 {i} 节 “{sec_title}” 带 (作者 年份) 或印刷页码")
+        else:
+            check(has_page, f"{path} 第 {i} 节 “{sec_title}” 带印刷页码")
         n = len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'’.-]*", body_txt))
         check(100 <= n <= 155, f"{path} 第 {i} 节 “{sec_title}” {n} 词（目标 100–150）")
 
@@ -812,6 +839,58 @@ for path in QUERY_PAGES:
           f"{path}: 同时回到 blast-radius 与 map（实际 {sorted(core)}）")
 
 print(f"     查询页已上线 {len(live)}/{len(QUERY_PAGES)}")
+
+print("21 人口查询半径：25 km catchment 必须覆盖最大环")
+
+popdata = json.loads((ROOT / "src" / "data" / "city-pop.json").read_text(encoding="utf-8"))
+air_max = max(float(e["radius_km"]) for e in entries if e["burst"] == "air")
+air_max_txt = f"{air_max:.2f}".rstrip("0").rstrip(".")
+catch_km = float(popdata["source"].get("catch_radius_km") or 0)
+check(catch_km >= air_max,
+      f"city-pop source.catch_radius_km {catch_km} km ≥ 最大环 {air_max:.2f} km")
+check("100 m" in popdata["source"]["name"],
+      f"city-pop 数据集写明 100 m（实际 “{popdata['source']['name']}”）")
+check(f"{catch_km:g} km catchment" in popdata["source"]["note"],
+      "city-pop source.note 写明查询半径")
+
+for slug, rec in popdata["cities"].items():
+    cr = rec.get("catchRadiusKm")
+    check(cr is not None, f"city-pop {slug}: 每条记录带 catchRadiusKm")
+    if cr is not None:
+        check(float(cr) >= air_max,
+              f"city-pop {slug}: catchRadiusKm {cr} ≥ 最大环 {air_max:.2f}")
+    check(f"{air_max:.3f}" in rec["ring_population"],
+          f"city-pop {slug}: 最大环 {air_max:.3f} km 这一档真的抓到了")
+    check(f"{catch_km:.3f}" in rec["ring_population"],
+          f"city-pop {slug}: catchment {catch_km:.3f} km 这一档在数据里")
+
+# 页面上两个半径都要出现：只写 10 km 会让「环内人口」看起来像是从一个装不下
+# 那个环的查询里来的。
+sentence_tail = f"rings up to {air_max_txt} km counted from the same {catch_km:g} km catchment"
+for slug in CITY_SLUGS:
+    check(sentence_tail in txt[slug], f"{slug}: 人口口径句同时写两个半径（找 “{sentence_tail}”）")
+    check(f"within 10 km of" in txt[slug], f"{slug}: 人口口径句保留 10 km 城市圆")
+
+print("22 /nuclear-winter/ 的引文纪律")
+
+NW = DIST / "nuclear-winter" / "index.html"
+if NW.exists():
+    nwtxt = text_of(NW.read_text(encoding="utf-8"))
+    DECL = ("These are published model studies, not figures from the 1977 manual. "
+            "Nothing on this page is our own calculation.")
+    check(DECL in nwtxt, "nuclear-winter: 顶部声明原文出现")
+    for cite in ("Turco 1983", "Robock 2007", "Toon 2019", "Coupe 2019"):
+        check(nwtxt.count(f"({cite})") >= 1, f"nuclear-winter: 正文里每条数字后跟 ({cite})")
+    check("Chapter 9" in nwtxt or "Ch. 9" in nwtxt, "nuclear-winter: 手册第 9 章单独一节")
+    check(bool(re.search(r"p\.\s?\d{2,3}", nwtxt)), "nuclear-winter: 手册那一节带印刷页码")
+    # 手册数字与模型数字不许进同一张表。
+    for table in re.findall(r"(?is)<table\b.*?</table>", NW.read_text(encoding="utf-8")):
+        tt = text_of(table)
+        check(not (re.search(r"\((?:Turco|Robock|Toon|Coupe)\s+\d{4}\)", tt)
+                   and re.search(r"p\.\s?\d{2,3}", tt)),
+              "nuclear-winter: 没有一张表同时出现模型引文与手册页码")
+else:
+    print("     /nuclear-winter/ 未构建，跳过引文纪律（§20 会在它上线后套用硬要求）")
 
 print(f"结果：PASS {passes}  FAIL {len(fails)}")
 if fails:

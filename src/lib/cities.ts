@@ -46,11 +46,19 @@ export const DEFAULT_CITY = 'new-york';
  * slug can never be in the sitemap without a page, and adding a city is a
  * one-line change here rather than twenty template copies.
  *
- * Phase 4 rolls this out to all 20. Until then exactly one page is published,
- * because the "20 Cities" claim was removed from the map title and the site
- * should not promise what it does not have.
+ * Phase 4 ships five pages first: New York, Los Angeles, London, Tokyo, Paris.
+ * The other fifteen stay unpublished until the first five show impressions in
+ * Search Console — city queries run from single digits to low twenties a month,
+ * so these pages are for coverage and internal linking, not for traffic. See
+ * plan §4.9.
  */
-export const PUBLISHED_CITY_SLUGS: string[] = ['new-york'];
+export const PUBLISHED_CITY_SLUGS: string[] = [
+  'new-york',
+  'los-angeles',
+  'london',
+  'tokyo',
+  'paris',
+];
 
 const bySlug = new Map(cities.map((c) => [c.slug, c]));
 

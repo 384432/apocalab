@@ -36,7 +36,10 @@ import {
   populationSentence,
   popSource,
   CITY_RADIUS_KM,
+  CATCH_RADIUS_KM,
+  MAX_RING_KM,
 } from '../../lib/city-pop';
+import { placesOf, ringAt } from '../../lib/city-places';
 
 export function getStaticPaths() {
   return cities
@@ -52,6 +55,20 @@ const { city } = Astro.props;
 const path = `/nuclear-bomb-map/${city.slug}/`;
 
 const cityPop = cityPopulation(city);
+const places = placesOf(city);
+const inside5 = places.filter((p) => p.distance_km <= get('overpressure_5psi', 'air', 100)!.radius_km).length;
+const past1 = places.filter((p) => p.distance_km > get('overpressure_1psi', 'air', 100)!.radius_km).length;
+const psi5km = get('overpressure_5psi', 'air', 100)!.radius_km;
+const psi1km = get('overpressure_1psi', 'air', 100)!.radius_km;
+// Plain sentences instead of "0 of the three sit": the count is data, the grammar is not.
+const insidePhrase =
+  inside5 === 3 ? 'All three sit' : inside5 === 0 ? 'None of the three sits'
+    : `${inside5} of the three ${inside5 === 1 ? 'sits' : 'sit'}`;
+const pastPhrase =
+  past1 === 0 ? 'none of them reaches past' : past1 === 3 ? 'all three reach past'
+    : `${past1} of them reach${past1 === 1 ? 'es' : ''} past`;
+/** "a park", "an area" — only for the kinds these pages actually carry. */
+const article = (kind: string) => (/^[aeiou]/.test(kind) ? 'an' : 'a');
 const psi5Pop = peopleWithin(city, get('overpressure_5psi', 'air', 100)!.radius_km);
 const psi1Pop = peopleWithin(city, get('overpressure_1psi', 'air', 100)!.radius_km);
 const fireballPop = peopleWithin(city, get('fireball', 'air', 100)!.radius_km);
@@ -146,10 +163,13 @@ const jsonLd = {
 
   <p class="note">
     <strong>The small number under each radius is people, not area.</strong>
-    It is the WorldPop count inside that ring, from the same request as the 10 km figure below.
-    At 1 Mt the two outer rings extend past the 10 km disc, so they are larger than the city
-    figure by construction — the rings and the city are two different questions, not two
-    measurements of one thing.
+    It is the WorldPop count inside that ring, cut from the same {CATCH_RADIUS_KM} km
+    catchment as the 10 km figure below: one catchment per city, every radius a separate
+    cumulative inside it. At 1 Mt the two outer rings reach past the 10 km disc
+    ({fmtKm(get('overpressure_1psi', 'air', 1000)!.radius_km)} km for 1 psi), so they are larger
+    than the city figure by construction: the rings and the city are two different
+    questions, not two measurements of one thing. No ring is ever obtained by subtracting
+    a smaller ring from a larger one.
   </p>
 
   <h2 id="five-psi">How many people are inside the 5 psi ring</h2>
@@ -165,11 +185,46 @@ const jsonLd = {
   <h2 id="population">What the 10 km population is counting</h2>
   <p id="population-convention">{populationSentence(city, latText!, lonText!)}</p>
   <p>
-    Two things follow from that sentence. The count is a disc, not a city: it takes in whatever
-    happens to be within {CITY_RADIUS_KM} km of the point, including water, parks and the next
-    municipality over. And it is a 2020 estimate, not a census — {popSource.name} is a modelled
-    surface, so the figure is reproducible by anyone who re-runs the same query, which is the only
-    property that matters here.
+    Two radii are doing different jobs in that sentence. The 10 km disc is the city figure;
+    the {" "}{CATCH_RADIUS_KM} km catchment is how far the query ran, and it has to be at least
+    {fmtKm(MAX_RING_KM)} km or the widest ring on this page would be cut off by the data
+    rather than by the physics. Both numbers come from the same surface, so they can be
+    compared; neither is a survivor count.
+  </p>
+  <p>
+    The count is a disc, not a city: it takes in whatever happens to be within
+    {CITY_RADIUS_KM} km of the point, including water, parks and the next municipality over.
+    And it is a 2020 estimate, not a census — {popSource.name} is a modelled surface, so the
+    figure is reproducible by anyone who re-runs the same query, which is the only property
+    that matters here.
+  </p>
+
+  <h2 id="places">Three places this page could only be about {city.name}</h2>
+  <p>
+    Every other number here would fit any city. These three do not: they are GeoNames
+    features within {fmtKm(Math.max(...places.map((p) => p.distance_km)))} km of the point,
+    and the distances are measured from the same point as the rings, so each one can be
+    placed against the contours instead of merely named.
+  </p>
+  {
+    places.map((p) => {
+      const pr = ringAt(p.distance_km, 100);
+      return (
+        <p>
+          <strong>{p.name}</strong>, {article(p.kind)} {p.kind} {p.bearing} of the point at{" "}
+          {fmtKm(p.distance_km)} km, sits {pr.inside
+            ? `inside the 100 kt ${pr.inside.label} contour (${fmtKm(pr.inside.km)} km)`
+            : "outside every 100 kt contour"}
+          {pr.outer ? ` and outside the ${pr.outer.label} one (${fmtKm(pr.outer.km)} km)` : ""}.
+        </p>
+      );
+    })
+  }
+  <p>
+    {insidePhrase} inside the 100 kt 5 psi ring ({fmtKm(psi5km)} km), and {pastPhrase} the
+    1 psi ring ({fmtKm(psi1km)} km). Names, coordinates and feature ids come from GeoNames
+    (CC BY 4.0); the ring each one falls in is computed from the same table as everything else
+    on this page.
   </p>
 
   <h2 id="limits">What this page does not say</h2>

@@ -193,18 +193,13 @@
 
 ### 2.5 人口数据
 
-- 源：**WorldPop Global2，1 km，R2025A v1，年份 2020，constrained（UN-adjusted）**，GeoTIFF，30 arc-second，WGS84，单位 people/pixel。许可 CC BY 4.0（可商用，需署名）。
-  选 UN-adjusted 的理由：20 个城市跨 10 个国家，各国普查口径不一致，用联合国校正后的国家总量更可比。这条会写进 methodology，并可一键切换成非校正版（脚本参数）。
-- 分辨率与口径：1 km 格网，统计的是**夜间居住人口分布**，非实时人流、非伤亡。页面固定用这句：`Resident population, 1 km grid, WorldPop 2020. Not footfall, not casualties.`
-- 「范围内人口」算法：格网像元**中心点**落入圆内即计入，累加 people/pixel。不用面积加权（加权会在 1 km 格子上制造并不存在的精度）。这个选择写进 methodology，并注明它是「离散近似，边缘 ±一圈」。
-- 预处理（`scripts/build_population.py`）：
-  1. 下载 20 个城市所在的全球 1 km 分幅（WorldPop 按国家/分幅发布，脚本按 bbox 取）；
-  2. 裁 250 km × 250 km 的方形窗口；
-  3. 转成 `uint16` 小端二进制 + 一个 `meta.json`（bbox、像元数、缩放系数、单位）；
-  4. 每城一个文件 `public/data/pop/<slug>.bin`，约 250–500 KB，gzip 后更小；
-  5. 同时预算每个城市 × 4 个半径的人口和，写进 `cities.json`（保证城市页和首屏无需任何下载即可显示人口）。
-- 任意点选点：若点落在某城 250 km 窗口内，**按需**拉该城 `.bin`（lazy，一次，缓存），在 Canvas/JS 里环求和，<10 ms。窗口外 → 人口行显示 `Population data covers the 20 preset metros in this edition` 并给「跳到最近的城市」按钮。**绝不外推、绝不显示 0 冒充**。
-- 这个「窗口 + lazy」是可控成本下的最优解；全球 1 km 栅格要 30 MB+，与 2 秒首屏冲突。
+- 源：**WorldPop Global2 R2025A，100 m，2020，constrained（UN-adjusted）**，通过 `POST https://api.worldpop.org/v3/catchment` 取数，许可 CC BY 4.0（可商用，需署名）。选 UN-adjusted 的理由：20 个城市跨 10 个国家，各国普查口径不一致，用联合国校正后的国家总量更可比。
+- **分辨率 100 m，不是原计划的 1 km —— 这是改进，不是妥协。** 原计划是下载各国 1 km 分幅、自己裁窗、自己按像元中心求和，那条路会把「重采样选择」和「边缘取整」写进数字里；实际用的是 WorldPop 自己的服务，在**原生 100 m** 栅格上做面积分，任何人拿同一个圆、同一年份能复算出同一个数。代价是不再有本地栅格可离线播放（原计划的 250 km 窗口 + lazy 那套因此作废），换来的是每个数字都可复核。`city-pop.json` 的 `source.note` 与城市页正文都写着 100 m。
+- 分辨率与口径：统计的是**夜间居住人口分布**，非实时人流、非伤亡。
+- **查询半径统一 25 km（`catchRadiusKm`）**：1 Mt 的 1 psi 环是 21.40 km，10 km 的圆装不下它；若用 10 km 抓，页面上的「环内人口」其实是被 10 km 截断的那块，而标题写着 1 psi。所以每城一次 catchment 就取到 25 km，页面上所有半径（火球 / 5 psi / 1 psi / 二度 / 三度）和 10 km 城市圆都是这**同一次请求里的 cumulative**，绝不环减环、绝不拿城市人口减环内人口当存活数。
+- 断言（两处，缺一不可）：`scripts/build_city_pop.py` 在抓数前拒绝 `CATCH_RADIUS_KM < 最大环`；`src/lib/city-pop.ts` 在模块加载时用 `effects.json` 算出 `MAX_RING_KM`，任何城市记录 `catchRadiusKm < MAX_RING_KM` 直接抛错 —— 也就是构建失败，而不是印一个被截断的数字。
+- 「范围内人口」算法由 WorldPop 服务完成（圆内像元积分），我们只在 `per_km2_check()` 里校验每环带密度不超过 400,000 人/km²，防止单位错（m / km）在 200 响应里蒙混过关。
+- **地标**：每个城市页必须有 2–3 个只属于该城的真实地名（公园 / 水域 / 地标），来自 GeoNames 国家级 dump（`US/GB/FR/JP.zip`，CC BY 4.0，缓存在 `.tmp_handbook/geonames/`），由 `scripts/fetch_city_places.py` 选点写进 `src/data/city-places.json`。选点规则：距城市点 0.4–10 km，只取 P/H/S/L/T 五类，名字必须是纯字母（排除编号、网格、行政区），三类尽量各一个；页面正文说明它落在哪个环里。**纯模板页不接受。**
 
 ### 2.6 地名与搜索
 
@@ -438,10 +433,25 @@ export const BASEMAP = {
 ### 4.5 `/nuclear-winter/` — `nuclear winter`（US 9,900/月）
 - Title: `Nuclear Winter: What the Published Research Actually Says`
 - H1: `Nuclear winter, from the 1983 paper to the 2019 model runs`
-- 2,500+ 词。结构：定义 → 机制（烟尘进入平流层）→ 关键研究时间线（TTAPS 1983 / Robock 2007 / Coupe 2019 / Toon 2019）→ 争议与不确定 → 与本站数据的关系（明确说：本站不算核冬天，只引述已发表结论）。
-- 图表 2–3 个：只用**已发表数字**重绘（如烟尘量 vs 全球平均降温），标注「redrawn from X (year), Fig. Y」；不做任何新计算。
-- 引用：脚注式，8–12 条，优先可公开访问的原文/摘要链接。
-- 内链：`/methodology/`、`/blast-radius/`、首页。
+- **这是 literature summary，不是本站的计算。** 页面顶部（作者上方，正文第一段之前）必须有一句固定的声明，原文：
+
+  > `These are published model studies, not figures from the 1977 manual. Nothing on this page is our own calculation.`
+
+- **引用清单固定四篇，缺一不可**（四篇都在正文里各占一个引文位置，不是只挂在页脚）：
+
+  | 简称 | 作者 | 出处 | 在页面上的角色 |
+  |---|---|---|---|
+  | TTAPS 1983 | Turco, Toon, Ackerman, Pollack & Sagan | *Science* **222**, 1283–1292 (1983), doi:10.1126/science.222.4630.1283 | 原始论文：首次给出「核冬天」这个名字与量级 |
+  | Robock 2007 | Robock, Oman & Stenchikov | *J. Geophys. Res.* **112**, D13107 (2007), doi:10.1029/2006JD008235 | 现代气候模型复核（50 Tg 与 150 Tg 两档） |
+  | Toon 2019 | Toon, Bardeen, Robock, Xia, Kristensen, McKinzie, ... | *Sci. Adv.* **5**, eaay5478 (2019), doi:10.1126/sciadv.aay5478 | 区域核冲突（印巴）情景 |
+  | Coupe 2019 | Coupe, Bardeen, Robock & Toon | *J. Geophys. Res. Atmos.* **124** (2019), doi:10.1029/2019JD030509 | 同一情景在 WACCM4 里的复算，与 ModelE 对比 |
+
+  **一处更正（2026-11-14）**：你给的「Robock, Oman & Stenchikov 2007, ACP」实际发在 **JGR Atmospheres**（ACP 2007 年那篇是 Toon 等七人关于区域冲突的论文）。引用按实际出处写，不按记忆写。
+- **每条数字后面直接跟 `(作者 年份)`**，不写页码 —— 它不是手册，页码没有意义。例：`... cooling the global surface by 2° to 5°C (Toon 2019).`
+- 只有一条规则比格式更重要：**手册数据和气候模型数字绝不进同一张表**。手册能提供的只有第 9 章（残骸辐射与落尘）那部分，单独一节、单独标题、逐条标印刷页 `p. xxx`，并在节内明写它讲的是单次爆炸的局部落尘，不是全球气候。
+- 图表：只用**已发表数字**重绘（烟尘量 → 全球平均降温），标注 `redrawn from Toon (2019)`；不做任何新计算、不做插值。
+- 内链：`/methodology/`、`/blast-radius/`、`/nuclear-bomb-map/`，锚文本按 §4.8。
+- **长度与节数按 §4.10 的查询页硬要求执行**（正文 ≥ 700 词、4–6 个 H2、每节 100–150 词），不是本节的 2,500 词：两个数字冲突时以闸门能判的那一个为准，扩写等 GSC 有曝光之后再做。
 - 工作量：**14 h**（含查证）
 
 ### 4.6 `/methodology/`
@@ -482,6 +492,7 @@ export const BASEMAP = {
 - **2026-11-13 撤回 `map-cities` 那一行**：`/nuclear-bomb-map/` 的 title 不再写 `, 20 Cities`，改成 `Nuclear Bomb Map: Rings on Real Ground at True Scale`。理由不是做不完，是这笔抵押不划算 —— 20 个城市词加起来月搜不到 100，却拿一次构建失败去担保。城市页照 §4.11 做满 20 个，进度记在 §11，不挂在 title 上。
 - **台账现在是空的，这是刻意的**：空台账 + 断言里那条「title 有数量就必须有行」= 现在任何页面都不许拿未交付的数量做标题。要重新加承诺，先加行、先写到期日。
 - 不允许「先写上、以后再补」的第二种写法：要么有到期日，要么不写数量。
+- **2026-11-14 城市页改分批上线：先 5 个（New York 已在 + Los Angeles / London / Tokyo / Paris），其余 15 个等信号。** 理由不是工作量，是这批页面的定位：城市词月搜在个位到二十几，20 页负责的是覆盖和内链，不负责流量。一次铺满换不来流量，只会让「哪一页值得改」变得不可判断。先让这 5 页进 sitemap 看 GSC 有没有曝光：**有曝光**再放另外 15 个；**连续 4 周零曝光**，就先改这 5 页的 title 与正文，而不是加页。`PUBLISHED_CITY_SLUGS` 是唯一开关，加城仍然是一行。
 
 ### 4.10 首月页面清单：53 页（80 页与「约 40 个灾害页」作废）
 
@@ -542,16 +553,20 @@ export const BASEMAP = {
 |---|---|---|---|
 | 1 | 15 / 100 / 1000 kt × 5 种效应的距离 | `src/data/effects.json`（`get()` 查表） | **直取**，与 `/blast-radius/` 同一份 JSON，不重算、不四舍五入 |
 | 2 | 城市人口（10 km 圆内） | `src/data/city-pop.json`，由 `scripts/build_city_pop.py` 调 WorldPop API 生成 | **现算**（抓数一次、结果入库缓存，构建时只查表） |
-| 3 | 5 psi / 1 psi / 火球环内人口 | 同上，同一请求换半径 | **现算**，且**不由大环减小环**、**不拿城市人口减环内人口当存活数** |
+| 3 | 5 psi / 1 psi / 火球 / 两档热辐射环内人口 | 同上，同一 catchment 换半径 | **现算**，且**不由大环减小环**、**不拿城市人口减环内人口当存活数** |
+
+- **查询半径：`catchRadiusKm = 25 km`，每城一条记录都带这个字段。** 最大环是 1 Mt 的 1 psi（21.40 km），10 km 的圆装不下它 —— 用 10 km 抓的话，标题写「1 psi 环内人口」而数字其实来自被截断的 10 km 圆，这是本页最不能犯的错。两处断言：抓数脚本在 `CATCH_RADIUS_KM < 最大环` 时拒绝写入；`city-pop.ts` 在构建期算出 `MAX_RING_KM`，任何城市 `catchRadiusKm < MAX_RING_KM` 直接抛错。
+- **人口口径句同时写两个半径**（`populationSentence()` 生成，模板里不许手写）：`{N} people live within 10 km of {lat}, {lon} (rings up to 21.4 km counted from the same 25 km catchment) — the GeoNames point for {City} — counted on the WorldPop Global2 R2025A 100 m grid, 2020 estimates, not inside a city boundary.`
+- **地标（每页 2–3 个，纯模板页不接受）**：`src/data/city-places.json` ← `scripts/fetch_city_places.py` ← GeoNames 国家级 dump（CC BY 4.0）。五个已发布城市是人工选的、再回 dump 里按名字核对的（`CURATED`），因为「离得最近的公园」这种自动选法会选到邮局网点；其余城市走自动选点（公园 / 水域 / 街区各取一个，距离错开）。页面按 `effects.json` 现算每个地标落在 100 kt 的哪个环里。
 
 - **人口口径句（写死在页面上，原文）**：
 
-  > `{N} people live within 10 km of {lat}, {lon} — the GeoNames point for {City} — counted on the WorldPop Global2 R2025A 100 m grid, 2020 estimates, not inside a city boundary.`
+  > `{N} people live within 10 km of {lat}, {lon} (rings up to 21.4 km counted from the same 25 km catchment) — the GeoNames point for {City} — counted on the WorldPop Global2 R2025A 100 m grid, 2020 estimates, not inside a city boundary.`
 
-  这句话由 `src/lib/city-pop.ts` 的 `populationSentence()` 生成，数字、坐标、数据集名、年份全部来自数据文件，页面模板里不许手写，防止文案和数据各说各话。
-  **与 D4 的偏差要写明**：D4 写的是 1 km 栅格，实际用的是 WorldPop API 提供的 **100 m** 栅格（更细）。这是唯一一处口径变化，页面与 `city-pop.json` 的 `source.note` 都标出来。
+  这句话由 `src/lib/city-pop.ts` 的 `populationSentence()` 生成，数字、坐标、两个半径、数据集名、年份全部来自数据文件，页面模板里不许手写，防止文案和数据各说各话。
+  **D4 的分辨率已改判（2026-11-14）：用 100 m，不退 1 km。** 这是对原计划的**改进**，不是妥协：1 km 是原计划自己下载栅格再求和时的分辨率，实际用的是 WorldPop 服务在**原生 100 m** 栅格上做面积分，任何人都能复算；退回 1 km 反而是拿精度去换一个已经不需要的本地管线。页面与 `city-pop.json` 的 `source.note` 都写着 100 m。
 - **城市页不做地爆、不做热辐射地爆**：Fig. 7.42 是空爆图（§7.41 p.290 另有路径），所以城市页统一按空爆给数，页面写一句「air burst」。
-- **上线节奏**：先发 1 页（`new-york`）做样板，人工看过版式与数字，再一次性把 `PUBLISHED_CITY_SLUGS` 放满 20 个。
+- **上线节奏**：先发 5 页（`new-york`、`los-angeles`、`london`、`tokyo`、`paris`），看 GSC 曝光再决定剩下 15 个 —— 理由见 §4.9。每页必须带 2–3 个该城独有的 GeoNames 地名（见上），且每个地名要写明它落在 100 kt 的哪个环里。
 
 ---
 
@@ -627,7 +642,7 @@ export const BASEMAP = {
 | R4 | 爆高口径你未指定 | 全站 | 同一点位不同爆高差 20–40% | 建议默认「对 5 psi 最优的空中爆炸」（§3.73 概念），面板显示实际爆高，第二态给 surface burst |
 | R5 | 热辐射阈值未定义 | thermal radius | 换阈值半径差一倍 | 建议二度烧伤（浅肤色）为默认 + 三度另列；值从 Fig. 12.64 读，用 §12 p.562 的 4.5–6 cal/cm² 做校验锚点 |
 | R6 | **Fig. 7.42 曲线标号不可直读**（扫描件无文字层） | thermal 全部 6 格 | 阈值与曲线对不上，整列错 | **已处置**：三档全部直读该图，标号由 §12.66 p.563 + §7.43 p.290 两句话反推，三条锚点偏差 +3.6% / −3.9% / +5.0%；methodology 明写标定依据与「无文字层」 |
-| R7 | 1 km 人口栅格任意点覆盖 | 首页选点 | 全球 1 km 栅格 30 MB+ | 20 城 250 km 窗口 + lazy 加载；窗口外明示未覆盖，不外推 |
+| R7 | 人口栅格覆盖范围 | 首页选点 | 任意点没有本地栅格可求和 | **已改口径**：不下载栅格，改由 WorldPop 服务在 100 m 原生栅格上积分（§2.5）；页面只发布 20 个预置城市，任意点人口不提供，也不外推 |
 | R8 | 城市「范围内人口」定义歧义 | 城市页 | 数字说不清 | 建议统一为「半径内人口」，与效应圈同源；不引入行政市界人口（两套数会互相打脸） |
 | R9 | 20 城跨 10 国，WorldPop 各国方法不一 | 城市页 | 横向不可比 | 统一 R2025A constrained UN-adjusted + 同一年 2020；methodology 明写 |
 | R10 | 备用底图源难找 | 3.3 | 主源挂了只剩纯色 | **已解决（D5）**：自托管 Natural Earth 110m 轮廓，公有领域、约 120 KB、随站打包，不依赖任何第三方条款 |

@@ -3,6 +3,7 @@
   "new-york": {
    "geonameid": 5128581,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 3743585,
    "ring_population": {
     "0.100": 593,
@@ -20,12 +21,14 @@
     "10.000": 3743585,
     "10.350": 3935016,
     "16.680": 7674638,
-    "21.400": 10166583
+    "21.400": 10166583,
+    "25.000": 11382936
    }
   },
   "los-angeles": {
    "geonameid": 5368361,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 1846738,
    "ring_population": {
     "0.100": 57,
@@ -43,12 +46,14 @@
     "10.000": 1846738,
     "10.350": 1966545,
     "16.680": 3954177,
-    "21.400": 5600763
+    "21.400": 5600763,
+    "25.000": 6718329
    }
   },
   "chicago": {
    "geonameid": 4887398,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 1400326,
    "ring_population": {
     "0.100": 7,
@@ -66,12 +71,14 @@
     "10.000": 1400326,
     "10.350": 1484645,
     "16.680": 2920992,
-    "21.400": 3718359
+    "21.400": 3718359,
+    "25.000": 4131020
    }
   },
   "houston": {
    "geonameid": 4699066,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 596546,
    "ring_population": {
     "0.100": 62,
@@ -89,12 +96,14 @@
     "10.000": 596546,
     "10.350": 632622,
     "16.680": 1447253,
-    "21.400": 2278879
+    "21.400": 2278879,
+    "25.000": 2875820
    }
   },
   "san-francisco": {
    "geonameid": 5391959,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 998158,
    "ring_population": {
     "0.100": 307,
@@ -112,12 +121,14 @@
     "10.000": 998158,
     "10.350": 1012127,
     "16.680": 1591807,
-    "21.400": 2160746
+    "21.400": 2160746,
+    "25.000": 2497206
    }
   },
   "washington-dc": {
    "geonameid": 4140963,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 962742,
    "ring_population": {
     "0.100": 1,
@@ -135,12 +146,14 @@
     "10.000": 962742,
     "10.350": 1021306,
     "16.680": 2100785,
-    "21.400": 2801216
+    "21.400": 2801216,
+    "25.000": 3227368
    }
   },
   "miami": {
    "geonameid": 4164138,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 673823,
    "ring_population": {
     "0.100": 347,
@@ -158,12 +171,14 @@
     "10.000": 673823,
     "10.350": 706329,
     "16.680": 1352662,
-    "21.400": 2022669
+    "21.400": 2022669,
+    "25.000": 2512227
    }
   },
   "seattle": {
    "geonameid": 5809844,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 636780,
    "ring_population": {
     "0.100": 157,
@@ -181,12 +196,14 @@
     "10.000": 636780,
     "10.350": 667029,
     "16.680": 1183274,
-    "21.400": 1591375
+    "21.400": 1591375,
+    "25.000": 1971723
    }
   },
   "boston": {
    "geonameid": 4930956,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 1200359,
    "ring_population": {
     "0.100": 303,
@@ -204,12 +221,14 @@
     "10.000": 1200359,
     "10.350": 1235169,
     "16.680": 1918147,
-    "21.400": 2282130
+    "21.400": 2282130,
+    "25.000": 2553956
    }
   },
   "atlanta": {
    "geonameid": 4180439,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 511270,
    "ring_population": {
     "0.100": 73,
@@ -227,12 +246,14 @@
     "10.000": 511270,
     "10.350": 537734,
     "16.680": 1057568,
-    "21.400": 1629202
+    "21.400": 1629202,
+    "25.000": 2098740
    }
   },
   "london": {
    "geonameid": 2643743,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 3209598,
    "ring_population": {
     "0.100": 59,
@@ -250,12 +271,14 @@
     "10.000": 3209598,
     "10.350": 3400286,
     "16.680": 6615334,
-    "21.400": 8472244
+    "21.400": 8472244,
+    "25.000": 9377133
    }
   },
   "paris": {
    "geonameid": 2988507,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 4688920,
    "ring_population": {
     "0.100": 632,
@@ -273,12 +296,14 @@
     "10.000": 4688920,
     "10.350": 4856325,
     "16.680": 7626615,
-    "21.400": 8878073
+    "21.400": 8878073,
+    "25.000": 9618867
    }
   },
   "tokyo": {
    "geonameid": 1850147,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 5459730,
    "ring_population": {
     "0.100": 160,
@@ -296,12 +321,14 @@
     "10.000": 5459730,
     "10.350": 5800339,
     "16.680": 12053848,
-    "21.400": 16555563
+    "21.400": 16555563,
+    "25.000": 19383085
    }
   },
   "berlin": {
    "geonameid": 2950159,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 1818816,
    "ring_population": {
     "0.100": 267,
@@ -319,12 +346,14 @@
     "10.000": 1818816,
     "10.350": 1927903,
     "16.680": 3510564,
-    "21.400": 3943720
+    "21.400": 3943720,
+    "25.000": 4172086
    }
   },
   "sydney": {
    "geonameid": 2147714,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 1109590,
    "ring_population": {
     "0.100": 145,
@@ -342,12 +371,14 @@
     "10.000": 1109590,
     "10.350": 1157425,
     "16.680": 2108606,
-    "21.400": 2773256
+    "21.400": 2773256,
+    "25.000": 3213640
    }
   },
   "toronto": {
    "geonameid": 6167865,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 1017969,
    "ring_population": {
     "0.100": 121,
@@ -365,12 +396,14 @@
     "10.000": 1017969,
     "10.350": 1079117,
     "16.680": 2338809,
-    "21.400": 3144873
+    "21.400": 3144873,
+    "25.000": 3795019
    }
   },
   "mexico-city": {
    "geonameid": 3530597,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 4545080,
    "ring_population": {
     "0.100": 742,
@@ -388,12 +421,14 @@
     "10.000": 4545080,
     "10.350": 4827731,
     "16.680": 10643871,
-    "21.400": 13992726
+    "21.400": 13992726,
+    "25.000": 16305308
    }
   },
   "sao-paulo": {
    "geonameid": 3448439,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 3913989,
    "ring_population": {
     "0.100": 532,
@@ -411,12 +446,14 @@
     "10.000": 3913989,
     "10.350": 4199794,
     "16.680": 9872299,
-    "21.400": 14016043
+    "21.400": 14016043,
+    "25.000": 16604700
    }
   },
   "new-delhi": {
    "geonameid": 1261481,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 6951336,
    "ring_population": {
     "0.100": 778,
@@ -434,12 +471,14 @@
     "10.000": 6951336,
     "10.350": 7477634,
     "16.680": 18617603,
-    "21.400": 24517772
+    "21.400": 24517772,
+    "25.000": 27985612
    }
   },
   "johannesburg": {
    "geonameid": 993800,
    "data_year": 2020,
+   "catchRadiusKm": 25.0,
    "city_pop_10km": 1177764,
    "ring_population": {
     "0.100": 169,
@@ -457,7 +496,8 @@
     "10.000": 1177764,
     "10.350": 1257110,
     "16.680": 3108970,
-    "21.400": 4582009
+    "21.400": 4582009,
+    "25.000": 5965097
    }
   }
  },
@@ -466,9 +506,10 @@
   "api": "https://api.worldpop.org/v3/catchment",
   "year": 2020,
   "radius_km": 10.0,
-  "retrieved": "2026-11-13",
+  "catch_radius_km": 25.0,
+  "retrieved": "2026-11-14",
   "license": "CC BY 4.0",
-  "note": "People inside a geodesic disc of the given radius around the GeoNames city point, integrated by WorldPop on their gridded surface. city_pop_10km is the cumulative at 10 km from the same request; it is never built by summing effect rings. The grid cell is 100 m, not the 1 km of D4: this is the resolution the WorldPop API serves, and it is printed on the page beside the number."
+  "note": "People inside a geodesic disc of the given radius around the GeoNames city point, integrated by WorldPop on their gridded surface. Every radius on a city page — fireball, 5 psi, 1 psi, both thermal contours — is the cumulative inside one 25 km catchment, so no ring is ever built by subtracting another ring, and the widest ring (1 Mt 1 psi, 21.40 km) still sits inside the catchment. city_pop_10km is the cumulative at 10 km from that same catchment; it is never built by summing effect rings. The grid cell is 100 m, not the 1 km of D4: this is the resolution the WorldPop API serves, and it is printed on the page beside the number."
  },
  "radii_km": [
   0.1,
@@ -486,6 +527,7 @@
   10.0,
   10.35,
   16.68,
-  21.4
+  21.4,
+  25.0
  ]
 }

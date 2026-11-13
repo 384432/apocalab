@@ -41,6 +41,12 @@ OUT = ROOT / "src" / "data" / "city-pop.json"
 API = "https://api.worldpop.org/v3"
 YEAR = 2020
 CITY_RADIUS_KM = 10.0
+# One catchment per city, wide enough to hold the largest ring the site draws:
+# 1 Mt 1 psi at 21.40 km. 10 km would cut that ring off, and a page that showed
+# a "ring" count from a 10 km disc would be reporting the disc, not the ring.
+# Every radius below is a cumulative inside this one catchment, so no ring is
+# ever assembled by subtracting another one.
+CATCH_RADIUS_KM = 25.0
 RETRIES = 4
 
 # The proxy on this machine would otherwise be asked to reach api.worldpop.org,
@@ -49,14 +55,23 @@ opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
 def radii_from_effects():
-    """Every radius the site draws: air-burst effects at all three yields."""
+    """Every radius the site draws, plus the catchment that has to contain them."""
     data = json.loads(EFFECTS.read_text(encoding="utf-8"))
     out = set()
+    max_ring = 0.0
     for e in data["entries"]:
         if e["burst"] != "air":
             continue
-        out.add(round(float(e["radius_km"]), 3))
+        r = round(float(e["radius_km"]), 3)
+        out.add(r)
+        max_ring = max(max_ring, r)
+    if CATCH_RADIUS_KM < max_ring:
+        raise SystemExit(
+            f"catch radius {CATCH_RADIUS_KM} km < largest ring {max_ring} km: "
+            "the outer rings would be truncated by the catchment"
+        )
     out.add(CITY_RADIUS_KM)
+    out.add(CATCH_RADIUS_KM)
     return sorted(out)
 
 
@@ -146,6 +161,9 @@ def main():
         cache["cities"][slug] = {
             "geonameid": city["geonameid"],
             "data_year": catch.get("data_year", YEAR),
+            # Per-record, not only global: a page must be able to prove that the
+            # 21.40 km ring it prints came from a catchment wide enough to hold it.
+            "catchRadiusKm": CATCH_RADIUS_KM,
             "city_pop_10km": cumulative[f"{CITY_RADIUS_KM:.3f}"],
             "ring_population": cumulative,
         }
@@ -159,12 +177,17 @@ def main():
         "api": API + "/catchment",
         "year": YEAR,
         "radius_km": CITY_RADIUS_KM,
+        "catch_radius_km": CATCH_RADIUS_KM,
         "retrieved": time.strftime("%Y-%m-%d"),
         "license": "CC BY 4.0",
         "note": (
             "People inside a geodesic disc of the given radius around the "
             "GeoNames city point, integrated by WorldPop on their gridded surface. "
-            "city_pop_10km is the cumulative at 10 km from the same request; it is "
+            "Every radius on a city page — fireball, 5 psi, 1 psi, both thermal "
+            f"contours — is the cumulative inside one {CATCH_RADIUS_KM:g} km catchment, "
+            "so no ring is ever built by subtracting another ring, and the widest "
+            "ring (1 Mt 1 psi, 21.40 km) still sits inside the catchment. "
+            "city_pop_10km is the cumulative at 10 km from that same catchment; it is "
             "never built by summing effect rings. The grid cell is 100 m, not the "
             "1 km of D4: this is the resolution the WorldPop API serves, and it is "
             "printed on the page beside the number."

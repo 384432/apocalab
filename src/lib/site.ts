@@ -46,6 +46,7 @@ export const PAGES: PageDef[] = [
   { path: '/blast-radius/', priority: '0.9', changefreq: 'monthly' },
   { path: '/nuclear-bomb-map/', priority: '0.8', changefreq: 'monthly' },
   { path: '/methodology/', priority: '0.6', changefreq: 'yearly' },
+  { path: '/nuclear-winter/', priority: '0.7', changefreq: 'yearly' },
   // City pages live under the map they are a reading of: /nuclear-bomb-map/new-york/.
   // Only the slugs in PUBLISHED_CITY_SLUGS are listed — a city page that has not
   // been built yet must not appear here, or the sitemap would promise a 404.
