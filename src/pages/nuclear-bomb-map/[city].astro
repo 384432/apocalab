@@ -55,7 +55,7 @@ const cityPop = cityPopulation(city);
 const psi5Pop = peopleWithin(city, get('overpressure_5psi', 'air', 100)!.radius_km);
 const psi1Pop = peopleWithin(city, get('overpressure_1psi', 'air', 100)!.radius_km);
 const fireballPop = peopleWithin(city, get('fireball', 'air', 100)!.radius_km);
-const share = (1000 * psi5Pop) / cityPop;
+const share = (100 * psi5Pop) / cityPop;  // percent, one decimal
 const [latText, lonText] = coordText(city).split(', ');
 
 // 标题模板：`Nuclear Bomb Effects on {City}: 15 kt to 1 Mt`

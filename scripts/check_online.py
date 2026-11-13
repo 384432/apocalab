@@ -16,6 +16,7 @@ SITE_LIVE=false 时生产也必须 noindex，因为 canonical 指向的域名还
 import argparse
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -46,14 +47,23 @@ def check(cond, msg):
         print("  FAIL ", msg)
 
 
-def fetch(url, method="GET"):
+def fetch(url, method="GET", attempts=3):
+    """GET with retries: this network drops long chunked reads now and then, and a
+    timeout here would be reported as a site failure."""
     req = urllib.request.Request(url, method=method)
     req.add_header("User-Agent", "apocalab-check/1.0")
-    try:
-        with opener.open(req, timeout=45) as r:
-            return r.status, dict(r.headers), r.read()
-    except urllib.error.HTTPError as e:
-        return e.code, dict(e.headers), e.read()
+    req.add_header("Accept-Encoding", "identity")
+    last = None
+    for attempt in range(1, attempts + 1):
+        try:
+            with opener.open(req, timeout=60) as r:
+                return r.status, dict(r.headers), r.read()
+        except urllib.error.HTTPError as e:
+            return e.code, dict(e.headers), e.read()
+        except Exception as e:  # noqa: BLE001 - retried below
+            last = e
+            time.sleep(2 * attempt)
+    raise SystemExit(f"fetch {url} failed after {attempts} attempts: {last}")
 
 
 ap = argparse.ArgumentParser()
