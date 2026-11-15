@@ -53,7 +53,7 @@ export const SITE_PUBLISHED = '2026-11-13';
  * file when it decides what to expect, so the artifact and the gate cannot
  * disagree — and there is no second place to edit and forget.
  */
-export const SITE_LIVE = false;
+export const SITE_LIVE = true;
 
 export const PAGES: PageDef[] = [
   { path: '/', priority: '1.0', changefreq: 'weekly' },
