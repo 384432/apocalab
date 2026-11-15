@@ -16,10 +16,17 @@ Local checks (always):
     carries neither a canonical nor a <meta name="robots">
 
 Online checks (only with --online <base>):
+  - reachability first: if the host answers 5xx, or the body contains
+    "error code: 1016", or the connection does not resolve at all, the run
+    stops with one line and exit code 2. DNS trouble is not a site defect, and
+    letting the assertions run turns it into a screenful of FAILs that say
+    nothing about the site.
   - the platform's not-found behaviour is what the local server cannot reproduce:
     a random missing path must answer 404, not 200 + the home page
-  - a missing .png must answer 404 with a Content-Type that is not text/html
-    (a soft 404 that serves HTML for an image URL is worse than a 404)
+  - a missing .png must answer 404. Its Content-Type is reported as a WARN when
+    it is text/html: Pages answers every unmatched path with 404.html, so an
+    image URL gets HTML, which is also what nginx and Apache do with their own
+    error pages. The status code is the part a crawler reads.
   - the body served for a missing path must be our 404 page, not the platform's
     own error page: the five recovery links have to be in it
 
@@ -94,6 +101,28 @@ def get(path, base_url=None):
             return r.status, r.headers.get("Content-Type", ""), r.read()
     except urllib.error.HTTPError as exc:
         return exc.code, exc.headers.get("Content-Type", ""), exc.read()
+
+
+def reachable(base_url):
+    """Is the host answering as a web site at all? Returns (ok, detail).
+
+    Three ways a host is not reachable, and none of them is a defect on our
+    side: no DNS answer (getaddrinfo failed), a 5xx from the edge, or Cloudflare
+    answering with the error page issued when a hostname has no route to an
+    origin -- that page carries "error code: 1016" and a 530 status. Running the
+    real assertions against any of these produces FAILs that describe the DNS
+    record, not the site, so the gate stops before them.
+    """
+    try:
+        status, _ctype, body = get("/", base_url=base_url)
+    except (urllib.error.URLError, OSError) as exc:
+        return False, f"连接失败：{exc}"
+    head = body[:4096]
+    if b"error code: 1016" in head:
+        return False, f"HTTP {status} · error code: 1016"
+    if status >= 500:
+        return False, f"HTTP {status}"
+    return True, f"HTTP {status}"
 
 
 def main_links(html_bytes):
@@ -174,6 +203,14 @@ args = argp.parse_args()
 if args.online:
     host = args.online.rstrip("/")
     print(f"5 线上口径（{host}）：托管平台的 not-found 行为，本地静态服务器复现不出来")
+
+    # 前置判定：域名没接通时，后面每一条断言都会变成假 FAIL（页面取不到、404 判不出来、
+    # 回收链接全 404……），红灯数量与真问题无关。先判一次根地址。
+    ok, detail = reachable(host)
+    if not ok:
+        print(f"域名未接通（DNS）→ 中止，后续断言不执行   [{host}/  {detail}]")
+        srv.shutdown()
+        sys.exit(2)
 
     # 随机 token：不撞上任何真实页面，也不会被 CDN 上的旧缓存命中。
     token = secrets.token_hex(4)

@@ -377,7 +377,7 @@ export const BASEMAP = {
   |---|---|---|
   | ① | `node scripts/verify_map.mjs https://apocalab.pages.dev`（先起 headless Chrome 在 9333 端口），三态全过：瓦片可达 / 瓦片屏蔽 / 关 JS | 考的是 CDN 上 `.geojson` 的 MIME、`_headers` 的实际生效、真实网络下的降级路径，本地 `astro build` 验不出来 |
   | ② | `python scripts/check_urls.py --online https://apocalab.pages.dev`：随机不存在的路径必须 **404**、404 响应必须是本站 404 页（五条回收链接在 `<main>` 里）、五条链接逐个真发请求确认 200、不存在的 `.png` 必须 **404**（Content-Type 只 WARN，见下面那条已知偏差） | 软 404 是**托管平台的 not-found 行为**，本地静态服务器（`SimpleHTTPRequestHandler`）永远正确 404，复现不出来 |
-  | ③ | 绑定 `apocalab.com` + 改 DNS | **noindex 期间绑域名没有任何 SEO 损失**（noindex 就是不让收录），反而能让正式域名先过一遍闸门；反过来把这一步排到翻开关之后，真出问题时站已经可以被收录了。此刻整站仍在 noindex，域名指过来只是让内容在一个「不许被收录」的地址上先跑通 |
+  | ③ | 绑定 `apocalab.com` + 改 DNS。**当前状态（2026-11-16）：未通过** —— 域名 530 / `1016`，Pages 项目本身健康，见下面的实测记录与 a–d 排查清单 | **noindex 期间绑域名没有任何 SEO 损失**（noindex 就是不让收录），反而能让正式域名先过一遍闸门；反过来把这一步排到翻开关之后，真出问题时站已经可以被收录了。此刻整站仍在 noindex，域名指过来只是让内容在一个「不许被收录」的地址上先跑通 |
   | ④ | `python scripts/check_urls.py --online https://apocalab.com` —— host 从 `apocalab.pages.dev` 换成正式域名再跑一遍。**不通过不许往下走** | **不换 host，闸门测的就还是 `pages.dev`，正式域名等于一次都没测过**；DNS、证书、`_headers` 在正式域名上的生效，都是新的东西。这一步之前，正式域名从未被任何闸门碰过 |
   | ⑤ | 把 `src/lib/site.ts` 的 `SITE_LIVE` 改成 `true`，构建、推送、等部署完成——去掉全站 `noindex` | 这是**唯一一个放开收录的动作**，排在域名已经验收之后，所以放开的那一刻，被放开的地址是新的、已验过的那个 |
   | ⑥ | 抓首页响应头与 HTML（`https://apocalab.com/`，顺带 `https://apocalab.pages.dev/`）：**noindex 必须已经消失**，**canonical 必须仍指向 `https://apocalab.com/`** | 这一步验的是**两件来源不同的事**，缺一不可：noindex 响应头来自 `SITE_LIVE`，canonical 来自 `SITE_ORIGIN`。前者不消失 = 没真正放开收录；后者若被顺手改到 `pages.dev` = 把正式域名上的页面自己否掉 |
@@ -386,6 +386,22 @@ export const BASEMAP = {
   **口径（③ 与 ⑥ 的关系）**：canonical 从头到尾都由 `SITE_ORIGIN` 固定为 `https://apocalab.com/`，**翻转前就已经指向它**，不随 `SITE_LIVE` 变。所以「翻开关」改变的是收录许可，不是 canonical 指向；⑥ 才会同时验这两件事。
   **③–⑥ 必须在同一天连续做完，不许隔夜。** 两个方向的后果不对称，危险的那个是「只翻开关、没绑域名」：production 立刻可被收录，而 canonical 指向的 `apocalab.com` 还没有内容——爬虫拿到的是 `pages.dev` 一份、canonical 打不开，域名上线那天同一内容就落在两个 hostname 上，正是 `SITE_LIVE` 存在的理由。反过来「只绑域名、没翻开关」不会进索引（两边都还 noindex），但会让正式域名空转，并且「已经绑了」这个状态很容易被当成已经上线，所以同样不许隔夜。
   **③ 起的所有动作（绑域名、DNS、翻开关）在收到明确指令后才执行**，在那之前不提前绑自定义域名、不动 DNS。
+
+  **③ 的排查清单（1016 = 域名没接到 Pages，全部是 Cloudflare 后台的手工步骤）**：
+  - **a. DNS → Records**：看 `apocalab.com` 与 `www` 各自是什么类型、指向什么内容。
+  - **b. 有残留就删**：如果还指向 `workbuddy.host` 或某个旧 IP，那就是残留记录，删掉。CNAME 不能与其它记录在同一个名字上共存，有冲突必须是**先删后建**。
+  - **c. Pages → 项目 `apocalab` → Custom domains**：看两个域名的状态是不是 `Active`。显示 `Waiting for DNS` 就把 CF 提示的那条 CNAME `→ apocalab.pages.dev` 补上，代理状态开着。
+  - **d. 改完等 1~5 分钟**，再验三条：首页 200 / sitemap 200 / 响应头 `X-Robots-Tag: noindex` 在（`SITE_LIVE=false` 期间它必须在）。
+
+  **实测记录（2026-11-16 03:00）——域名未接通（DNS），不是 SEO 缺陷。** Pages 项目本身是健康的，只是域名没真正指向它：
+  - 你发起的请求：`https://apocalab.com/` → **530, error code: 1016**，17 字节纯文本；`/sitemap.xml` → 同样 530 1016；`https://www.apocalab.com/` → 同样 530 1016；而 `https://apocalab.pages.dev/` → **200，34,785 字节，标题正确，canonical 指 `https://apocalab.com/`**。
+  - 我这边跑闸门：`python scripts/check_urls.py --online https://apocalab.com` → **前置判定中止，exit 2**，本机连 DNS 都解析不出来（`getaddrinfo failed`）。同一台机上 `--online https://apocalab.pages.dev` 仍是 **84 PASS / 0 FAIL / 1 WARN**，本地 68 PASS 不变 —— 两边对照证明问题在域名解析这一层。
+  - 旁证（AliDNS DoH，只读查询）：`apocalab.com` 的 NS 已经是 `ligia.ns.cloudflare.com` / `bruce.ns.cloudflare.com`；apex 查 A **无应答**（NOERROR、answer 空）；`www.apocalab.com` 查 A 返回 **NXDOMAIN**。也就是这个 zone 在 CF 手里，但记录没落到 Pages 上——与 530/1016 的方向一致，按上面 a–d 查。
+  - 结论写在前面，别被后面的红字带跑：**这是域名未接通的证据，不是 SEO 缺陷，也不是产物问题。**
+
+  **闸门的前置判定（2026-11-16 加进 `check_urls.py` §5）**：`--online` 先请求一次根地址，遇到三种情况之一就打印**一行**「域名未接通（DNS）→ 中止，后续断言不执行」并 **exit 2**，不再跑后面的断言：① 连不上（DNS 解析失败 / 连接被断）；② 状态码 ≥ 500；③ 响应体前 4KB 含 `error code: 1016`。理由：否则每次跑都得到一串与 DNS 无关的假 FAIL，真正的红灯会淹在里面。**exit 2 与 exit 1 是两个意思**：1 = 断言失败（站有问题），2 = 这一轮没测成（域名没接通）。负向测试过：本地造一个 530 + `error code: 1016` 的假 host，闸门正好打一行、exit 2、零条 FAIL。
+
+  **硬约束：域名返回 5xx / 1016 期间，任何人不得翻 `SITE_LIVE`，也不得把 sitemap 提交到 GSC。** 理由一句：翻开关只是去掉 `noindex`，而这时候站根本打不开，翻了等于把「可被收录」这件事提前预支。
 - **404 由产物承担，不由项目设置承担（v1.8）**：`src/pages/404.astro` → `dist/404.html`，CF Pages 对未匹配路径优先用它。这是先手，先证明产物够用，改项目设置（Not Found Handling → `404-page`）是它不生效时才动的第二手，动的时候要贴改前改后。三条约束写死在页面上：**不加 canonical**（这个地址不是页面的地址）、**不加 `<meta name="robots">`**（404 状态本身就是信号，两种信号不叠）、**不进 sitemap**（sitemap 列页面，不列错误态）。页里只放五条回收链接，用的就是 §4.8 那五个锚文本，不另开一套链接规则。
   **实测（2026-11-14，加 404.html 先后只差这一次部署，项目设置一个都没动）**：
   - `/zzz-no-such-page-9f3a/` → **404** + 本站 404 页（改之前是 200 + 首页完整 HTML）；
