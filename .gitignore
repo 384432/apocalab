@@ -18,6 +18,7 @@ switch.json
 map-gate.json
 search-gate.json
 www-gate.json
+live-gate.json
 .tmp_chrome*/
 .deploy/
 

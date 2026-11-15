@@ -47,12 +47,14 @@ no `noindex` anywhere and a preview must carry the header. Feeding a production 
 Once deployed, the same two questions are asked over real HTTP:
 
 ```bash
-# while SITE_LIVE = false, both environments must be noindex
+# before go-live (SITE_LIVE = false): both environments were noindex
 python scripts/check_online.py https://apocalab.pages.dev          --expect noindex
 python scripts/check_online.py https://preview.apocalab.pages.dev  --expect noindex
 
-# after the domain points here and SITE_LIVE = true
+# since 2026-11-16 (SITE_LIVE = true, domain live): production is indexable
+python scripts/check_online.py https://apocalab.com                --expect indexed
 python scripts/check_online.py https://apocalab.pages.dev          --expect indexed
+python scripts/check_online.py https://preview.apocalab.pages.dev  --expect noindex
 ```
 
 It checks the header (not just the file), the canonical on each page, `robots.txt`, the sitemap and
@@ -88,10 +90,14 @@ while building:
 | `true` | `main` | production | no `X-Robots-Tag` at all — `robots.txt` and `sitemap.xml` invite crawlers in |
 | `true` | anything else / unset | preview | `X-Robots-Tag: noindex` on `/*` |
 
-**`SITE_LIVE` is `false` right now.** Every page carries `rel=canonical` pointing at
-`apocalab.com`; until that domain answers, an indexable `*.pages.dev` copy would be what Google
-indexes, and the day the domain goes live the same pages would exist at two hostnames. So production
-is noindexed too, and the sitemap is generated but not submitted.
+**`SITE_LIVE` is `true` as of 2026-11-16 06:05 CST (22:05 UTC).** It was `false` before that, and the
+reason is worth keeping: every page carries `rel=canonical` pointing at `apocalab.com`; while that
+domain did not answer, an indexable `*.pages.dev` copy would have been what Google indexed, and the
+day the domain went live the same pages would have existed at two hostnames. So production was
+noindexed too and the sitemap was generated but not submitted. With the domain live and both hosts
+serving the same build, `apocalab.pages.dev` loses the header along with the apex and is consolidated
+by `rel=canonical` — deliberately not given a `noindex` of its own, because Pages `_headers` match on
+path only, so a blanket rule for it would also blank the main domain.
 
 Going live is one boolean, in `src/lib/site.ts`:
 

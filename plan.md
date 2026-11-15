@@ -6,7 +6,7 @@
 
 **v1.6 相对 v1.5 改了什么**（只列会改变行为的）：
 
-1. **收录开关加了一层 `SITE_LIVE`（§3.7）**。v1.5 的规则是「main 可收录、其它分支 noindex」，但域名还没指向 Pages，而每页 canonical 都指向 `apocalab.com`。生产可收录、canonical 拿不到，等于把 `*.pages.dev` 那套地址送进索引。现在 `SITE_LIVE = false`，生产与预览都 noindex；上线当天只改这一个布尔值。
+1. **收录开关加了一层 `SITE_LIVE`（§3.7）**。v1.5 的规则是「main 可收录、其它分支 noindex」，但域名还没指向 Pages，而每页 canonical 都指向 `apocalab.com`。生产可收录、canonical 拿不到，等于把 `*.pages.dev` 那套地址送进索引。当时置 `SITE_LIVE = false`，生产与预览都 noindex；上线当天只改这一个布尔值。**该值已于 2026-11-16 06:05 CST 翻为 `true`（§3.7「⑤⑥ 记录」），本条只作变更历史。**
 2. **`/nuclear-bomb-map/` 的 title 去掉 `, 20 Cities`（§4.3、§4.9）**。用 20 个城市词（合计月搜不到 100）去抵押一次构建失败不划算；城市页照做，进度不挂在 title 上。新 title：`Nuclear Bomb Map: Rings on Real Ground at True Scale`。
 3. **首月页数 80 → 53（§4.10）**。按美国月搜逐词查过 49 个词，能诚实交付又真有人搜的只有 13 个查询页。53 = 核心 8 + 城市 20 + 武器/历史 12 + 查询 13。**「约 40 个灾害查询页」这个数字作废**，实时数据地图类（飓风/山火/闪电/龙卷/洪水/地震）明令不做。
 4. **城市页规格落地（§4.11）**：URL 放在 `/nuclear-bomb-map/{slug}/`，title 模板 `Nuclear Bomb Effects on {City}: 15 kt to 1 Mt`，三项数据里一项直取 `effects.json`、两项现算，人口口径句写死在页面上。
@@ -355,12 +355,12 @@ export const BASEMAP = {
 | `true` | `main` | production | 整份文件不写任何 `X-Robots-Tag` |
 | `true` | 其它 / 本地无变量 | preview | `/*` 带 `X-Robots-Tag: noindex` |
 
-  **当前 `SITE_LIVE = false`**：域名还没指向 Pages，而每页 canonical 都指向 `apocalab.com`。Google 拿不到 canonical 目标时会直接收录 `*.pages.dev` 那套地址，域名上线那天就变成两份同内容。所以生产和预览都先 noindex，sitemap 照常生成、但**不提交**给 GSC。
-  **上线当天只改 `src/lib/site.ts` 里的 `false` → `true`，重新构建**，没有第二个手工步骤。`check_site.py` §16 用同一个文件里的值决定期望：产物模式与它不符即失败，所以「改了值忘了改闸门」这条路不存在。
+  **当前 `SITE_LIVE = true`（2026-11-16 06:05 CST 翻的，见下面「⑤⑥ 记录」）。** 在此之前它是 `false`，原因写在时间线里：域名还没指向 Pages，而每页 canonical 都指向 `apocalab.com`；Google 拿不到 canonical 目标时会直接收录 `*.pages.dev` 那套地址，域名上线那天就变成两份同内容——所以那段时间生产和预览都 noindex，sitemap 照常生成、但**不提交**给 GSC。
+  **上线当天只改 `src/lib/site.ts` 里的 `false` → `true`，重新构建**，没有第二个手工步骤（实际执行时就是一个 commit 只改这一行）。`check_site.py` §16 用同一个文件里的值决定期望：产物模式与它不符即失败，所以「改了值忘了改闸门」这条路不存在。
   三个方向都有硬断言：staged / preview 必须带这个头；production 整份 `_headers` 与全部 HTML 都不许出现 `noindex` 字样；任何模式下 HTML 都不许出现 `<meta name="robots">`（收录开关只留一条路）。生成器还会把 `# mode:` / `# site-live:` 写进产物，闸门校验这两行自证。
 - **删掉 `public/_headers` 的理由**：静态副本会在部署时覆盖生成物，谁盖谁取决于平台复制顺序 —— 这种「有时生效」的配置比没有更危险。闸门断言 `public/_headers` 不存在，删它就是构建失败。
 - **`_headers` 还负责 `.geojson` 的 MIME**：Pages 对未知扩展名默认 `application/octet-stream`，降级轮廓那条路径要它明确是 `application/json`。
-- **交付物只有两种**：Cloudflare Pages 的 `*.pages.dev` 预览链接（`SITE_LIVE=false` 期间生产与预览都带 noindex）与正式域名 `apocalab.com`。平台自带的托管预览链接不再作为交付物，也不写进任何文档。
+- **交付物只有两种**：Cloudflare Pages 的 `*.pages.dev` 地址与正式域名 `apocalab.com`。`SITE_LIVE=false` 那段时期（2026-11-16 06:05 CST 之前）生产与预览都带 noindex；翻开关之后 `apocalab.pages.dev` 与主域同源同构建，同样不再带 noindex，靠 canonical 收拢（见「⑤⑥ 记录」末条）。平台自带的托管预览链接不再作为交付物，也不写进任何文档。
 - **兜底部署路径（平台构建队列堵塞时）**：Git 直连构建会整段时间卡在 `queued`（`clone_repo` 根本没有开始），此时线上停留旧版本。兜底是本地按目标分支口径构建后直传同一份产物：
 
   ```
@@ -377,16 +377,16 @@ export const BASEMAP = {
   |---|---|---|
   | ① | `node scripts/verify_map.mjs https://apocalab.pages.dev`（先起 headless Chrome 在 9333 端口），三态全过：瓦片可达 / 瓦片屏蔽 / 关 JS | 考的是 CDN 上 `.geojson` 的 MIME、`_headers` 的实际生效、真实网络下的降级路径，本地 `astro build` 验不出来 |
   | ② | `python scripts/check_urls.py --online https://apocalab.pages.dev`：随机不存在的路径必须 **404**、404 响应必须是本站 404 页（五条回收链接在 `<main>` 里）、五条链接逐个真发请求确认 200、不存在的 `.png` 必须 **404**（Content-Type 只 WARN，见下面那条已知偏差） | 软 404 是**托管平台的 not-found 行为**，本地静态服务器（`SimpleHTTPRequestHandler`）永远正确 404，复现不出来 |
-  | ③ | 绑定 `apocalab.com` + 改 DNS。**当前状态（2026-11-16）：已通过** —— 正式域名 `200`，`/sitemap.xml` `200`（`application/xml`，10 条 loc 全部 `https://apocalab.com/` 开头），Pages 自定义域已 `Active`。此前的 530/`1016`（无记录）与 522（记录在、Pages 侧未加）保留在下面的时间线里作排查依据 | **noindex 期间绑域名没有任何 SEO 损失**（noindex 就是不让收录），反而能让正式域名先过一遍闸门；反过来把这一步排到翻开关之后，真出问题时站已经可以被收录了。此刻整站仍在 noindex，域名指过来只是让内容在一个「不许被收录」的地址上先跑通 |
-  | ④ | `python scripts/check_urls.py --online https://apocalab.com` —— host 从 `apocalab.pages.dev` 换成正式域名再跑一遍。**不通过不许往下走**。**当前状态（2026-11-16）：已通过** —— 首测 **84 PASS / 0 FAIL / 1 WARN**（那条 WARN 是既定的 `.png` 类型偏差），见下方「实测记录 · 接通后首测」。**「已通过」的口径钉死为三件事：域名 200 + `X-Robots-Tag: noindex` 仍在 + sitemap 10 条 loc 均以 `https://apocalab.com/` 开头。三项之外一律不作数：不等于可收录，不等于可提交 GSC** | **不换 host，闸门测的就还是 `pages.dev`，正式域名等于一次都没测过**；DNS、证书、`_headers` 在正式域名上的生效，都是新的东西。这一步之前，正式域名从未被任何闸门碰过 |
+  | ③ | 绑定 `apocalab.com` + 改 DNS。**当前状态（2026-11-16）：已通过** —— 正式域名 `200`，`/sitemap.xml` `200`（`application/xml`，10 条 loc 全部 `https://apocalab.com/` 开头），Pages 自定义域已 `Active`。此前的 530/`1016`（无记录）与 522（记录在、Pages 侧未加）保留在下面的时间线里作排查依据 | **noindex 期间绑域名没有任何 SEO 损失**（noindex 就是不让收录），反而能让正式域名先过一遍闸门；反过来把这一步排到翻开关之后，真出问题时站已经可以被收录了。**当时**整站仍在 noindex（`SITE_LIVE=false` 那段时期），域名指过来只是让内容在一个「不许被收录」的地址上先跑通 |
+  | ④ | `python scripts/check_urls.py --online https://apocalab.com` —— host 从 `apocalab.pages.dev` 换成正式域名再跑一遍。**不通过不许往下走**。**当前状态（2026-11-16）：已通过** —— 首测 **84 PASS / 0 FAIL / 1 WARN**（那条 WARN 是既定的 `.png` 类型偏差），见下方「实测记录 · 接通后首测」。**「已通过」的口径钉死为三件事：域名 200 + `X-Robots-Tag: noindex` 仍在 + sitemap 10 条 loc 均以 `https://apocalab.com/` 开头。** 注意这三条是 **④ 当时的判据**（那时 `SITE_LIVE=false`，带 noindex 才对）；翻开关后这条判据反过来，见 ⑥ 与「⑤⑥ 记录」。三项之外一律不作数：不等于可收录，不等于可提交 GSC | **不换 host，闸门测的就还是 `pages.dev`，正式域名等于一次都没测过**；DNS、证书、`_headers` 在正式域名上的生效，都是新的东西。这一步之前，正式域名从未被任何闸门碰过 |
   | ④b | **`www` → 裸域 301。** DNS 加一条 `CNAME` `www` → `apocalab.pages.dev`（**代理必须开，橙色云**）、**不加进 Pages 的 Custom domains**、**不加通配符**；再把那条 Redirect Rule 的匹配条件从「通配符 URL」改成自定义筛选表达式 `http.host eq "www.apocalab.com"`，动作 Dynamic、目标 `concat("https://apocalab.com", http.request.uri.path)`、状态码 `301`、保留查询字符串。**当前状态（2026-11-16）：已通过**，六条实测见下面「④b 记录」 | 灰云会让 `www` 直接回源到 `apocalab.pages.dev`，而 Pages 对 `www` 不做 301，等于两份 200 内容；把它绑进 Custom domains 同理——**这一步的目的就是让 `www` 永远不以 200 出现**。匹配条件必须只看 host：原模板把请求 URL 写成 `https://www.apocalab.com/*`，**含协议头**，只匹配 443，`:80` 会漏成 522 |
-  | ⑤ | 把 `src/lib/site.ts` 的 `SITE_LIVE` 改成 `true`，构建、推送、等部署完成——去掉全站 `noindex`。**前置闸门：必须先等「任意城市搜索」上线并自测通过**（见下面那条），否则不许翻 | 这是**唯一一个放开收录的动作**，排在域名已经验收之后，所以放开的那一刻，被放开的地址是新的、已验过的那个 |
-  | ⑥ | 抓首页响应头与 HTML（`https://apocalab.com/`，顺带 `https://apocalab.pages.dev/`）：**noindex 必须已经消失**，**canonical 必须仍指向 `https://apocalab.com/`** | 这一步验的是**两件来源不同的事**，缺一不可：noindex 响应头来自 `SITE_LIVE`，canonical 来自 `SITE_ORIGIN`。前者不消失 = 没真正放开收录；后者若被顺手改到 `pages.dev` = 把正式域名上的页面自己否掉 |
+  | ⑤ | 把 `src/lib/site.ts` 的 `SITE_LIVE` 改成 `true`，构建、推送、等部署完成——去掉全站 `noindex`。**前置闸门：必须先等「任意城市搜索」上线并自测通过**（见下面那条），否则不许翻。**当前状态（2026-11-16 06:05 CST / 22:05 UTC）：已执行**，只改了这一个布尔值，见下方「⑤⑥ 记录」 | 这是**唯一一个放开收录的动作**，排在域名已经验收之后，所以放开的那一刻，被放开的地址是新的、已验过的那个 |
+  | ⑥ | 抓首页响应头与 HTML（`https://apocalab.com/`，顺带 `https://apocalab.pages.dev/`）：**noindex 必须已经消失**，**canonical 必须仍指向 `https://apocalab.com/`**。**当前状态（2026-11-16 06:07 CST / 22:07 UTC）：已通过**，12 条响应头逐个抓过、`check_live.py` 40/0、`check_www.py` 六条全过 | 这一步验的是**两件来源不同的事**，缺一不可：noindex 响应头来自 `SITE_LIVE`，canonical 来自 `SITE_ORIGIN`。前者不消失 = 没真正放开收录；后者若被顺手改到 `pages.dev` = 把正式域名上的页面自己否掉 |
 
   **①没过不切，②没过也不切，④不通过不翻开关；跑了没过，先修，不许「先上线再看」。**
   **口径（③ 与 ⑥ 的关系）**：canonical 从头到尾都由 `SITE_ORIGIN` 固定为 `https://apocalab.com/`，**翻转前就已经指向它**，不随 `SITE_LIVE` 变。所以「翻开关」改变的是收录许可，不是 canonical 指向；⑥ 才会同时验这两件事。
   **③–⑥ 必须在同一天连续做完，不许隔夜。** 两个方向的后果不对称，危险的那个是「只翻开关、没绑域名」：production 立刻可被收录，而 canonical 指向的 `apocalab.com` 还没有内容——爬虫拿到的是 `pages.dev` 一份、canonical 打不开，域名上线那天同一内容就落在两个 hostname 上，正是 `SITE_LIVE` 存在的理由。反过来「只绑域名、没翻开关」不会进索引（两边都还 noindex），但会让正式域名空转，并且「已经绑了」这个状态很容易被当成已经上线，所以同样不许隔夜。
-  **③ 的绑域名与 DNS、④ 的正式域名闸门、④b 的 `www` 301 均已于 2026-11-16 执行完毕并通过；只剩 ⑤ 的翻开关与 ⑥ 的验收在等指令**，那之前不翻 `SITE_LIVE`、不动 `_redirects`、不再新增任何 DNS 记录或 Redirect Rule。
+  **③ 的绑域名与 DNS、④ 的正式域名闸门、④b 的 `www` 301 均已于 2026-11-16 执行完毕并通过；⑤ 的翻开关与 ⑥ 的验收已于 2026-11-16 06:05–06:07 CST 连续做完并通过。七步至此全部走完。** 此后不许再新增任何 DNS 记录或 Redirect Rule，除非上面那张表里有一条红过。
 
   **前置闸门（2026-11-16 新增，排在七步之外、拦在 ⑤ 之前）：`SITE_LIVE` 的翻转必须等「任意城市搜索」上线并自测通过之后，才允许执行。** 理由一句：现在翻转，谷歌与首批访客看到的是 20 个城市、3 档当量的固定面板，与 `nuke simulator` 这个词的期待不一致，收录窗口一旦用掉就换不回来。
   - 这条**只拦 ⑤**：③ 的域名绑定、④ 的线上自验、以及 ⑥ 之后的验收动作都不受影响，照常推进。
@@ -403,7 +403,7 @@ export const BASEMAP = {
 
   **实测记录 · 接通后首测（2026-11-16 03:2x，host = `https://apocalab.com`）**：
   - `python scripts/check_urls.py --online https://apocalab.com` → **PASS 84 / FAIL 0 / WARN 1**，exit 0。五节全过：sitemap 10 条 loc、站点级文件、降级资源、本地 404、线上 not-found 行为。唯一那条 WARN 是既定的 `.png` 类型偏差（`/zzz-<token>.png` → 404 + `text/html`），按下面的「已知偏差」结案，不是本轮新增问题。
-  - **`X-Robots-Tag: noindex` —— 在。** 首页、`/sitemap.xml`、`/methodology/` 三个响应头逐个抓过，都带 `noindex`；首页 HTML 里没有 `<meta name="robots">`，canonical 是 `https://apocalab.com/`。
+  - **`X-Robots-Tag: noindex` —— 当时在。** 首页、`/sitemap.xml`、`/methodology/` 三个响应头逐个抓过，都带 `noindex`；首页 HTML 里没有 `<meta name="robots">`，canonical 是 `https://apocalab.com/`。**这是 03:2x 的快照，现已作废**：2026-11-16 06:05 CST 翻开关后该头已从全部页面消失。
   - 判定：**正常中间态 —— 可访问、不可收录，可进入 ④b 步**（`www` → 裸域 301），再往后才是 ⑤ 的翻 `SITE_LIVE`。这不是缺陷，正是 ③ 完成、④b 与 ⑤ 都还没做时应有的样子。
   - 环境备注：本机解析层被代理 TAP 拦掉（对 `114.114.114.114` / `223.5.5.5` / 网关的 UDP:53 全是空应答），`apocalab.com` 在本机 `getaddrinfo` 直接失败。**`check_urls.py` 一个字节没改**，跑的时候外面套了一层运行时解析垫片（DoH 拿 A 记录后再连），请求仍是带真实 SNI 与 Host 的正常 TLS 请求。以后在这台机上跑正式域名会先看到「域名未接通（DNS）」的 exit 2，那是本机解析问题，不是站点问题 —— 先按这个办法取 IP，再跑闸门。
 
@@ -416,7 +416,7 @@ export const BASEMAP = {
     - **记录为空，直接添加，无需先删**：没有记录就无从冲突，「先删后建」是给残留记录准备的说明，套在这里会误导后来排查的人。
     - **apex 用 CNAME 是允许的**：Cloudflare 对根域做 CNAME 扁平化（CNAME flattening），不是非法配置。**不要改用 A 记录指向 Pages 的 IP** —— Pages 的地址是共享任播、会变，钉死 IP 是自找故障。
   - **b. 记录加好后，去 Pages → 项目 `apocalab` → Custom domains → 添加 `apocalab.com`，等它变 `Active`。** DNS 上有记录、Pages 认这个域名，**两边任缺一个都不算接通**：只有 DNS 记录、Pages 没认，回的是 **522**（本轮实测过这一段）；这也是 ③ 那两个半小时里页面打不开的真正原因。
-  - **c. 等 1~5 分钟**（首次签证书可能要更久），再验三条：首页 200 / sitemap 200 / 响应头 `X-Robots-Tag: noindex` 在（`SITE_LIVE=false` 期间它必须在）。
+  - **c. 等 1~5 分钟**（首次签证书可能要更久），再验三条：首页 200 / sitemap 200 / 响应头 `X-Robots-Tag: noindex` 在（当时 `SITE_LIVE=false`，它在是正确状态；这是 ③ 阶段的判据，翻开关后它必须反过来）。
 
   **`www` 的处置已经落地（原来「不属本轮范围、等指令」那段作废）**：`www.apocalab.com` 现在有一条唯一的 `CNAME` → `apocalab.pages.dev`（**已代理**），外加**一条** Redirect Rule 做 301；Pages 的 Custom domains 里**始终没有** `www`。三条红线继续有效：不许把 `www` 加进 Custom domains、不许加通配符、不许用灰云。细节见下面这段。
 
@@ -439,10 +439,48 @@ export const BASEMAP = {
 
     路径与查询串逐字保留，六条全是**单跳**：`Location` 的 host 直接就是裸域，没有先跳一次 `https://www.…`。
   - **无循环检查**：`https://www.apocalab.com/` → 一跳 `301 https://apocalab.com/` → **200，45,194 字节，标题 `Nuke Simulator: What a Nuclear Bomb Would Do to Any City`**，最终 URL 里不再出现 `www`。
-  - **apex 未受影响**：`http://apocalab.com/` 仍是 **301 → `https://apocalab.com/`**（响应体 534 字节，来源是 Pages 自定义域自己的 http→https，与 `www` 那条规则无关）；`https://apocalab.com/` 仍是 **200 + `X-Robots-Tag: noindex`**（`SITE_LIVE` 未翻，符合预期）。
+  - **apex 未受影响**：`http://apocalab.com/` 仍是 **301 → `https://apocalab.com/`**（响应体 534 字节，来源是 Pages 自定义域自己的 http→https，与 `www` 那条规则无关）；`https://apocalab.com/` 当时是 **200 + `X-Robots-Tag: noindex`**（05:58 的快照，`SITE_LIVE` 尚未翻；该头已随 ⑤ 去掉）。
   - **301 响应上没有 `X-Robots-Tag`**：`_headers` 只作用于 Pages 吐出的内容，边缘生成的 301 不经过它。这不是缺陷——301 本身不是可索引的页面。
   - TLS：`www` 走的是 Universal SSL 的 Let's Encrypt 证书（CN `apocalab.com`，SAN 含 `*.apocalab.com`），到期 2027-02-06，不需要单独签。
   - **可重跑**：`python scripts/check_www.py` —— 六条 + 无循环 + `http://apocalab.com/` 对照，结果写 `www-gate.json`，任一失败 exit 1。以后改规则、换域名、翻开关都先跑它。
+
+  **⑤⑥ 记录 —— 翻开关与上线验收已通过（2026-11-16）。**
+
+  - **⑤ 翻开关的时刻**：`src/lib/site.ts` 的 `SITE_LIVE` 由 `false` 改为 `true`，**只改这一行**，commit `a3f4993`（`go live: SITE_LIVE = true`）。
+    - **推送 / 部署开始：2026-11-16 06:05:58 CST（2026-11-15 22:05:58 UTC）**，以 `git push origin main` 完成、远端 `refs/heads/main` 已指 `a3f4993` 为准。
+    - **部署完成：2026-11-16 06:06:40 CST（2026-11-15 22:06:40 UTC）**。口径是「第一次观测到 `/` 不再带 `X-Robots-Tag` 的那次轮询」；前一次轮询 06:06:31 CST 仍带 `noindex`，所以真实切换点落在 **06:06:31–06:06:40 CST** 之间。**整个部署约 42 秒。**
+  - **本地构建口径**：本机没有 `CF_PAGES_BRANCH` 时，`true` 会落进 preview 分支（仍带 noindex）。所以本地验生产产物必须显式给分支：`CF_PAGES_BRANCH=main node node_modules/astro/astro.js build`，构建日志自证 `_headers: production (CF_PAGES_BRANCH=main) [SITE_LIVE=true]`。线上由平台注入 `main`，不需要这一步。
+  - **⑥-1 · 12 条响应头（2026-11-16 06:07 CST / 22:07 UTC，host `https://apocalab.com`）—— 全部 200，全部没有 `X-Robots-Tag`**：
+
+    | URL | 码 | `X-Robots-Tag` |
+    |---|---|---|
+    | `/` | 200 | 无 |
+    | `/blast-radius/` | 200 | 无 |
+    | `/nuclear-bomb-map/` | 200 | 无 |
+    | `/methodology/` | 200 | 无 |
+    | `/nuclear-winter/` | 200 | 无 |
+    | `/nuclear-bomb-map/new-york/` | 200 | 无 |
+    | `/nuclear-bomb-map/los-angeles/` | 200 | 无 |
+    | `/nuclear-bomb-map/london/` | 200 | 无 |
+    | `/nuclear-bomb-map/paris/` | 200 | 无 |
+    | `/nuclear-bomb-map/tokyo/` | 200 | 无 |
+    | `/sitemap.xml` | 200 | 无 |
+    | `/robots.txt` | 200 | 无 |
+
+  - **⑥-2 · dist 扫描：`noindex` 出现 0 次。** 扫的是 `dist/` 下全部 `.html` 与 `_headers`，共 **12 个文件**（11 页 + `_headers`），命中 **0**。`dist/_headers` 自证头为 `# mode: production` / `# site-live: true` / `# branch: main`，正文里除 `.geojson` 的 `Content-Type` 外没有任何规则。
+  - **⑥-3 · `robots.txt` 原文（线上抓取）**：三行，没有 `Disallow`（更没有任何 `Disallow: /`），sitemap 指裸域：
+
+    ```
+    User-agent: *
+    Allow: /
+    Sitemap: https://apocalab.com/sitemap.xml
+    ```
+
+  - **⑥-4 · canonical 与 sitemap**：10 个页面（排除 `404.html`）的 canonical **逐个**为 `https://apocalab.com/…` 对应路径；`404.html` 无 canonical（既定设计）。sitemap **10 条 loc**，**全部**以 `https://apocalab.com/` 开头。
+  - **⑥-5 · `www` 未被这次部署影响**：翻开关后重跑 `python scripts/check_www.py` → **PASS**。六条（443 三条 + 80 三条）仍是单跳 **301** → `https://apocalab.com/` 同路径，查询串完整；无循环检查一跳落 200；`http://apocalab.com/` 仍是 **301 → `https://apocalab.com/`**。
+  - **⑥ 的两个可重跑闸门**：`python scripts/check_live.py`（上面 1–4 项，40 项断言，写 `live-gate.json`，任一失败 exit 1）与 `python scripts/check_www.py`（第 5 项）。
+  - **`apocalab.pages.dev` 会跟着一起失去 noindex —— 已知、可接受、不要为它单独加头。** 它与主域**是同一份构建**，`SITE_LIVE` 是构建期常量，没有「按 host 分流」这回事，所以翻牌后 `https://apocalab.pages.dev/` 同样是 200 + 无 `X-Robots-Tag`（实测 06:08 CST：200、无该头、canonical 指 `https://apocalab.com/`、44,827 字节）。收拢手段只有 canonical：它与主域每页 canonical 完全一致，重复内容会被归并到裸域。**明确不做的事**：不给 `.pages.dev` 单独加 `noindex` —— CF Pages 的 `_headers` 只支持按**路径**匹配、不支持按 host 匹配，为它写一条 `/*` 规则会把主域一起屏蔽掉，等于用一次误伤换一个本来就不需要的头。预览分支不受影响：`https://preview.apocalab.pages.dev/` 实测仍是 **200 + `X-Robots-Tag: noindex`**（preview 分支的构建，符合 `SITE_LIVE` 表第 4 行）。
+  - **此后 noindex 在本文档里只作历史时间线出现**（`SITE_LIVE=false` 时期的记录、`_headers` 四种组合表、404 的`_headers` 生效说明），**不得再把「全站带 noindex」写成当前状态**。当前状态：production 与 `pages.dev` 都不带，preview 分支带。
 
   **实测记录（2026-11-16 03:00，接通前）——域名未接通（DNS），不是 SEO 缺陷。** 保留作排查依据：Pages 项目当时就是健康的，只是域名没真正指向它：
   - **根因（你截图核过）：这个域在 Cloudflare DNS 里 `0/200` 条记录，apex 与 www 一条都没有。** 所以是「**没有任何记录指向 Pages**」，不是旧记录打架——这一条决定了排查方向：不需要删任何东西，直接新建。
@@ -458,7 +496,7 @@ export const BASEMAP = {
   **实测（2026-11-14，加 404.html 先后只差这一次部署，项目设置一个都没动）**：
   - `/zzz-no-such-page-9f3a/` → **404** + 本站 404 页（改之前是 200 + 首页完整 HTML）；
   - `/zzz.png` → **404**，Content-Type `text/html`。状态码达标，类型不达标——按下面的「已知偏差」结案，不修。
-  - `_headers` 对 404 响应同样生效（404 响应上仍带着 `X-Robots-Tag: noindex`），所以「拿 header 改 404 的类型」这条路技术上通，只是不该走。
+  - `_headers` 对 404 响应同样生效（当时 404 响应上仍带着 `X-Robots-Tag: noindex`；翻开关后 404 也不再带），所以「拿 header 改 404 的类型」这条路技术上通，只是不该走。
   - 所以「改项目设置」这一步**不需要执行**，留着给以后真的出现 200 时用。
 
   **已知偏差 · 判断为可接受：不存在的 `.png` 返回 404，但 Content-Type 是 `text/html`。**
