@@ -178,6 +178,13 @@ const { label = 'Search any city' } = Astro.props;
       var key = bucketOf(q);
       var needle = ascii(q);
 
+      // A new query invalidates the previous candidate list: leaving it on screen
+      // while the next shard is in flight shows matches for text that is no
+      // longer in the box.
+      shown = [];
+      list.hidden = true;
+      list.textContent = '';
+
       function use(rows) {
         if (token !== myToken) return;
         var hits = matches(rows, needle);
