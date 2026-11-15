@@ -17,6 +17,7 @@ verify_out.txt
 switch.json
 map-gate.json
 search-gate.json
+www-gate.json
 .tmp_chrome*/
 .deploy/
 
