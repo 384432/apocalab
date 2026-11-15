@@ -942,6 +942,8 @@ thermal_3rd.air.*               → Fig.7.42 p.291 三档直读（10 cal/cm²）
 ### 14.5.1 实测记录：a–f 六条（2026-11-16 04:53 CST，本地）
 
 - **环境**：`http://127.0.0.1:4322` 的 `dist/` 产物（`astro build` 后未部署），Chromium 157 headless，`node scripts/verify_search.mjs http://127.0.0.1:4322`。
+- **线上复跑（2026-11-16 05:02 CST）**：同一脚本对 `https://apocalab.pages.dev` 再跑一遍，六条与三条硬约束的输出**逐项一致**（`Denver, CO` / `39.7392° N, 104.9847° W` / `Łódź, 74` / `not in the gazetteer` / 屏蔽分片后仍是 `New York` + 5 环）；分片以 `application/json` 200 返回，`/data/cities/l.json` 108,974 字节 = 构建产物字节数。
+- **线上这一跑抓到过一个本地没暴露的缺陷**：换查询时分片还在飞，上一轮的候选列表仍挂在屏上，用例 f 因此读到的是 Springfield。已修（新查询先把列表清空），修完重跑本地与线上都全绿——这条留着，说明「本地全绿」不等于通过，§3.7 的闸门必须对线上跑。
 - **设置**：100 kt / 空爆（默认态），脚本逐条断言，原始输出落盘在同目录 `search-gate.json`。
 - **读法**：`head` 是状态区（面板标题），`coords` 是环心那行，`km` 是五个距离，`status` 是搜索框下面那行。
 
