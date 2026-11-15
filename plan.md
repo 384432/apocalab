@@ -377,30 +377,42 @@ export const BASEMAP = {
   |---|---|---|
   | ① | `node scripts/verify_map.mjs https://apocalab.pages.dev`（先起 headless Chrome 在 9333 端口），三态全过：瓦片可达 / 瓦片屏蔽 / 关 JS | 考的是 CDN 上 `.geojson` 的 MIME、`_headers` 的实际生效、真实网络下的降级路径，本地 `astro build` 验不出来 |
   | ② | `python scripts/check_urls.py --online https://apocalab.pages.dev`：随机不存在的路径必须 **404**、404 响应必须是本站 404 页（五条回收链接在 `<main>` 里）、五条链接逐个真发请求确认 200、不存在的 `.png` 必须 **404**（Content-Type 只 WARN，见下面那条已知偏差） | 软 404 是**托管平台的 not-found 行为**，本地静态服务器（`SimpleHTTPRequestHandler`）永远正确 404，复现不出来 |
-  | ③ | 绑定 `apocalab.com` + 改 DNS。**当前状态（2026-11-16）：未通过** —— Cloudflare DNS 里 `apocalab.com` 这个域 **0/200 条记录**，apex 与 www 都没有任何记录，所以域名 530 / `1016`；Pages 项目本身健康。**不是记录冲突，是根本没有记录指向它**，见下面的实测记录与 a–c 排查清单 | **noindex 期间绑域名没有任何 SEO 损失**（noindex 就是不让收录），反而能让正式域名先过一遍闸门；反过来把这一步排到翻开关之后，真出问题时站已经可以被收录了。此刻整站仍在 noindex，域名指过来只是让内容在一个「不许被收录」的地址上先跑通 |
-  | ④ | `python scripts/check_urls.py --online https://apocalab.com` —— host 从 `apocalab.pages.dev` 换成正式域名再跑一遍。**不通过不许往下走** | **不换 host，闸门测的就还是 `pages.dev`，正式域名等于一次都没测过**；DNS、证书、`_headers` 在正式域名上的生效，都是新的东西。这一步之前，正式域名从未被任何闸门碰过 |
+  | ③ | 绑定 `apocalab.com` + 改 DNS。**当前状态（2026-11-16）：已通过** —— 正式域名 `200`，`/sitemap.xml` `200`（`application/xml`，10 条 loc 全部 `https://apocalab.com/` 开头），Pages 自定义域已 `Active`。此前的 530/`1016`（无记录）与 522（记录在、Pages 侧未加）保留在下面的时间线里作排查依据 | **noindex 期间绑域名没有任何 SEO 损失**（noindex 就是不让收录），反而能让正式域名先过一遍闸门；反过来把这一步排到翻开关之后，真出问题时站已经可以被收录了。此刻整站仍在 noindex，域名指过来只是让内容在一个「不许被收录」的地址上先跑通 |
+  | ④ | `python scripts/check_urls.py --online https://apocalab.com` —— host 从 `apocalab.pages.dev` 换成正式域名再跑一遍。**不通过不许往下走**。**当前状态（2026-11-16）：已通过** —— 首测 **84 PASS / 0 FAIL / 1 WARN**（那条 WARN 是既定的 `.png` 类型偏差），见下方「实测记录 · 接通后首测」 | **不换 host，闸门测的就还是 `pages.dev`，正式域名等于一次都没测过**；DNS、证书、`_headers` 在正式域名上的生效，都是新的东西。这一步之前，正式域名从未被任何闸门碰过 |
   | ⑤ | 把 `src/lib/site.ts` 的 `SITE_LIVE` 改成 `true`，构建、推送、等部署完成——去掉全站 `noindex` | 这是**唯一一个放开收录的动作**，排在域名已经验收之后，所以放开的那一刻，被放开的地址是新的、已验过的那个 |
   | ⑥ | 抓首页响应头与 HTML（`https://apocalab.com/`，顺带 `https://apocalab.pages.dev/`）：**noindex 必须已经消失**，**canonical 必须仍指向 `https://apocalab.com/`** | 这一步验的是**两件来源不同的事**，缺一不可：noindex 响应头来自 `SITE_LIVE`，canonical 来自 `SITE_ORIGIN`。前者不消失 = 没真正放开收录；后者若被顺手改到 `pages.dev` = 把正式域名上的页面自己否掉 |
 
   **①没过不切，②没过也不切，④不通过不翻开关；跑了没过，先修，不许「先上线再看」。**
   **口径（③ 与 ⑥ 的关系）**：canonical 从头到尾都由 `SITE_ORIGIN` 固定为 `https://apocalab.com/`，**翻转前就已经指向它**，不随 `SITE_LIVE` 变。所以「翻开关」改变的是收录许可，不是 canonical 指向；⑥ 才会同时验这两件事。
   **③–⑥ 必须在同一天连续做完，不许隔夜。** 两个方向的后果不对称，危险的那个是「只翻开关、没绑域名」：production 立刻可被收录，而 canonical 指向的 `apocalab.com` 还没有内容——爬虫拿到的是 `pages.dev` 一份、canonical 打不开，域名上线那天同一内容就落在两个 hostname 上，正是 `SITE_LIVE` 存在的理由。反过来「只绑域名、没翻开关」不会进索引（两边都还 noindex），但会让正式域名空转，并且「已经绑了」这个状态很容易被当成已经上线，所以同样不许隔夜。
-  **③ 起的所有动作（绑域名、DNS、翻开关）在收到明确指令后才执行**，在那之前不提前绑自定义域名、不动 DNS。
+  **③ 的绑域名与 DNS 已于 2026-11-16 执行完毕并通过；⑤ 的翻开关、以及 `www` 的 301 仍在等明确指令**，那之前不翻 `SITE_LIVE`、不加 `www` 记录、不动 `_redirects`。
 
-  **③ 的排查清单（1016 = 域名没接到 Pages，全部是 Cloudflare 后台的手工步骤）**：
-  - **a. DNS → Records → Add record**。`apocalab.com` 现在是 **0/200 条记录**，apex 与 www 都没有任何记录，所以这是一次**从零添加**，填确定值：
+  **域名接通时间线（三个阶段，前两段是排查依据，不要删）**：
+  - **① `530` / `error code: 1016`（2026-11-16 03:00）**：Cloudflare DNS 里 `apocalab.com` **0/200 条记录**，apex 与 www 都没有任何记录。**不是记录冲突，是根本没有记录指向 Pages** —— 这一步决定了排查方向：不需要删任何东西，直接新建。
+  - **② `522`（2026-11-15 19:20 UTC）**：记录已经在了，但 **Pages 侧还没加这个自定义域**，所以 CF 连不回源站。这一段证明「只有 DNS 记录不算接通」，对应下面 b 步那半个动作。
+  - **③ `200`（2026-11-16，本轮实测）**：DNS 记录 + Pages 自定义域 **两侧都到位**。首页 200、标题 `Nuke Simulator: What a Nuclear Bomb Would Do to Any City`、34,785 字节；`/sitemap.xml` 200、`application/xml`、10 条 loc 全部 `https://apocalab.com/` 开头。
+  - 时间线的意义：`1016` → `522` → `200` 三段分别对应「没记录」「有记录但 Pages 没认」「两侧都认」，以后同样的码回来，直接看落在哪一段就知道缺哪一半。
+
+  **实测记录 · 接通后首测（2026-11-16 03:2x，host = `https://apocalab.com`）**：
+  - `python scripts/check_urls.py --online https://apocalab.com` → **PASS 84 / FAIL 0 / WARN 1**，exit 0。五节全过：sitemap 10 条 loc、站点级文件、降级资源、本地 404、线上 not-found 行为。唯一那条 WARN 是既定的 `.png` 类型偏差（`/zzz-<token>.png` → 404 + `text/html`），按下面的「已知偏差」结案，不是本轮新增问题。
+  - **`X-Robots-Tag: noindex` —— 在。** 首页、`/sitemap.xml`、`/methodology/` 三个响应头逐个抓过，都带 `noindex`；首页 HTML 里没有 `<meta name="robots">`，canonical 是 `https://apocalab.com/`。
+  - 判定：**正常中间态 —— 可访问、不可收录，可进入第 ⑤ 步**（翻 `SITE_LIVE`）。这不是缺陷，正是 ③ 完成、⑤ 未做时应有的样子。
+  - 环境备注：本机解析层被代理 TAP 拦掉（对 `114.114.114.114` / `223.5.5.5` / 网关的 UDP:53 全是空应答），`apocalab.com` 在本机 `getaddrinfo` 直接失败。**`check_urls.py` 一个字节没改**，跑的时候外面套了一层运行时解析垫片（DoH 拿 A 记录后再连），请求仍是带真实 SNI 与 Host 的正常 TLS 请求。以后在这台机上跑正式域名会先看到「域名未接通（DNS）」的 exit 2，那是本机解析问题，不是站点问题 —— 先按这个办法取 IP，再跑闸门。
+
+  **③ 的排查清单（1016 / 522 时的手工步骤，已执行完毕，保留备查）**：
+  - **a. DNS → Records → Add record**。当时 `apocalab.com` 是 **0/200 条记录**，apex 与 www 都没有任何记录，所以这是一次**从零添加**，填确定值：
     - 类型 **`CNAME`**
     - 名称 **`@`**（即 `apocalab.com`）
     - 目标 **`apocalab.pages.dev`**
     - 代理状态 **已代理**（橙色云）
     - **记录为空，直接添加，无需先删**：没有记录就无从冲突，「先删后建」是给残留记录准备的说明，套在这里会误导后来排查的人。
     - **apex 用 CNAME 是允许的**：Cloudflare 对根域做 CNAME 扁平化（CNAME flattening），不是非法配置。**不要改用 A 记录指向 Pages 的 IP** —— Pages 的地址是共享任播、会变，钉死 IP 是自找故障。
-  - **b. 记录加好后，去 Pages → 项目 `apocalab` → Custom domains → 添加 `apocalab.com`，等它变 `Active`。** DNS 上有记录、Pages 认这个域名，**两边任缺一个都不算接通**（只有 DNS 记录、Pages 没认，仍然是 1016）。
+  - **b. 记录加好后，去 Pages → 项目 `apocalab` → Custom domains → 添加 `apocalab.com`，等它变 `Active`。** DNS 上有记录、Pages 认这个域名，**两边任缺一个都不算接通**：只有 DNS 记录、Pages 没认，回的是 **522**（本轮实测过这一段）；这也是 ③ 那两个半小时里页面打不开的真正原因。
   - **c. 等 1~5 分钟**（首次签证书可能要更久），再验三条：首页 200 / sitemap 200 / 响应头 `X-Robots-Tag: noindex` 在（`SITE_LIVE=false` 期间它必须在）。
 
   **`www` 不属本轮范围（它的处理排在 ④ 通过之后、⑤ 翻开关之前那一步）**：这一轮**只绑裸域 `apocalab.com`**；`www.apocalab.com` 不解析、不绑、不加记录。它的处置放在翻 `SITE_LIVE` 之前，方式是 **301 到裸域**，具体形式等我指令。
 
-  **实测记录（2026-11-16，03:00 测响应、03:10 定根因）——域名未接通（DNS），不是 SEO 缺陷。** Pages 项目本身是健康的，只是域名没真正指向它：
+  **实测记录（2026-11-16 03:00，接通前）——域名未接通（DNS），不是 SEO 缺陷。** 保留作排查依据：Pages 项目当时就是健康的，只是域名没真正指向它：
   - **根因（你截图核过）：这个域在 Cloudflare DNS 里 `0/200` 条记录，apex 与 www 一条都没有。** 所以是「**没有任何记录指向 Pages**」，不是旧记录打架——这一条决定了排查方向：不需要删任何东西，直接新建。
   - 你发起的请求：`https://apocalab.com/` → **530, error code: 1016**，17 字节纯文本；`/sitemap.xml` → 同样 530 1016；`https://www.apocalab.com/` → 同样 530 1016；而 `https://apocalab.pages.dev/` → **200，34,785 字节，标题正确，canonical 指 `https://apocalab.com/`**。
   - 我这边跑闸门：`python scripts/check_urls.py --online https://apocalab.com` → **前置判定中止，exit 2**，本机连 DNS 都解析不出来（`getaddrinfo failed`）。同一台机上 `--online https://apocalab.pages.dev` 仍是 **84 PASS / 0 FAIL / 1 WARN**，本地 68 PASS 不变 —— 两边对照证明问题在域名解析这一层。
