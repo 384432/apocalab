@@ -14,6 +14,7 @@ import type { City } from '../lib/cities';
 import { coordText } from '../lib/cities';
 import { BURST_LABEL, panelRows } from '../lib/panel';
 import { buildIsland } from '../lib/island';
+import CitySearch from './CitySearch.astro';
 
 interface Props {
   city: City;
@@ -82,6 +83,8 @@ const heaviest = rows.reduce((m, r) => (r.r !== null && r.r > m ? r.r : m), 0);
       </div>
     </fieldset>
   </form>
+
+  <CitySearch label="Search any city" />
 
   <figure class="map-figure">
     <div class="map-frame" id="map-frame" data-mode="pending">

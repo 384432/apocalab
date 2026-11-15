@@ -126,8 +126,20 @@ function boot(): void {
 
   let state = readUrl();
 
+  /**
+   * A place picked from the gazetteer. It has no slug and no page, so it is not
+   * part of `state`: it only moves the ring centre and the labels. Dropped the
+   * moment the city picker is used, which is the only way back to the presets.
+   */
+  let gz: (CityRec & { head: string }) | null = null;
+
   function cityOf(slug: string): CityRec {
     return D.cities.find((c) => c.slug === slug) ?? D.cities[0];
+  }
+
+  /** Where the rings are drawn from: the gazetteer pick wins over the picker. */
+  function place(): CityRec {
+    return gz ?? cityOf(state.city);
   }
 
   function rowsNow(): Row[] {
@@ -173,7 +185,7 @@ function boot(): void {
     };
   }
 
-  let view: View = viewFor(cityOf(state.city), rowsNow());
+  let view: View = viewFor(place(), rowsNow());
 
   type P = { x: number; y: number };
   type Project = (lon: number, lat: number) => P;
@@ -371,7 +383,7 @@ function boot(): void {
     ctxRings!.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctxRings!.clearRect(0, 0, w, h);
 
-    const city = cityOf(state.city);
+    const city = place();
     const p = project();
     const rows = rowsNow().filter((r) => r.r !== null) as Array<Row & { r: number }>;
     // Outer first so the small rings sit on top.
@@ -468,7 +480,20 @@ function boot(): void {
   // ---------------------------------------------------------------- controls
   function syncControls(): void {
     const sel = form!.querySelector<HTMLSelectElement>('select[name="city"]');
-    if (sel) sel.value = state.city;
+    if (sel) {
+      if (gz) {
+        let opt = sel.querySelector<HTMLOptionElement>('option[value="__gz"]');
+        if (!opt) {
+          opt = document.createElement('option');
+          opt.value = '__gz';
+          sel.appendChild(opt);
+        }
+        opt.textContent = `${gz.name} (gazetteer)`;
+        sel.value = '__gz';
+      } else {
+        sel.value = state.city;
+      }
+    }
     for (const input of Array.from(form!.querySelectorAll<HTMLInputElement>('input'))) {
       input.checked = input.value === (input.name === 'yield' ? String(state.y) : state.b);
     }
@@ -480,7 +505,7 @@ function boot(): void {
       y: next.y ?? state.y,
       b: next.b ?? state.b,
     };
-    const city = cityOf(state.city);
+    const city = place();
     view = viewFor(city, rowsNow());
 
     if (map && tilesLive) {
@@ -492,17 +517,20 @@ function boot(): void {
     syncControls();
 
     const label = root!.querySelector<HTMLElement>('[data-bind="place"]');
-    if (label) label.textContent = city.name;
+    if (label) label.textContent = gz ? gz.head : city.name;
     const sub = root!.querySelector<HTMLElement>('[data-bind="setting"]');
     if (sub) {
       sub.textContent = `${state.y.toLocaleString('en-US')} kt · ${
         state.b === 'air' ? 'air burst' : 'contact burst'
       }`;
     }
+    const coordsEl = root!.querySelector<HTMLElement>('[data-bind="coords"]');
+    if (coordsEl) coordsEl.textContent = city.coords;
 
     if (pushUrl) {
       const q = new URLSearchParams();
-      q.set('city', state.city);
+      // A gazetteer place has no slug to restore, so it stays out of the URL.
+      if (!gz) q.set('city', state.city);
       q.set('yield', String(state.y));
       q.set('burst', state.b);
       history.replaceState(null, '', `${location.pathname}?${q.toString()}`);
@@ -513,11 +541,25 @@ function boot(): void {
     const sel = form.querySelector<HTMLSelectElement>('select[name="city"]');
     const y = form.querySelector<HTMLInputElement>('input[name="yield"]:checked');
     const b = form.querySelector<HTMLInputElement>('input[name="burst"]:checked');
+    // Using the picker is how you leave a gazetteer place.
+    if (sel && sel.value !== '__gz') gz = null;
     apply({
       city: sel ? sel.value : undefined,
       y: y ? Number(y.value) : undefined,
       b: b ? (b.value as Burst) : undefined,
     });
+  });
+
+  document.addEventListener('apoca:city', (ev) => {
+    const d = (ev as CustomEvent).detail as {
+      name: string;
+      head: string;
+      coords: string;
+      lat: number;
+      lon: number;
+    };
+    gz = { slug: '__gz', name: d.name, head: d.head, coords: d.coords, lat: d.lat, lon: d.lon };
+    apply({});
   });
 
   // ---------------------------------------------------------------- outline
@@ -562,7 +604,7 @@ function boot(): void {
       return;
     }
 
-    const city = cityOf(state.city);
+    const city = place();
     let settled = false;
 
     const fail = (): void => {
@@ -668,6 +710,12 @@ function boot(): void {
     settled: (): boolean => frame!.dataset.settled === '1',
     rings: (): number => rowsNow().filter((r) => r.r !== null).length,
     state: (): { city: string; y: number; b: string } => state,
+    place: (): { name: string; lat: number; lon: number; gazetteer: boolean } => ({
+      name: place().name,
+      lat: place().lat,
+      lon: place().lon,
+      gazetteer: gz !== null,
+    }),
     zoom: (): number => view.zoom,
     /** Non-transparent pixels, so "the rings were drawn" is measurable. */
     pixels: (): { rings: number; base: number } => ({

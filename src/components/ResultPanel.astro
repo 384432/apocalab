@@ -14,6 +14,7 @@ import type { City } from '../lib/cities';
 import { coordText } from '../lib/cities';
 import { BURST_LABEL, panelRows, ringScale, scaleBar } from '../lib/panel';
 import { buildIsland } from '../lib/island';
+import CitySearch from './CitySearch.astro';
 
 interface Props {
   city: City;
@@ -117,6 +118,8 @@ const island = buildIsland(city, y, burst, cities);
     </dl>
   </div>
 
+  <CitySearch />
+
   <form class="controls" id="controls" method="get" action="/">
     <fieldset>
       <legend>Yield</legend>
@@ -166,10 +169,10 @@ const island = buildIsland(city, y, burst, cities);
   </form>
 
   <p class="fallback">
-    The panel above shows New York at 100 kt — the default state, rendered into the HTML. Switching
-    city or yield here needs scripting, so with scripting off the
-    <a href="/blast-radius/">nuclear bomb blast radius</a> table is the way to every other
-    combination: all three yields, both burst modes, in one page.
+    The panel above shows New York at 100 kt — the default state, rendered into the HTML. Both the
+    city search and the pickers below run on scripting, so with scripting off there is nothing to
+    type into. Every combination is still readable without it, in one page: the
+    <a href="/blast-radius/">nuclear bomb blast radius</a> table.
   </p>
 </section>
 
@@ -192,6 +195,11 @@ const island = buildIsland(city, y, burst, cities);
       yield: D.yields.map(String),
       burst: ['air', 'ground'],
     };
+
+    // A place picked from the gazetteer has no slug and no page: it only sets
+    // the name and the ring centre, because the five radii do not depend on the
+    // city at all (see the figcaption). Cleared the moment a preset is chosen.
+    var gz = null;
 
     function readUrl() {
       var p = new URLSearchParams(location.search);
@@ -216,9 +224,9 @@ const island = buildIsland(city, y, burst, cities);
     function apply(s, writeUrl) {
       var key = s.b + '.' + s.y;
       var rows = D.combos[s.b][s.y];
-      var city = cityOf(s.city);
+      var city = gz || cityOf(s.city);
 
-      q('[data-bind="city"]').textContent = city.name;
+      q('[data-bind="city"]').textContent = gz ? gz.head : city.name;
       q('[data-bind="yield"]').textContent = Number(s.y).toLocaleString('en-US') + ' kt';
       q('[data-bind="burst"]').textContent = D.burstLabels[s.b];
       q('[data-bind="coords"]').textContent = city.coords;
@@ -282,25 +290,52 @@ const island = buildIsland(city, y, burst, cities);
 
       form.querySelector('input[name="yield"][value="' + s.y + '"]').checked = true;
       form.querySelector('input[name="burst"][value="' + s.b + '"]').checked = true;
-      document.getElementById('city-select').value = s.city;
+
+      var sel = document.getElementById('city-select');
+      if (gz) {
+        var opt = sel.querySelector('option[value="__gz"]');
+        if (!opt) {
+          opt = document.createElement('option');
+          opt.value = '__gz';
+          sel.appendChild(opt);
+        }
+        opt.textContent = gz.name + ' (gazetteer)';
+        sel.value = '__gz';
+      } else {
+        sel.value = s.city;
+      }
 
       if (writeUrl) {
-        var qs = '?city=' + encodeURIComponent(s.city) + '&yield=' + s.y + '&burst=' + s.b;
+        // Only presets live in the URL: a gazetteer place has no slug to restore,
+        // so the query keeps the yield and burst and drops the city.
+        var qs = gz
+          ? '?yield=' + s.y + '&burst=' + s.b
+          : '?city=' + encodeURIComponent(s.city) + '&yield=' + s.y + '&burst=' + s.b;
         history.replaceState(null, '', qs);
       }
     }
 
     function current() {
+      var sel = document.getElementById('city-select');
       return {
-        city: document.getElementById('city-select').value,
+        city: sel.value === '__gz' ? D.default.city : sel.value,
         y: form.querySelector('input[name="yield"]:checked').value,
         b: form.querySelector('input[name="burst"]:checked').value,
       };
     }
 
-    form.addEventListener('change', function () { apply(current(), true); });
+    form.addEventListener('change', function () {
+      // Picking a preset is how you leave a gazetteer place.
+      if (document.getElementById('city-select').value !== '__gz') gz = null;
+      apply(current(), true);
+    });
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
+      apply(current(), true);
+    });
+
+    document.addEventListener('apoca:city', function (ev) {
+      gz = ev.detail;
       apply(current(), true);
     });
 

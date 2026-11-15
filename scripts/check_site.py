@@ -286,10 +286,17 @@ check(len(island.get("bars", {})) == 6, "index: 岛内 6 组比例尺")
 print("9 阶段 2 脚本与 URL 状态")
 scripts = re.findall(r"(?is)<script\b[^>]*>", idx)
 executable = [s for s in scripts if "application/ld+json" not in s and "application/json" not in s]
-check(len(executable) == 1, f"index: 恰 1 个可执行 script（实际 {len(executable)}）")
+# 面板一段、城市搜索一段。搜索要按需取分片，所以「首页没有任何网络请求」这条从
+# 2026-11-16 起不再成立，换成下面更窄的两条：请求只能有一个、只能是分片路径。
+check(len(executable) == 2, f"index: 恰 2 个可执行 script（面板 + 搜索，实际 {len(executable)}）")
 check(all("src=" not in s for s in executable), "index: 没有外链脚本，无额外请求")
-check(len(scripts) == 3, f"index: 共 3 个 script（FAQ JSON-LD + 数据岛 + 内联脚本），实际 {len(scripts)}")
-check(not re.search(r"\bfetch\s*\(|XMLHttpRequest", idx), "index: 脚本里没有网络请求")
+check(len(scripts) == 4, f"index: 共 4 个 script（FAQ JSON-LD + 数据岛 + 面板 + 搜索），实际 {len(scripts)}")
+fetches = re.findall(r"fetch\(\s*['\"]([^'\"]+)['\"]", idx)
+check(len(fetches) == 1, f"index: 只有一处 fetch（实际 {len(fetches)}）")
+check(bool(fetches) and fetches[0].startswith("/data/cities/"),
+      f"index: fetch 只取本地地名分片（实际 {fetches}）")
+check("XMLHttpRequest" not in idx, "index: 不用 XMLHttpRequest")
+check(not re.search(r"fetch\(\s*['\"]https?:", idx), "index: fetch 不请求任何站外地址")
 for token in ("URLSearchParams", "replaceState", "city", "yield", "burst"):
     check(token in idx, f"index: 脚本处理 URL 状态（含 {token}）")
 for name in ('name="city"', 'name="yield"', 'name="burst"'):
@@ -304,6 +311,10 @@ if cands:
     css = " ".join(p.read_text(encoding="utf-8") for p in cands)
     check(".js .controls" in css, "CSS: 控件默认隐藏、脚本运行后才显示")
     check(".js .fallback" in css, "CSS: 回退段落在脚本运行后隐藏")
+    # 搜索框同理：没有脚本就取不到分片，所以无脚本时它不该占位。
+    flat = re.sub(r"\s+", "", css)
+    check(".js.search" in flat, "CSS: 搜索框默认隐藏、脚本运行后才显示")
+    check(".search{display:none}" in flat, "CSS: 无脚本时搜索框不占位")
 
 print("11 阶段 2 不承诺尚未上线的功能")
 head_txt = " ".join([
@@ -1063,6 +1074,40 @@ for name, body in raw.items():
                   f"{name}: {t} 的 datePublished 是页面发布日 {PUBLISHED}（实际 {dp}）")
             check(str(dp) != "1977",
                   f"{name}: {t} 的 datePublished 不是手册年份 1977")
+
+print("26 地名分片（plan §15）")
+
+# 27 个文件、每行 8 个字段、每行都必须落在自己的桶里。分片是运行时才取的数据，
+# 但它的契约可以在构建期全部验完：桶名错了就是一个永远取不到的城市。
+SHARD_DIR = DIST / "data" / "cities"
+SHARD_KEYS = [chr(c) for c in range(ord("a"), ord("z") + 1)] + ["other"]
+shard_rows = 0
+for key in SHARD_KEYS:
+    p = SHARD_DIR / f"{key}.json"
+    check(p.exists(), f"分片 {key}.json 存在")
+    if not p.exists():
+        continue
+    data = json.loads(p.read_text(encoding="utf-8"))
+    check(isinstance(data, list) and bool(data), f"分片 {key}.json 是非空数组")
+    bad_len = [r for r in data if not isinstance(r, list) or len(r) != 8]
+    check(not bad_len, f"分片 {key}.json 每行 8 个字段（异常 {len(bad_len)} 行）")
+    # 桶归属：asciiname 首字符大写落在 A–Z 就用它的小写，否则只能进 other。
+    misplaced = []
+    for r in data:
+        if not isinstance(r, list) or len(r) != 8:
+            continue
+        ch = str(r[2])[:1].upper()
+        want = ch.lower() if "A" <= ch <= "Z" else "other"
+        if want != key:
+            misplaced.append((r[1], r[2]))
+    check(not misplaced, f"分片 {key}.json 的行都在本桶（越界 {len(misplaced)} 行）")
+    shard_rows += len(data)
+
+check(shard_rows == 34214, f"分片合计 {shard_rows} 行 = 34,214（不截断）")
+lodz = json.loads((SHARD_DIR / "l.json").read_text(encoding="utf-8"))
+hit = [r for r in lodz if str(r[2]).upper().startswith("LODZ")]
+check(bool(hit), "L 桶里有 LODZ（用例 f 的分片侧前提）")
+check(bool(hit) and "Ł" in hit[0][1], f"该行的 name 是 Łódź（实际 {hit[0][1] if hit else '—'}）")
 
 print(f"结果：PASS {passes}  FAIL {len(fails)}  WARN {len(warns)}")
 if fails:

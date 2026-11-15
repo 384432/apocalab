@@ -1,0 +1,273 @@
+---
+/**
+ * Any-city search (plan §14.5, §15).
+ *
+ * The gazetteer ships as 27 static shards under /data/cities/, one per initial
+ * letter plus `other`. Nothing is fetched until the input has focus and at least
+ * one character in it: the whole 886,209-byte payload on first paint would be a
+ * tax on every visitor for a feature most of them never touch (§15, item 1).
+ *
+ * Matching is **prefix only**, against `asciiname`, and the shard is chosen by
+ * that same ASCII name's first letter. `york` therefore does not find New York
+ * — that is the written behaviour, not a bug (§15, item 2).
+ *
+ * Failure is silent by design: this component never touches the panel or the
+ * map. It only emits `apoca:city` when a match is picked, so a failed fetch, a
+ * 404 shard, bad JSON or a thrown matcher leaves the server-rendered default
+ * (New York · 100 kt) and the SVG exactly as they were — no empty rings, no
+ * blank frame, no spinner in place of the answer (§15, hard constraint).
+ */
+interface Props {
+  /** Shown above the input. No heading: a new <h2> would read as a new section. */
+  label?: string;
+}
+
+const { label = 'Search any city' } = Astro.props;
+---
+
+<div class="search" id="city-search" data-state="idle">
+  <label class="search-label" for="city-search-input">{label}</label>
+  <input
+    id="city-search-input"
+    type="text"
+    name="q"
+    autocomplete="off"
+    autocapitalize="off"
+    spellcheck="false"
+    placeholder="Lodz, Osaka, Springfield…"
+    aria-describedby="city-search-status"
+  />
+  <p class="search-status" id="city-search-status" role="status" aria-live="polite">
+    Prefix match on 34,214 gazetteer places — the first letters of the ASCII name, not
+    anywhere inside it. Type at least one letter.
+  </p>
+  <ul class="search-list" id="city-search-list" hidden></ul>
+</div>
+
+<script is:inline>
+  (function () {
+    var box = document.getElementById('city-search');
+    if (!box) return;
+    var input = document.getElementById('city-search-input');
+    var status = document.getElementById('city-search-status');
+    var list = document.getElementById('city-search-list');
+    if (!input || !status || !list) return;
+
+    var IDLE = status.textContent;
+    var MAX_SHOWN = 8;
+
+    // ---------------------------------------------------------------- ascii
+    // The shard key is the first letter of asciiname, which GeoNames already
+    // stores in pure ASCII. This fold exists only so that someone pasting
+    // "Łódź" into the box still lands in the L shard: NFD handles Å/é/ü, the
+    // table covers the letters that do not decompose.
+    var FOLD = {
+      'Ł': 'L', 'ł': 'l', 'Ø': 'O', 'ø': 'o', 'Đ': 'D', 'đ': 'd', 'Ð': 'D', 'ð': 'd',
+      'Þ': 'T', 'þ': 't', 'Æ': 'AE', 'æ': 'ae', 'Œ': 'OE', 'œ': 'oe', 'ß': 'SS',
+      'ı': 'I', 'İ': 'I', 'ĸ': 'K', 'Ŋ': 'N', 'ŋ': 'n', 'ʼ': '', '’': "'", '‘': "'"
+    };
+
+    function ascii(s) {
+      var n = s;
+      try { n = s.normalize('NFD'); } catch (e) { /* old browser: fold only */ }
+      var out = '';
+      for (var i = 0; i < n.length; i++) {
+        var ch = n.charAt(i);
+        if (ch >= '\u0300' && ch <= '\u036f') continue;
+        out += Object.prototype.hasOwnProperty.call(FOLD, ch) ? FOLD[ch] : ch;
+      }
+      return out.toUpperCase();
+    }
+
+    function bucketOf(q) {
+      var c = ascii(q).charAt(0);
+      return c >= 'A' && c <= 'Z' ? c.toLowerCase() : 'other';
+    }
+
+    // ---------------------------------------------------------------- state
+    var cache = {};
+    var inflight = {};
+    var fetches = 0;
+    var applied = null;
+    var shown = [];
+    var token = 0;
+
+    function say(text, tone) {
+      status.textContent = text;
+      if (tone) status.setAttribute('data-tone', tone);
+      else status.removeAttribute('data-tone');
+    }
+
+    function coords(lat, lon) {
+      var la = Math.abs(lat).toFixed(4) + '° ' + (lat >= 0 ? 'N' : 'S');
+      var lo = Math.abs(lon).toFixed(4) + '° ' + (lon >= 0 ? 'E' : 'W');
+      return la + ', ' + lo;
+    }
+
+    function rowToDetail(r) {
+      return {
+        name: r[1],
+        // What the state area prints. A bare "Springfield" is an ambiguous answer
+        // when the gazetteer holds ten of them, so admin1 rides along (case e).
+        head: r[1] + (r[6] ? ', ' + r[6] : ''),
+        label: r[1] + (r[6] ? ', ' + r[6] : '') + (r[7] ? ' · ' + r[7] : ''),
+        admin1: r[6],
+        country: r[7],
+        lat: r[3],
+        lon: r[4],
+        coords: coords(r[3], r[4])
+      };
+    }
+
+    function emit(r) {
+      applied = rowToDetail(r);
+      document.dispatchEvent(new CustomEvent('apoca:city', { detail: applied }));
+    }
+
+    // ---------------------------------------------------------------- render
+    function renderList(rows, q) {
+      list.textContent = '';
+      if (rows.length < 2) {
+        list.hidden = true;
+        return;
+      }
+      var n = Math.min(rows.length, MAX_SHOWN);
+      for (var i = 0; i < n; i++) {
+        var r = rows[i];
+        var li = document.createElement('li');
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.setAttribute('data-index', String(i));
+        var name = document.createElement('span');
+        name.className = 'nm';
+        name.textContent = r[1];
+        var where = document.createElement('span');
+        where.className = 'where';
+        where.textContent = [r[6], r[7]].filter(Boolean).join(' · ');
+        b.appendChild(name);
+        b.appendChild(where);
+        b.addEventListener('click', function (ev) {
+          var idx = Number(ev.currentTarget.getAttribute('data-index'));
+          var pick = shown[idx];
+          if (!pick) return;
+          emit(pick);
+          say('Ring centre set to ' + pick[1] + (pick[6] ? ', ' + pick[6] : '') + '.');
+          input.value = pick[1];
+        });
+        li.appendChild(b);
+        list.appendChild(li);
+      }
+      list.hidden = false;
+    }
+
+    // ---------------------------------------------------------------- match
+    function matches(rows, q) {
+      var out = [];
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        if (r[2] && r[2].toUpperCase().indexOf(q) === 0) out.push(r);
+      }
+      // Largest first: the biggest place with that name is the one a query means,
+      // and it is also the default the panel picks (case e).
+      out.sort(function (a, b) { return b[5] - a[5]; });
+      return out;
+    }
+
+    function run(q) {
+      var myToken = ++token;
+      var key = bucketOf(q);
+      var needle = ascii(q);
+
+      function use(rows) {
+        if (token !== myToken) return;
+        var hits = matches(rows, needle);
+        shown = hits;
+        box.setAttribute('data-state', hits.length ? 'hit' : 'miss');
+
+        if (!hits.length) {
+          list.hidden = true;
+          list.textContent = '';
+          say('“' + q + '” is not in the gazetteer.', 'miss');
+          return;
+        }
+
+        renderList(hits, q);
+        var head = hits[0];
+        var where = [head[6], head[7]].filter(Boolean).join(' · ');
+        emit(head);
+        if (hits.length === 1) {
+          say('Ring centre set to ' + head[1] + (where ? ' (' + where + ')' : '') + '.');
+        } else {
+          say(hits.length + ' places start with “' + q + '” — largest first: ' + head[1] +
+            (where ? ' (' + where + ')' : '') + '.');
+        }
+      }
+
+      if (cache[key]) { use(cache[key]); return; }
+      say('Loading…');
+
+      if (inflight[key]) {
+        inflight[key].push(use);
+        return;
+      }
+      inflight[key] = [use];
+      fetches += 1;
+      fetch('/data/cities/' + key + '.json', { credentials: 'omit' })
+        .then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function (data) {
+          if (!Array.isArray(data)) throw new Error('not an array');
+          cache[key] = data;
+          var waiters = inflight[key] || [];
+          delete inflight[key];
+          for (var i = 0; i < waiters.length; i++) waiters[i](data);
+        })
+        .catch(function () {
+          delete inflight[key];
+          if (token !== myToken) return;
+          // Nothing is cleared, hidden or replaced: the panel keeps the state it
+          // was server-rendered with.
+          box.setAttribute('data-state', 'error');
+          say('Search is unavailable right now. The panel below is unchanged.');
+        });
+    }
+
+    input.addEventListener('input', function () {
+      var q = input.value.trim();
+      if (!q) {
+        token += 1;
+        shown = [];
+        list.hidden = true;
+        list.textContent = '';
+        box.setAttribute('data-state', 'idle');
+        say(IDLE);
+        return;
+      }
+      run(q);
+    });
+
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' && shown.length) {
+        ev.preventDefault();
+        emit(shown[0]);
+        say('Ring centre set to ' + shown[0][1] +
+          (shown[0][6] ? ', ' + shown[0][6] : '') + '.');
+        input.value = shown[0][1];
+      }
+    });
+
+    // Test hook, read by scripts/verify_search.mjs so the acceptance cases are
+    // assertions rather than screenshots.
+    window.__apocalabSearch = {
+      state: function () { return box.getAttribute('data-state'); },
+      status: function () { return status.textContent.trim(); },
+      bucket: function () { return input.value ? bucketOf(input.value.trim()) : null; },
+      count: function () { return shown.length; },
+      shown: function () { return shown.slice(0, MAX_SHOWN).map(function (r) { return [r[1], r[6], r[7]]; }); },
+      applied: function () { return applied; },
+      fetches: function () { return fetches; }
+    };
+  })();
+</script>
