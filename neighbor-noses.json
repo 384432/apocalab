@@ -1,0 +1,98 @@
+{
+  "figure": "p113_600.png",
+  "anchor_frame": [
+    348.5,
+    2.2467,
+    2521.5,
+    2.254
+  ],
+  "anchor_label": [
+    360.68,
+    2.2545
+  ],
+  "minlen_px": 40,
+  "noses": {
+    "15 psi": {
+      "window": [
+        600,
+        700,
+        1100,
+        1210
+      ],
+      "x_px": 3057,
+      "d_frame": 1205.5,
+      "d_label": 1196.0,
+      "hob": 657.1,
+      "run_span_ft": 18.6,
+      "crossings_at": {
+        "617": [
+          1192.5,
+          1202.2
+        ],
+        "677": [
+          1200.4
+        ]
+      }
+    },
+    "20 psi": {
+      "window": [
+        570,
+        660,
+        840,
+        935
+      ],
+      "x_px": 2439,
+      "d_frame": 930.5,
+      "d_label": 921.9,
+      "hob": 611.4,
+      "run_span_ft": 17.7,
+      "crossings_at": {
+        "571": [
+          905.3,
+          917.7
+        ],
+        "631": [
+          904.4,
+          925.3
+        ]
+      }
+    },
+    "30 psi": {
+      "window": [
+        460,
+        580,
+        590,
+        650
+      ],
+      "x_px": 1805,
+      "d_frame": 648.3,
+      "d_label": 640.6,
+      "hob": 521.7,
+      "run_span_ft": 39.0,
+      "crossings_at": {
+        "482": [
+          604.7,
+          641.4
+        ],
+        "542": [
+          604.0,
+          645.2
+        ]
+      }
+    }
+  },
+  "criterion_a": {
+    "monotone_d": true,
+    "monotone_hob": true
+  },
+  "criterion_b": {
+    "t": 0.41504,
+    "ln_pred": 931.9,
+    "d_pred": 974.2,
+    "err_ln_pct": -0.15,
+    "err_d_pct": -4.49,
+    "ok": true
+  },
+  "signed_20_reproduced": 930.5,
+  "verdict": "signed"
+}

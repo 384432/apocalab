@@ -1078,3 +1078,687 @@ thermal_3rd.air.*               → Fig.7.42 p.291 三档直读（10 cal/cm²）
 **停止标记**
 
 > **§14 / §15 冻结，进入实现。此后除非实现中发现用例自相矛盾，不再向这两节追加内容。**
+
+---
+
+## 16. 地图点击落点：任意一点画五环并给环内人口（2026-11-17 实现）
+
+这是 §14.4 排序里的第 3 项，与第 1 项同一个里程碑（§14.4 已写死「合并的是实现批次，不是排序位置」）。**本轮只加了这一件事**：五距离数值、combos 表、sitemap、页面既有文案一个字都没动。
+
+### 16.1 七条需求的落地口径
+
+| 需求 | 落地 | 代码位置 |
+|---|---|---|
+| 1 点击即圆心，不询问地理编码 | 一个 `pointerup` 监听挂在 `#map-frame`，位移 ≤6 px（触摸 ≤12 px）才算点击；有底图用 `map.unproject`，无底图用自写反投影。**全程零请求。** | `src/scripts/bomb-map.ts` 的 `onPoint()` |
+| 2 五距离沿用 combos | 点击只改圆心，`rowsNow()` 不动，读数直接复用同一份 island | 同上，`drawRings()` |
+| 3 浏览器端按瓦片求和 | 10°×10° 瓦片、1/24° 格、每格 1 字节对数档；点击只取所在瓦片，跨边界最多 4 个；取过的（含失败的）留在内存，同会话不重复请求 | `loadTile()` / `tilesFor()` / `sumInside()` |
+| 4 状态区给坐标与 `near` | 点击后隐藏「GeoNames 点」那行，改显 `47.1999° N, 8.2000° E · near —`；`near` 是**占位**，不做反向地名查询 | `renderPoint()` |
+| 5 5 km 内吸附 | 圆心距 20 城任一 < 5 km，整列改用 `city-pop.json` 的值，并显示 `snapped to <City> — tabulated city` | `snappedCity()` / `tabulatedFor()` |
+| 6 不改 URL | 点击路径**不调用** `apply()`，因此不碰 `history.replaceState`；canonical 是构建期静态值 | 点击走 `onPoint()`，不走 `apply()` |
+| 7 降级 | 瓦片 404 / 超时（6 s）/ 长度不对 → 环照画，人口列全 `—`，并显示 `circle population unavailable at this point` | `loadTile()` 返回 `null` → `{kind:'unavailable'}` |
+| 8 服务端直出保留 | 地图不可用时 `.map-figure` 整块 `display:none`，五个距离与出处仍在 `#map-readout` 的静态 HTML 里 | 未改 |
+
+### 16.2 数据：为什么是 1 km 可下载版，不是 API 的 100 m
+
+**一句话：100 m 全球放不进这个站。** 全球 100 m 栅格按国家分发是几十 GB 级；可下载的 1 km 全球版
+**实测 248 个文件 / 892.5 MB**（`ATA` 无文件），聚合后压成 1 字节格网是 **37,324,800 字节**。API 的 100 m 面只覆盖 20 个城市，且 102,642 次 POST 才能铺满 GeoNames 全量（§14 审计已量过），不能当作瓦片源。
+
+- **来源**：`https://data.worldpop.org/GIS/Population/Global_2000_2020_1km/2020/{ISO3}/{iso}_ppp_2020_1km_Aggregated.tif`，249 个国家目录，缺文件的记 `absent`（如 `ATA`）。同一产品家族（WorldPop 2020 估算），但是**可下载版**，不是 API 回的那份 `R2025A 100 m`——两面的差异已经由 §/methodology/ 的巴黎实测（6.5%）写在明处，本轮不再造第二个差值说法。
+- **格网**：1/24° × 1/24°，等于源数据 5×5 格（30″）；赤道 **4.63 km**、60°N **2.32 km**。经纬网做不到处处 5 km，所以格网按度数定义、地面尺寸照实报，不假装它是 5 km。
+- **瓦片**：10°×10°，每边 240 格，**648 个 = 36×18**，每个 57,600 字节，命名 `x{00..35}y{00..17}.bin`，行主序、北到南。总量 **37,324,800 字节（35.6 MiB）**，首屏 0 字节——不发请求就不占带宽。
+- **聚合**：按源格**中心**归入 1/24° 格（`np.bincount`），总量守恒，脚本对全球总量做 `6.5e9 < 总人口 < 9.5e9` 的硬校验，不达标直接拒绝写盘。
+- **档位**：`floor=1`、`top=3,000,000`、255 档、**`ratio=1.0602309442`**（相邻档差 6.02%），解码取档位几何中点 `floor·ratio^(i-0.5)`，所以单格误差界是 `sqrt(ratio)-1 = 2.968%`（要求 ≤3%）。实测全球最大格 **1,630,235 人**（最高档用到 245/254，**没有触顶**，超顶直接报错、不裁剪）。低于 1 人的格记 0。
+- **重跑**：`python scripts/fetch_worldpop_1km.py` → `python scripts/build_pop_tiles.py`，产物 `public/data/pop/*.bin` + `src/data/pop-meta.json`。瓦片是生成物，和 `effects.json` 一样**改数据必须改脚本重跑**。
+
+### 16.3 求和：按圆-格重叠面积，不按「格心落在圆内」
+
+5 km 级的格遇到 0.10 / 0.21 / 0.53 km 这三个小火球环时，「格心在圆内」要么整格算进来（把 4.6 km 格的人口塞进 0.21 km 圆），要么一个都不算（显示 0）。所以每个格按**它与圆的交集面积占比**加权：对格子在 y 方向切 48 条弦、每条弦用圆的解析半宽裁剪，误差远小于 0.5%。这样小火球环自动退化成「格内密度 × 圆面积」，不会跳变。
+
+### 16.4 三处需要你拍板的口径（我没有替你决定）
+
+1. **搜索到的城市仍然不给人口。** §14.6 写死「环内人口只对 20 个预设城市提供，其余显示 population not tabulated」，本轮没改这条：搜 Denver 仍然不出人口列，**但点 Denver 同样的坐标会出瓦片估算**。功能上自相矛盾，改法只有一行（把 `resolvePop()` 里 `gz ? null :` 去掉），但那是改一条已经写死的规则，留给你。
+2. **地图页多了两行字**（都是新元素的文案，不是改既有句子）：图上的 `Click the map to move the rings to that point.`，以及人口列头上的`Population inside each ring · …`（含 `snapped to … — tabulated city`）。不想要第一行就删 `#map-hint` 那个 `<p>`。
+3. **/methodology/ 新增了一节** `#clicked`（Ring populations at a clicked point）。原因是站上出现第二个面就必须有第二处出处说明；§23 那条「人口节里不许出现 1 km」的断言我没动，新节在 population 节之外，两节各说一个面。
+
+### 16.5 验收 a–g：实测记录
+
+**运行环境**：Windows 11，headless Chrome（CDP `127.0.0.1:9333`，`--headless=new`），页面由
+`python -m http.server 4322 --directory dist` 发出，`dist/` 是
+`CF_PAGES_BRANCH=main node node_modules/astro/astro.js build` 的产物（日志
+`_headers: production (CF_PAGES_BRANCH=main) [SITE_LIVE=true]`，11 页，34.58 s）。
+`check_site.py --expect main` 同时为 `PASS 1598 FAIL 0 WARN 0`。
+**时间**：2026-11-17 23:48 CST（a–g 与吸附边界）；瓦片重建 2026-11-18 01:37 CST 后重跑同一套，`verdict.ok` 仍为 `true`。
+**当量/爆高**：默认态 **100 kt · air burst**（a、b、f、h 与参考态同态）。
+**栅格状态**：全球数据已到齐——**248 个国家级 1 km 栅格 / 892.5 MB / 0 个下载错误**，只有 `ATA`（南极洲）
+本来就没有 1 km 文件。瓦片为无 `--partial-ok` 的正式产物：**648 个 tile / 37,324,800 字节 /
+量化前 7,969,633,182 人 / 量化后 7,970,067,253 人（+0.005%）**，`pop-meta.json` 里已无 `partial` 字段。
+**原始输出**：`click-gate.json`（已 gitignore），由 `node scripts/verify_click.mjs http://127.0.0.1:4322` 写出；
+闸门通过条件写死在脚本里，`verdict.ok` 必须为 `true`。
+
+| 用例 | 断言 | 实测 |
+|---|---|---|
+| a | 任意点出五环，五距离与同当量预设城市版逐字相同 | 点 `46.9998° N, 8.0004° E` → `0.21km / 3.22km / 9.93km / 6.99km / 4.02km`，与 New York 100 kt air 参考态逐字相同（`same_distances: true`）；`rings: 5`，`ring_pixels: 23908` |
+| b | 点 20 城之一 → 出人口且与阶段 1 预计算值完全一致 | 点 `40.7143° N, 74.0056° W` → `kind: tabulated`、`city: New York`、`snapped: true`、文案 `Population inside each ring · snapped to New York — tabulated city`；五行 `2,451 / 490,885 / 3,704,149 / 1,895,355 / 749,418`，与 island 里 `pop['new-york']` 逐字相同（`identical: true`） |
+| c | 大洋/沙漠显示 0 或 unavailable，不报错不白屏 | 大洋 `0.0000° N, 29.9996° W` → 五行全 `0`；沙漠 `23.0000° N, 12.0004° E` → 五行全 `0`。两者 `kind: tiles`、`rings: 5`、无异常。**是 0 而不是 unavailable**，因为瓦片确实取到了、取到的就是空海面/空沙地 |
+| d | 点击后地址栏与 canonical 均不变 | `href` 前后同为 `http://127.0.0.1:4322/nuclear-bomb-map/`；`canonical` 前后同为 `https://apocalab.com/nuclear-bomb-map/`；同期 `heading` 已变成 `Clicked point · 100 kt · air burst`，证明点击确实生效了（不是没点着） |
+| e | 单次点击请求数：瓦片 ≤4，其余 0 | 逐用例计**本次点击期间**新发的请求：a=1（`x18y04`）、同瓦片第二次点击=0、吸附点击=0、大洋=4（`x14y09/x15y09/x14y08/x15y08`，正是 10° 角点跨四格的边界情形）、沙漠=1、404 用例=2（被拦）、移动端=1；**每个用例 `base: []`、`other: []`** |
+| f | 瓦片 404 时环仍在、人口显示 unavailable | `Network.setBlockedURLs: */data/pop/*` 下点 `36.5000° N, 140.0004° E` → `kind: unavailable`、文案逐字 `circle population unavailable at this point`、五行人口为 `null`（渲染为 `—`，**不是 0**）、`ring_pixels: 22909` 五环照画、距离仍 `0.21/3.22/9.93/6.99/4.02`。**同一位置再点一次 → 新请求 0 个、状态仍 `unavailable`**：失败也进了缓存，不会每点一次重试一次 404 |
+| g | 移动端 tap 与桌面 click 行为一致 | 同一像素（`195,422`，375×667 视口）先 click 后 tap：两条路径都 `kind: tiles`、`rings: 5`、各发 1 个瓦片请求、状态区都出现 `near —`。圆心差 `lat 0.00027° / lon 0`，五个数最大相对差 **0.41%**（Chrome touch adjustment 对整数触点仍会做亚像素修正，所以判据是同像素同状态机 + 数值带内一致，不是逐位相等） |
+
+**附加一项（不在 a–g 内，但属于第 8 条需求）**：把底图域名整段 block 掉再点 → `mode: outline`
+（走随包 Natural Earth 轮廓），五环仍出、`kind: tiles`、人口照给（`76 / 20,091 / 193,770 / 91,972 / 32,253`），
+`base: []`。说明点击路径不依赖 MapLibre。
+
+**另一项（第 5 条的边界，b 只测了纽约不够）**：在**巴黎**做两点。东 3 km（`2.3898° E`）→
+`kind: tabulated`、`city: Paris`、0 个瓦片请求、五行与 `pop['paris']` 逐字相同
+（`2,361 / 780,593 / 4,653,886 / 3,100,485 / 1,257,703`）；东 8 km（`2.4578° E`）→ `kind: tiles`。
+所以 5 km 是**执行中的判定**，不是文案；吸附也不是只对纽约成立。
+
+**同批跑的其它闸门**：`verify_map.mjs` → `{ok:true, problems:[]}`（5 态降级路径未破）；
+`verify_pop_tiles.py` → **PASS 9 FAIL 0**，648 个瓦片尺寸正确、解码总量与元数据一致、最高档 245 ≤ 254
+（未触顶）、档位误差 2.968% < 3%、误差界与 `sqrt(ratio)-1` 自洽，浏览器与脚本在 20 个档位上 **Δ 全为 0**
+（逐档打印在 `pop-gate.json`）。
+
+**两套人口面差多少（必须写出来，别让读者自己发现）**：拿 20 城 5 个环逐城复算瓦片面，与已发布的
+100 m API 表值对比——**环 ≥ 5 km 的 160 档平均差 −3.0%，最大 +53.8%**（Johannesburg @ 5.28 km：
+表 353,207 / 瓦片 543,400）；**环 < 5 km 的 160 档最大差 +32,229.9%**（Washington DC @ 0.21 km：
+表 2 人 / 瓦片 647 人）。后者的意思是「小于一格的环只能按格内密度折算」，不是测出来的，
+`/methodology/#clicked` 已经写明这一点；前者说明**离城市 5 km 以外再画同一个环，数字会和城市页不一样**，
+这正是「5 km 内吸附到表值」这条规则存在的理由。
+
+**未完成项**：§16.4 三条口径仍等你拍板。数据侧已无欠账。
+
+## 17. 武器预设：把三档当量扩成十二个认得出的弹名（2026-11-16 实现）
+
+### 17.1 十二条需求怎么落的（逐条口径）
+
+1. **选择器**是原生 `<select name="preset">`，两个 `<optgroup>`：`Yields printed in the manual`（15 / 100 / 1,000 kt）与 `Weapons`（12 条）。没有组件库、没有新增运行时依赖、没有第二个控件。
+2. **默认态未变**：仍是 `New York · 100 kt · air burst`，`selected` 落在 `y100` 上，服务端直出；关 JS 时六个数字与页码原样在页面上。
+3. **状态**从 `{city, y, b}` 改成 `{city, preset, b}`，当量由 `ktNow()` 从 preset 派生（`y*` → 数字，弹名 → 该弹 kt）。分享参数仍写当量本身（`w=15000`），所以老链接 `?yield=15` / `?y=15` 照样能开。
+4. **十二条预设数据**在 `src/data/weapons.json`：`name / country / year / kt / note / source{label,url} / quote_yield / quote_year`。页面上逐条渲染成一张表，外链 `target="_blank" rel="noopener"`，**没有加 `nofollow`**（按你的要求，权威来源不 nofollow）。
+
+### 17.2 两套距离口径：按来源分，不按数值大小分
+
+| 档 | 当量 | 取数 | 页面标注 |
+|---|---|---|---|
+| 查表档 | 15 / 100 / 1,000 kt（air 与 ground 都有） | 直接读 `effects.json` 的 combos，一个字都不重算 | `tabulated from Fig. 3.73c (p. 115), Fig. 7.42 (p. 291), Eq. (2.127.1) (p. 70)` —— 列的是**这一档实际用到的**图/公式，随当量与爆型变 |
+| 缩放档 | 其余 11 条预设 | `R = R(100 kt) × (W/100)^(1/3)`，锚点就是 combos 里的 100 kt 值 | `scaled by the cube-root law, §3.61 (p. 101), anchored on the 100 kt tabulated value — the two overpressure rings; the fireball comes from Eq. (2.127.1), and above 10 Mt Fig. 7.42 has no curve to read` |
+
+两行是两个 `<p>`，`hidden` 互斥，没有合并成一句。第二行确实长了，但它不是含糊：把「哪两个环是缩放的 / 火球为什么不缩放 / 超过 10 Mt 为什么没有热辐射环」三件事分开说了。合成一句话就只能说「scaled」，那等于骗人。
+
+六个环实际走三条路：
+
+1. **火球**：公式直算。空爆 `110·W^0.4 ft`（Eq. 2.127.1, p.70），地爆 `145·W^0.4 ft`（Eq. 2.127.2, p.71）。这两个系数不许混用。
+2. **三个超压环**（1 / 5 / 20 psi）：立方根缩放。20 psi 的 1 kt 基准来自 Fig. 3.73b（p.113），不是 3.73c——后者只印到 10 psi（见 §18）。手册在 §3.61 立这条律（Eq. 3.61.2, p.101），原文 `Full-scale tests have shown this relationship between distance and energy yield to hold for yields up to (and including) the megaton range.`
+3. **两个热辐射环**：**不缩放**，在 Fig. 7.42（p.291）上按每个预设自己的列直读 4.5 与 10 cal/cm² 两条等值线。该图横轴止于 10,000 kt。
+
+### 17.3 三处与你给的数字/出处不一致（已于 2026-11-18 拍板）
+
+| # | 项 | 你给的 | 来源原文 | 最终采用 | 为什么 |
+|---|---|---|---|---|---|
+| 1 | W76-2 当量 | 8 kt | `5-7 kT (Mod 2)` | **6 kt**（区间中位） | 8 落在来源区间外。改为取 5–7 区间中位 6 kt，并在页面、台账、`weapons.json` 三处写明「5–7 kt published estimate; radii computed at the 6 kt midpoint」 |
+| 2 | W88 当量 | 455 kt | `475 kT` | **475 kt** | 旧资料流通过 455 kt 的估计，来源页印的是 475。`note` 里原来那句「some charts still print the older 455 kt estimate」已改写为不含具体数字的说法，全树不再出现 455 |
+| 3 | 立方根出处 | `§2.127` | `§3.61`, Eq. (3.61.2), p.101 | **§3.61** | §2.127 是**火球尺寸**那一节（Eq. 2.127.1 / 2.127.2, p.70 / p.71），原文第一句是 `2.127 The size of the fireball increases with the energy yield of the explosion.` 不是立方根定律。手册在 §3.61 立这条律，§3.62（缩放爆高 + 地面距离）与 §3.63（时间/时长/冲量）复述并扩展它。见 §19.1 的本机 PDF 核对 |
+
+三处都已在 2026-11-18 落地。**注意第 3 项不能理解成「全树 2.127 一律改成 3.61」**：现存 `2.127` 的全部命中都是火球公式（`Eq. (2.127.1)` / `(2.127.2)`，p.70–71），把这些改成 §3.61 会把火球的出处标错。`verify_data.py` 的 S 组现在把两节的归属钉死：火球条目必须引 §2.127 且公式号与爆型对应，非火球条目一律不许引 §2.127。
+
+每条的 `quote_yield` / `quote_year` 是**来源自己的措辞**，进了 `weapons.json`，页面上以 `<q>` 显示。这样「页面采用值」和「来源原话」是两份数据：以后谁想改数字，必须先改 quote 那一行，改不动就说明来源不支持这个数字。
+
+### 17.4 数据与脚本
+
+| 文件 | 是什么 | 生成的还是手写的 |
+|---|---|---|
+| `src/data/weapons.json` | 12 条预设（含来源与原文引用） | **手写**，是输入 |
+| `scripts/build_weapon_radii.py` | 预设当量 → 六个半径，三条取数路径，自带自检 | 脚本 |
+| `src/data/weapon-radii.json` | 每预设 air / ground 两组半径 + 图上像素坐标 + 取数方法 | 生成物，不要手改 |
+| `weapon-ledger.csv` | 132 行 = 12 预设 ×（6 effect × 2 爆型，热辐射地爆与 >10 Mt 记空），每行记方法 / 值 / detail / citation / `source_url` / `yield_note` | 生成物 |
+| `src/lib/weapons.ts` | 预设表、`isTabulated()`、`radiiOf()`、两行标注的文案 | 手写访问层 |
+| `scripts/verify_weapons.mjs` | 0–f 闸门，写 `weapon-gate.json`（已 gitignore） | 脚本 |
+
+生成器里两个自检，不过就不写文件：一是把 15 / 100 / 1,000 kt 的 18 个已知等值线点在图上重读一遍（容差 2.5 px；1000 kt 的 15 cal/cm² 点与网格线合流，实测偏 2.00 px ≈ slant range 0.7%，仍远小于图自身 ±6% 的口径）；二是 100 kt 走立方根路径必须**逐位**返回 combos 的表值。
+
+### 17.5 验收 a–f 实测
+
+> 本节记的是**五环时**（2026-11-16）的实测输出，保留原样作为当时证据。§18 把环数改成六之后，同一批用例已重跑，结果见 §18.5；下面表里的「五行」现在读作「当年的五行」。
+
+**运行环境**：Windows 11，headless Chrome（CDP `127.0.0.1:9333`，`--headless=new --window-size=1400,900`），页面由本地静态服务在 `:4322` 发出，`dist/` 是 `CF_PAGES_BRANCH=main node node_modules/astro/astro.js build` 的产物（`_headers: production … [SITE_LIVE=true]`，11 页，36.01 s）。**时间**：2026-11-16 04:4x CST，本地，**未部署**。
+**原始输出**：`weapon-gate.json`，由 `node scripts/verify_weapons.mjs http://127.0.0.1:4322` 写出，`verdict.ok` 必须为 `true`。
+
+| 用例 | 断言 | 实测 |
+|---|---|---|
+| a | 12 条逐个选，五距离都出数，查表档与现有值完全一致 | 选择器共 **15 个 option**（3 档 + 12 弹）。`little-boy 15 kt` 走查表档，五行与 `y15` **逐字相同**（`0.10 / 1.71 / 5.28 / 3.37 / 1.77`）；其余 11 条走缩放档，与 `weapon-radii.json` 逐位相同（同一份数据，误差 0）。抽样：`fat-man 21` = `0.11 / 1.91 / 5.90 / 3.87 / 2.08`；`w87 300` = `0.33 / 4.64 / 14.32 / 10.67 / 6.35`；`b53 9000` = `1.28 / 14.43 / 44.51 / 32.12 / 23.94`；`tsar-bomba 50000` = `2.54 / 25.55 / 78.83 / — / —`（3 个数字 + 2 行 absent，见下） |
+| b | 15 kt 走查表档、50,000 kt 走缩放档，两种标注都在页面上 | `at15`：`tabHidden=false`、`scaleHidden=true`；`at50000`：`tabHidden=true`、`scaleHidden=false`。两行文本逐字见 §17.2 表格 |
+| c | 缩放档的 100 kt 与查表值完全相同（锚点自检） | `scaled_at_100 = [0.21, 3.22, 9.93, 6.99, 4.02]`，`tabulated_at_100 = ['0.21','3.22','9.93','6.99','4.02']`，**逐位相同**；生成器里同一断言也过（含地爆 `1.93 / 5.42 / 0.28`） |
+| d | 禁 JS 打开 `/nuclear-bomb-map/` 仍有 New York 五距离与 SVG | 五行仍在，且每行带页码：`0.21 km`←`Eq. (2.127.1) · p. 70`、`3.22 km`/`9.93 km`←`Ch. 3 · Fig. 3.73c · p. 115`、`6.99 km`/`4.02 km`←`Ch. 7 · Fig. 7.42 · p. 291`；`heading = New York · 100 kt · air burst`；`.map-figure` 为 `display:none`、提示块 `block`；首页内联 SVG 计数 1 |
+| e | `?w=15000&b=air&lat=51.5&lon=-0.12` 状态恢复，canonical 不变 | `state = {city:'new-york', y:15000, b:'air'}`、`preset = castle-bravo / Castle Bravo / 12 条`、圆心 `51.5, -0.12`（`Clicked point`），标注切到缩放档。带参数与不带参数**返回完全相同的 HTML**（`share_same_html: true`，同一份构建、同一个文件）。canonical 恒为 `https://apocalab.com/nuclear-bomb-map/`。从该页再改当量，写回 `?w=25000&b=air&lat=51.50000&lon=-0.12000`，仍是 `replaceState`，不新增历史条目 |
+| f | sitemap 条数不变 | `locs = 10`，与加预设前一致；参数页不进 sitemap，`robots.txt` 未改，也没有为参数加任何规则 |
+
+**本轮新加的第 0 组断言**（不在 a–f 里，因为它是这一轮踩出来的，见 §17.6）：默认页 `centre = New York / 40.7143° N, 74.0060° W`、`zoom = 10.39`、`location.search` 为空、环像素 `29880`。
+
+**同批跑的其它闸门**：`verify_data.py` → PASS 354 FAIL 0；`check_site.py --expect main` → **PASS 1598 FAIL 0 WARN 0**；`check_urls.py` → PASS 68 FAIL 0；`verify_map.mjs` → `{ok:true}`（五态未破）；`verify_click.mjs` → `{ok:true}`（a–h 未破）。
+
+### 17.6 途中发现的两个既有缺陷（不是本轮需求，但会毁掉默认页）
+
+两个都是上一轮加「任意点点击 / 分享参数」时留下的，都只在**没有任何 URL 参数的默认访问**这条路上发作，所以点选闸门与地图降级闸门当时都是绿的。
+
+1. **`Number(null) === 0`**。`readUrl()` 原来写 `const lat = Number(p.get('lat'))`，再判 `Number.isFinite(lat)`；没有 `?lat=` 时 `p.get` 返回 `null`，`Number(null)` 是 `0`，判定通过 → 每次打开 `/nuclear-bomb-map/` 都变成「0°N 0°E 的点击点」。后果不是文案错：`apply()` 里有「点击点不移动相机」的分支，于是环被画到几内亚湾外海，页面上五个环一个都看不见，只剩五个标签（环像素 **12701 = 全是标签**）。修法：先判参数在不在（`null` 与空串一律 NaN），`?lat=0&lon=0` 仍然是合法点。
+2. **`view.zoom` 早于布局**。`view = viewFor(...)` 在模块作用域就算好了，而它依赖画布 `w/h`；那一刻 `frame` 还没有尺寸，`zoomForRadius()` 直接落进 `clamp(..., 1, 16)` 的下界 → `zoom = 1`，而 MapLibre 自己的最小缩放是 2。修法：`resize()` 之后调一次 `refit()`，并在 `ResizeObserver` 里跟着 `resize()` 一起重拟合。`refit()` 只用 `view` 现有的经纬度重算比例，**不动中心**，所以点选点和平移结果都不会被拉回去。
+
+修完实测：圆心回到 `40.7143° N, 74.0060° W`，`zoom 10.39`（与 MapLibre 实际比例一致，`512·2^zoom` 世界像素下 9.93 km = 224 px = `0.4 × 560`），环像素 `12701 → 29880`。
+
+### 17.7 未完成项
+
+1. ~~§17.3 三条等你拍板~~ —— 2026-11-18 已拍板并落地（6 kt 中位 / 475 kt / §3.61），见 §19。
+2. **`> 10 Mt` 的四条（Ivy Mike / Castle Bravo / B41 / Tsar Bomba）没有热辐射环**：显示 `—`，理由是 `Fig. 7.42 stops at 10 Mt: no thermal radius is read above it.`，**不显示 0、不外推**。这一条要不要在结果区之外再加一句独立说明，等你定。
+3. **非查表当量下的「城市态」人口列**：显示 `tabulated at 15, 100 and 1,000 kt only, not at 50,000 kt`，不给瓦片估算。理由是瓦片人口与城市页 API 人口是两套口径，不能混在同一列里（§16 已写死这个差别）。这也是新口径，待确认。
+4. 本轮**没有提交、没有部署**；上线与否等你 §17.3 拍完再说。
+
+
+## 18. 第六环 20 psi：先判条件，再改环数（2026-11-16 实现）
+
+### 18.1 条件判定的答案：有，所以做
+
+阶段 0 第 5 项当时的回答是「Fig. 3.73c 上没有 20 psi」。这句话是对的，但它不等于「手册没有」：
+
+- **Fig. 3.73c（p.115，低压段）** 的印字标号是 1 / 2 / 4 / 6 / 8 / 10 psi。没有 20 psi，也没有 5 psi。
+- **Fig. 3.73b（p.113，中压段）** 的印字标号是 10 / 15 / 20 / 30 / 50 / 100 / 200 psi。**20 psi 是图上一条真实印刷的等压线。**
+
+所以条件成立，做。并且这一步**没有用任何公式反推**：20 psi 的 1 kt 基准是在 3.73b 上读出来的，唯一的乘法仍是手册自己的 §3.61 立方根律，与 1 / 5 psi 用的是同一条律、同一个标签。
+
+### 18.2 读数：1 kt 基准（600 dpi 渲染 p113_600.png，4,320 × 3,136）
+
+标定取自等距网格线，两个方向各自独立：
+
+```text
+x_px = 348.5 + 2.2467 · d_ft      100 ft = 224.67 px（0–1,500 ft，15 格）
+y_px = 2521.5 − 2.2540 · h_ft     100 ft = 225.40 px（0–1,000 ft，10 格）
+```
+
+| 爆型 | 1 kt 基准 | 爆高 | 像素 | 怎么读的 |
+|---|---|---|---|---|
+| 空爆 | **927.9 ft** | 611 ft | (2433.1, 1144.0) | 20 psi 等压线峰值；±40 ft 邻域内抛物线拟合顶点，原始采样 928.5 ft @ HOB 608 |
+| 地爆 | **720.2 ft** | 0 | (1966.5, 2521.5) | 底边：HOB 30 ft 处 725.5 ft，局部斜率 0.178 ft/ft，外推最后 30 ft |
+
+缩放后（× W^(1/3)）：
+
+| 当量 | 空爆 | 地爆 |
+|---|---|---|
+| 15 kt | 0.70 km（2,288 ft，HOB 1,507 ft） | 0.54 km（1,776 ft） |
+| 100 kt | 1.31 km（4,307 ft，HOB 2,836 ft） | 1.02 km（3,343 ft） |
+| 1 Mt | 2.83 km（9,279 ft，HOB 6,110 ft） | 2.19 km（7,202 ft） |
+
+### 18.3 两处独立校验（写进 cross_checks，页面表格自动渲染）
+
+| id | 手册原话 | 本图读数 | 差 |
+|---|---|---|---|
+| G5 | p.112 算例：地面距离 400 ft、爆高 500 ft 处峰值超压 50 psi | 410 ft | **+2.5%** |
+| （非锚点） | Fig. 3.73a（p.111）上 100 psi 环鼻尖约 360 ft @ HOB 190 | 363 ft @ HOB 210 | **<1%** |
+
+G5 进 `cross_checks`（`verify_data.py` C 组会查编号必须是 G1–G5、且 G5 的 400/410 不得漂移）；100 psi 那条只写在 methodology 正文里，因为它是图对图，不是「手册用文字写死的数」——把它伪装成锚点会破坏锚点的定义。
+
+### 18.4 数据层与页面改了什么
+
+| 位置 | 改动 |
+|---|---|
+| `scripts/build_effects.py` | 新增 `BLAST20_AIR` / `BLAST20_GND` / `CIT3B`，生成 6 条 `overpressure_20psi`（3 当量 × 空/地）；签核分支把 20 psi 放最前，`checked_by=None` → 页面带 `*` |
+| `src/data/effects.json` | 24 → **30** 条；citation 为 `Fig. 3.73b, p.113`，`base.factor` 与 `base.px` 可复算 |
+| `data-ledger.csv` | 24 → **30** 行 |
+| `src/lib/effects.ts` | `EffectId` 加 `overpressure_20psi`；`EFFECT_ROWS` 改为**半径降序六行**：1 psi → thermal 2nd → thermal 3rd → 5 psi → 20 psi → fireball |
+| `src/lib/panel.ts` | 20 psi 环色 `#ff4d6d`（与 5 psi `#f0b64a`、火球 `#ff7a29` 三者互不相同）；副标题 `peak of the 20 psi contour · Fig. 3.73b` |
+| `src/scripts/bomb-map.ts` | `scaledRows()` 不再硬编码 effect 顺序，改为从 island 的锚点行取 order（客户端不能 import effects.json） |
+| `scripts/build_weapon_radii.py` | `EFFECT_ORDER` 同步六环；每条预设 air/ground 从 5 个半径变 **6 个**；`weapon-ledger.csv` 110 → **132** 行 |
+| `scripts/build_city_pop.py` | 半径集合从 `effects.json` 自动派生 → 20 个半径，**20 城全部重取** |
+| `src/data/city-pop.json` | 每城多 `0.700` / `1.310` / `2.830`（15/100/1,000 kt 的 20 psi）三档；旧值未漂移 |
+
+页面文案的「五环 → 六环」是一次全树清扫，不是逐页手改：首页、/blast-radius/、/nuclear-bomb-map/、五个城市页、/methodology/、BombMap/ResultPanel 注释，最后用 `check_site.py` 的 G-e 组反向断言 **`five rings` / `five distances` / `five radii` / `five effects` / `five contours` 一个都不许再出现**。保留原样的 `five` 有三类，都不指环数：`five spot-checked`（签核记录）、`five city pages`（已发布城市页数）、`five source pixels`（瓦片一格由 5 个源像素合成）。
+
+### 18.5 验收 a–c 实测（2026-11-16，本地 `CF_PAGES_BRANCH=main` 产物）
+
+| 用例 | 断言 | 实测 |
+|---|---|---|
+| a | 20 psi 距离与手册图逐值一致 | 空爆 1 kt **927.9 ft @ HOB 611** → 0.70 / 1.31 / 2.83 km；地爆 **720.2 ft @ HOB 0** → 0.54 / 1.02 / 2.19 km；`verify_data.py` 的 P2 组逐条比对 `EXPECT20` 六个整数（2288 / 4307 / 9279 / 1776 / 3343 / 7202），全过 |
+| b | 六环图例顺序正确 | 图例 `.nm` 六个名字按 `1 psi → Thermal · 2nd-degree → Thermal · 3rd-degree → 5 psi → 20 psi → Fireball` 排列；六个 `.dot` 颜色互不相同，20 psi `#ff4d6d` ≠ 5 psi `#f0b64a`；`verify_map` A/B 两态 `rings = 6` |
+| c | 20 城人口表含新环 | `city-pop.json` 每城 20 个半径。纽约实测：0.700 km → **40,065**、1.310 km → **124,692**、2.830 km → **391,022**；旧值未漂移（3.220 km 仍 **490,885**） |
+
+闸门实跑（全部非零退出即视为失败）：
+
+```text
+python scripts/verify_data.py            PASS 511  FAIL 0
+python scripts/check_site.py --expect main   PASS 1765 FAIL 0  （含新增 G-e 组 11 条）
+python scripts/check_urls.py             PASS 68   FAIL 0
+python scripts/verify_pop_tiles.py       PASS 9    FAIL 0
+node scripts/verify_map.mjs      → {"ok": true}
+node scripts/verify_click.mjs    → {"ok": true}
+node scripts/verify_weapons.mjs  → {"ok": true}
+node scripts/verify_search.mjs   → {"ok": true}
+```
+
+改闸门时踩到的一个坑，记下来免得下次再犯：`verify_map` / `verify_click` / `verify_weapons` / `verify_search` 里环数与读数列都是**硬编码的 5**，还各自带着一个「按显示顺序写死」的距离数组。环数从 5 变 6 之后，这些数组不只是长度不对，**顺序也全错**（20 psi 插在 5 psi 与火球之间）。所以改法不是把 5 换成 6：`verify_click` 的 `rowKeys` 与 `verify_weapons` / `verify_search` 的 `D_VALUES` 都重排成了 `9.93 / 6.99 / 4.02 / 3.22 / 1.31 / 0.21`。只改长度不改顺序，闸门会绿着放过一个错序的页面。
+
+超过 10 Mt 的四条预设现在每条有 **4** 个数字（1 / 5 / 20 psi + 火球），热辐射两行仍是 `—` + `Fig. 7.42 stops at 10 Mt`，`verify_weapons` 的期望值随之从 3 改成 4。
+
+### 18.6 未完成项
+
+1. **六行 20 psi 没有签核**，页面与表上带 `*`。签字条件与其余行同一条：对 p.113 重新渲染、把 20 psi 等压线再读一次，实测值与原值差在读数误差内才落日期。现在的背书只有 §18.3 那两条独立校验。
+2. `methodology` 的 `#verification` 一节现在写「24 of 30 signed，未签的 6 行全是 20 psi」，并解释了为什么未签——这一句是从 `entries` 里算出来的（`{checked} of {total}`），不是手写数字。
+3. 本轮**没有提交、没有部署**。§17.3 的三处待拍板仍然待拍板（W76-2 7 vs 8、W88 475 vs 455、立方根标 §3.61 还是 §2.127）。
+
+## 19. 三处已知错的收口（2026-11-18）
+
+### 19.1 §3.61 核对：编号是对的，但「全树 2.127 一律改 3.61」不成立
+
+**PDF 版本**：《The Effects of Nuclear Weapons》，Third Edition，Compiled and edited by Samuel Glasstone and Philip J. Dolan，United States Department of Defense + Department of Energy，1977（封面编号 TID-28061）。本机文件 `EoNW/6852629.pdf`，662 页；第 3 章 PDF 页 = 印刷页 + 9。
+
+| 节 | 印刷页 | 原文（逐字） |
+|---|---|---|
+| §3.60 `SCALING LAWS` | 100 | `In order to calculate the characteristic properties of the blast wave from an explosion of any given energy if those for another energy are known, appropriate scaling laws are applied.` |
+| §3.61 | 100 起，续 101 | `3.61 Theoretically, a given pressure will occur at a distance from an explosion that is proportional to the cube root of the energy yield. Full-scale tests have shown this relationship between distance and energy yield to hold for yields up to (and including) the megaton range.`；式 `(3.61.2)` `D = D₁ × W^(1/3)` 印在 **p.101** |
+| §3.62 | 102 | 缩放爆高；`cube root scaling law may be applied to distances from ground zero`，式 `(3.62.1)` |
+| §3.63 | 102 | 同一律推广到冲击波到达时间、正相时长、正相冲量 |
+
+结论：**3.61 确实是立方根那一节，3.62 / 3.63 属于同一组**。工作区里所有立方根引用本来就已是 §3.61（`weapons.ts` 的 `SCALED_LAW`、`SOURCE_PREFIX.blast`、缩放台账行、`effects.json` 的 `scaled_label`），没有一处把立方根标成 2.127。
+
+但「全树 2.127 命中 0」不能做，做了是错的。现存 `2.127` 的命中**全部是火球公式**：p.70 首句 `2.127 The size of the fireball increases with the energy yield of the explosion.`，p.71 印 `R (at breakaway) for contact surface burst = 145 W^0.4 (2.127.2)`。把这些改成 §3.61，等于让火球半径的出处指向一条与火球无关的缩放律。
+
+所以本轮**没有替换这 62 处**，改为把归属钉进闸门（`verify_data.py` 的 S 组，+60 条断言）：火球条目必须引 §2.127 且公式号与爆型配对（空 (2.127.1) p.70 / 地 (2.127.2) p.71），非火球条目一律不许引 §2.127，缩放条目必须带 §3.61。以后谁再想一键替换，闸门会先红。
+
+### 19.2 两处当量
+
+| 项 | 改前 | 改后 | 落点 |
+|---|---|---|---|
+| W76-2 | 7 kt（区间上端） | **6 kt**（5–7 区间中位） | `weapons.json` 增 `kt_range: [5,7]` 与 `yield_note`；页面 Yield 列渲染 `6 kt (5–7 kt range)`，说明列写 radii computed at the 6 kt midpoint；台账 12 行带同一句 |
+| W88 | 475 kt（已对） | **475 kt** | 只删掉 note 里那句引用旧低位估计的表述，全树不再出现那个旧数字 |
+
+### 19.3 来源 URL
+
+12 条全部有可点开来源，2026-11-18 实测全部 200，`quote_yield` 逐条比对原文命中；**无 MISSING**；无 `nukesimulation` / `nukeblastsimulator`。台账新增 `source_url` 列（132 行全部非空）与 `yield_note` 列（仅 W76-2 有值）。
+
+顺手修的一处：三条测试页引文少了冒号后的空格（JSON 里 `Yield:10.4 Mt`，原文 `Yield: 10.4 Mt`），已按原文补齐——页面与闸门都声称「The quoted line is what the page actually says」，差一个空格就不成立。
+
+### 19.4 重算与验收
+
+`build_weapon_radii.py` 重跑：自检 18 个已知点最大偏差 2.00 px，100 kt 锚点自洽，132 行台账重写。
+
+手算对账（`R100(m) × (W/100)^(1/3)`，W88 因子 1.680988 / W76-2 因子 0.391487）：
+
+| 环 | W88 475 空爆 | W76-2 6 kt 空爆 |
+|---|---|---|
+| 1 psi | 9932 m × f = 16695.6 → **16.70 km** | 9932 × 0.391487 = 3888.2 → **3.89 km** |
+| 5 psi | 3219 × f = 5411.1 → **5.41 km** | 3219 × f = 1260.2 → **1.26 km** |
+| 20 psi | 1313 × f = 2207.1 → **2.21 km** | 1313 × f = 514.0 → **0.51 km** |
+| 火球 | 110·475^0.4 = 1294 ft → **0.40 km** | 110·6^0.4 = 225 ft → **0.07 km** |
+
+地爆同理（9.11 / 3.24 / 1.71 / 0.52 km 与 2.12 / 0.75 / 0.40 / 0.09 km），热辐射两行是 Fig. 7.42 直读、不参与立方根，两个 6 kt / 475 kt 的读数列与图上一致。
+
+闸门实跑（本轮）：`verify_data` PASS **571**、`check_site --expect main` PASS **1765**、`check_urls` PASS **68**、`verify_map` / `verify_click` / `verify_search` / `verify_weapons` / `verify_js_off` / `verify_layout` / `verify_share_url` 全绿，FAIL 0。
+
+首屏请求集未变：同源 5 条（文档 + `blast-radius.*.css` + `BombMap...js` + `ne_110m_land.geojson` + `maplibre-gl.*.js`），跨域 7 条（底图瓦片 6 + 1）。环数仍 6，顺序仍 `1 psi → thermal 2nd → thermal 3rd → 5 psi → 20 psi → fireball`（`verify_weapons` 的 `D_VALUES` 逐值比对通过）。
+
+### 19.5 一个环境坑
+
+四个浏览器闸门共用同一个 CDP 页面（9333 上的同一个 target），**并行跑会互相改状态**：本轮把 `verify_map` 与 `verify_click` 同时启动，结果 `verify_click` 读到 4 环（地被另一条脚本切成了 ground burst，两个热辐射行因此为空）+ 距离不一致，`verify_map` 报降级态环像素 0。串行重跑全绿。以后要么串行，要么各起一个浏览器实例。
+
+### 19.6 待确认
+
+1. §2.127 要不要按字面清成 0 命中。我建议不要（理由见 19.1）；若坚持，只能把火球出处降级成「Ch. 2 · p. 70 / p. 71」并丢掉公式号，每格少一个可核对锚点。
+2. 本轮未提交、未部署。
+
+## 20. 20 psi 六行的签核判定：重读、图对图、外部区间（2026-11-18）
+
+结论先写：**verdict = unsigned**。六行继续带 `*`，方法页的「24 of 30」不动，数据、文案、环数一字未改。
+它不是「数据错了」，而是**你给的四条判定里第 1、2 条按字面无法闭环**，我不拿拟合去凑。
+
+### 20.1 读数表（p113_600.png，600 dpi，标定沿用上一轮 X0=348.5 / 2.2467 px/ft / Y0=2521.5 / 2.2540 px/ft）
+
+方法：HOB 行横扫，带高 ±9 行、阈值 120，取该交点墨迹的**左沿 / 中心（墨量加权）/ 右沿**三点；
+极差判据用你给的笔画宽度 20 px。
+
+| 行 | 取点 | 像素 x | 折算 ft | 折算 km(1 kt) | 极差 |
+|---|---|---|---|---|---|
+| **HOB 500**（y=1394） | 左沿 | 2297.6 | 867.7 | 0.2645 | **17 px**（< 20，可用） |
+| | 中心 | 2306.5 | **871.5** | 0.2656 | |
+| | 右沿 | 2315.3 | 875.3 | 0.2668 | |
+| **HOB 300**（y=1845） | 左沿 | 2097.9 | 778.7 | 0.2373 | **13 px**（< 20，可用） |
+| | 中心 | 2104.5 | **781.6** | 0.2382 | |
+| | 右沿 | 2111.1 | 784.5 | 0.2391 | |
+| **峰值**（HOB 612） | 中心 | 2433.3 / y 1142.0 | **928.0** | 0.2828 | 转折点，见 20.4 |
+| **地爆 HOB 0**（上一轮定稿值） | 底边外推 | 1966.5 / y 2521.5 | **720.2** | 0.2195 | 独立复核见下 |
+
+阈值 100 / 120 / 150 × 带高 ±7 / ±9 / ±12 九种组合下，中心值稳定在 870.9–871.5 与 781.5–781.6，
+即**读数本身可复现**（变化 ≤ 0.6 ft = 1.3 px）。
+
+地爆 720.2 的独立复核：同一曲线下支 HOB 20/30/40 读到 724.0 / 725.5 / 727.0 ft，
+线性外推到 HOB=0 得 **720.9 ft**，与 720.2 差 **+0.1%**。
+
+### 20.2 第 1 条为什么过不去：立方根律折不了 HOB 行
+
+你要求「把 d500、d300 按立方根律折到地爆 1 kt 等效距离再比」。本机 PDF 核对的结果是**这条折算不存在**：
+
+- §3.61 Eq. (3.61.2)（p.101）：`D = D₁ × W^(1/3)`，**缩的是当量**。
+- §3.62 Eq. (3.62.1)（p.102）：`d = d₁ × W^(1/3)`，且前置条件是*同一个 scaled height of burst*，
+  即整条 (h, d) 等值线按 `(h·W^(1/3), d·W^(1/3))` 整体缩放。
+- §3.73（p.112）复述：`h = h₁·W^(1/3)`、`d = d₁·W^(1/3)`。
+
+图本身就是 1 kt（图题 *for a 1-kiloton burst*），W=1 → W^(1/3)=**1.000000**，**折算是恒等**。
+把 h 折到 0 需要 W→0，数学上不成立；手册里也没有任何把某条 HOB 行折回 HOB=0 的公式。
+所以按字面执行的结果只能是三个原始读数直接相比：
+
+```
+720.2 / 781.6 / 871.5 ft     极差 21.0%   （> 5%）
+d300 比 720.2 高 +8.5%，d500 高 +21.0%
+```
+
+按你的规则，这一条落在「> 5% → 停手，标读数未收敛」。**但 21% 不是读数噪声**：
+
+- 三个交点的三点极差只有 13–17 px，都小于笔画宽度 20 px；
+- 21% 来自曲线自身的斜率：同一条 20 psi 线从 HOB 0 的 720.2 一路升到 HOB 612 的 928.0，
+  在 HOB 300–500 区间斜率约 0.40–0.60 ft/ft（HOB 每升 100 ft，距离涨 40–60 ft）。
+  HOB 相差 200 ft，读数差 8.5% 是**几何必然**，不是「没收敛」。
+
+记录一条**只作诊断、不进入任何发布数字**的观察：这条线满足 `d² − h² ≈ 720²`，
+HOB 20–500 十行的 sqrt(d²−h²) = 723.7 / 725.9 / 727.9 / 730.5 / 731.8 / 730.2 / 727.3 / 721.7 / 710.3 / 713.8，
+残差 **±1.6%**。用它归一，三点变成 720.2 / 721.7 / 713.8，极差 1.11%，中位仍是 **720.2**。
+但这是**对这张图的几何描述**，不是手册的律，也不该被当成第四条取数路径——所以它只写在这里，
+不用它去把闸门刷绿。（这条关系正是「20 psi 在 HOB 0–600 之间不是竖线」的量化形式。）
+
+### 20.3 第 2 条为什么过不去：3.73c 的 HOB 500 行读不出 10 psi
+
+| 图 | 10 psi @ HOB 500 | 怎么得的 | 可用性 |
+|---|---|---|---|
+| Fig. 3.73b (p.113) | **1,310.1 ft** | 按列扫（近水平线用列扫才对）：局部斜率 1.24 ft/ft | 可用；按行扫交叉验证 1,312.7 ft（差 2.6 ft） |
+| Fig. 3.73c (p.115) | 1,233 ft（最优估） | 目视 + 追线 | **不可用**：该行交点横向宽 26–38 px，是笔画宽度的 2–3 倍，且被「REGULAR REFLECTION REGION」文字切断 |
+
+> **作废标注（2026-11-18 追加，同日改写归属与原因；上面两个数字原样保留，一个不删）**
+> 两处作废的原因不同，分开写死：
+> - **1,310.1 ft（Fig. 3.73b / p.113）——判据变更作废，不是标定错**：原读法取 HOB 500 行，
+>   新判据要求两图同处陡段，改为读鼻尖 1,467.3 ft。p113 纵轴标定两轮均正确
+>   （verify_calibration A2 实测 450.1 px vs 450 px 基线，偏差 0.188%），该值本身不是错读，
+>   只是不再作为判据位置。
+> - **1,233 ft（Fig. 3.73c / p.115）——标定错误作废**：p115 纵轴轴标 6 个数字间距
+>   487.4 px = 1,000 ft、网格每格 500 ft，上一轮误按 200 ft/格 计算，HOB 被放大约 2.5 倍；
+>   该读法实际取的是 HOB≈1,240，数值无效。
+> 由此算出的 `−6.1%`（1,233 / 1,310.1 − 1）随两者一起作废；作废的是**这一对数与据此判的
+> 「第 2 条不过」**，不是 20 psi 的六行数值——六行同日按 0.4874 重读，改用鼻尖口径比对
+> （§21.5，差 2.0% < 3%）。
+> **两者作废原因不同：p113 是判据换位置，p115 是标定错。**
+> 防复发措施：p115 纵轴这条错已固化成 `scripts/verify_calibration.py` 的断言 A4
+> （§22.1），再按 200 ft/格 算，脚本当场以非零退出码中止。
+
+3.73c 的 HOB 500 行扫描出来的候选是 1,085–1,610 ft 之间一串碎段（w10–w38），
+没有任何一条能被唯一认定为 10 psi：这条线在 HOB 400–600 之间几乎水平（3.73b 在同处斜率 1.24 ft/ft，
+3.73c 约 2–8 ft/ft），按你在第一条里定的「极差超过笔画宽度即判该行不可用」，这一行判**不可用**。
+
+即便取最优估 1,233 ft：**1,233 / 1,310.1 − 1 = −6.1%**；取舌形另一侧 1,610 ft 则是 +22.9%。
+**没有任何一个候选落在 ±3% 内**，所以「差 < 3% → 读数流程无系统偏差」不成立，
+按你的规则「差 ≥ 3% → 停手，不许签核」。
+
+偏差方向：低压缩放图（3.73c）把 10 psi 画得比中压图（3.73b）**更靠内**。
+
+顺带说明为什么这不是标定错：3.73c 的标定被两个独立量校验过——
+1 psi 鼻尖实测 **6,997 ft**，与本站已签核的 7,020 ft 差 −0.3%；左侧轴标（800/600/400/200）
+落在 803/590/386/182，与 800/600/400/200 差 ≤ 6 ft。3.73b 的标定则由 p.112 算例（400→410，+2.5%）与
+Fig. 3.73a 的 100 psi 鼻尖守着。两张图的标定都对，差的是**两张图的曲线形状**：同一条 10 psi
+在 3.73b 上 HOB 500 处 1,310 ft，在 3.73c 上 1,233 ft 且几乎水平。
+
+> **作废标注（2026-11-18 晚追加，上一段原文字保留）**：「顺带说明为什么这不是标定错」一段
+> 对 p115 **纵轴**的校验说法（左侧轴标 800/600/400/200 落在 803/590/386/182、差 ≤6 ft）
+> 是在旧标定（200 ft/格）下推导的，已被 §21.2 实测推翻（轴标间距 487.4 px = 1,000 ft、
+> 每格 500 ft），该段对 p115 纵轴的结论**作废**；对 p115 **横轴**的校验（1 psi 鼻尖
+> 6,997 vs 7,020、底边 3,820 vs 3,830）与 p113 的标定结论不受影响。
+
+### 20.4 第 3、4 条：过
+
+**外部区间（第 3 条）**：地爆 1 kt = 720.2 ft = **0.2195 km/kt^(1/3)**。区间 0.22–0.24 →
+比下界低 **0.22%**，比上界低 8.5%。按「落在区间内 → 直接签核」判**过**（0.2195 四舍五入即 0.220），
+但它是**贴在下界**，不是落在区间中部，这一点写在这里备查。
+
+**空爆（第 4 条）**：
+- (a) 空爆 928.0 ≥ 地爆 720.2，高 **+28.9%** ✓
+- (b) HOB 500 = 871.5、HOB 800 = 691.7，峰值 928.0 在两个行读数之上，且 611 落在 500–800 之间 ✓
+- 峰值本身由两条独立路径取得：曲线追踪极大值 928.0 @ HOB 612；按行扫 HOB 600 = 927、HOB 650 = 918。
+  与上一轮 927.9 @ HOB 611 一致（差 0.01%）。
+
+### 20.5 verdict 与后果
+
+**unsigned。** 触发条件：第 1 条 21.0% > 5%，第 2 条 −6.1% ≥ 3%。两条都是你自己写的停手条件。
+
+按「unsigned 时一字不改」执行：
+- `effects.json` 六行 `checked_by` 仍为 `null` → 页面继续带 `*`；
+- `/methodology/` 的「24 of 30」仍由 `{checked}/{total}` 现算，没有手写数字；
+- 环数、顺序、颜色、其余 24 行、sitemap、canonical、title、H1 全部未动。
+
+要把它签掉，需要你改一条规则，二选一：
+1. **第 1 条**改成「按同一 HOB 的读数复现性判」或明确接受 20.2 里那条 `d²−h²` 几何归一；
+2. **第 2 条**改成「图对图只比两图都陡的位置」（如 10 psi 鼻尖：3.73b 1,465.2 @ HOB 746，3.73c ≈ 1,460 @ HOB ≈250，
+差 −0.3%），并接受两张图在 HOB 400–600 段的形状差是原图差异、不是读数偏差。
+
+## 21. 20 psi 六行重判：折回判据作废，改用复现性判据（2026-11-18）
+
+结论：**verdict = signed**。三条判据全过，六行签核，页面上的 `*` 归零，方法页「30 of 30」由 entries 算出。
+
+### 21.1 折回判据不成立，作废
+
+上一轮用「把 HOB 500 / HOB 300 的读数按立方根律折回 HOB=0，再与 720.2 ft 比」判不签。
+**这个判据是错的，本轮作废。** §3.61 Eq.(3.61.2) p.101 是 `D = D₁·W^(1/3)`，§3.62 Eq.(3.62.1) p.102 是
+`d = d₁·W^(1/3)`、`h = h₁·W^(1/3)`——两者都只按当量缩放，且 §3.62 的前提是**同一 scaled height**。
+手册没有「把某条爆高行的地面距离折回接触爆」的公式，做这个折算等于本站自造一条律，违反「不许拟合」。
+所以上一轮那个 +21.0% / +8.5%、极差 21.0% 的结论，不构成对数据的判断。
+
+### 21.2 标定复核（顺手发现 p115 纵轴标定上一轮是错的）
+
+| 图 | 轴 | 依据 | 结果 |
+|---|---|---|---|
+| Fig. 3.73b p.113 | x | 轴下数字 0/200/…/1400 的标签中心，拟合 449.3 px/200 ft | **2.2465 px/ft**；X0 = 362.8（标签拟合）vs 348.5（图框），差 6.4 ft |
+| Fig. 3.73b p.113 | y | 左侧轴标 6 个（0…1000），间隔 450 px = 200 ft | 2.25 px/ft ✓ 与既有 2.2540 一致 |
+| Fig. 3.73c p.115 | x | 竖网格 16 条、242 px = 500 ft；用已签核 1 psi 底边 3830 ft 反验 | 0.4840 px/ft，实测底边 3820 ft（−0.26%） |
+| Fig. 3.73c p.115 | y | 左侧轴标 6 个，间隔 487.4 px = **1000 ft**，网格每格 500 ft，图域 0–5000 ft | **0.4874 px/ft** |
+
+**上一轮把 p115 的纵轴当成 244 px = 200 ft（PYF 1.22），HOB 被放大约 2.5 倍。** 因此上一轮那次
+「p115 的 HOB 500 行读 10 psi = 1310.1 ft」实际读的是 HOB≈1240 处，已作废；本轮全部按 0.4874 重读。
+p113 的纵轴本来是对的（2.25 px/ft），所以 20 psi 的 HOB 500 / 300 两行读数不受影响。
+
+> **归属更正（2026-11-18 晚，上一段按只增不删保留）**：上面那句把 1,310.1 ft 记在 p115 名下，
+> **归属写错了**。该值的图归属是 **p113（Fig. 3.73b）**，作废原因是**判据变更作废**——原读法取
+> HOB 500 行，新判据要求两图同处陡段，改为读鼻尖 1,467.3 ft；p113 纵轴标定两轮均正确
+> （verify_calibration A2 实测 450.1 vs 450 px，偏差 0.188%），该值本身不是错读，只是不再作为
+> 判据位置。**p115 那条 1,233 ft 才是标定错误作废**：轴标 487.4 px = 1,000 ft、网格每格 500 ft，
+> 上一轮误按 200 ft/格 计算，HOB 被放大约 2.5 倍，该读法实际取的是 HOB≈1,240，数值无效。
+> **两者作废原因不同：p113 是判据换位置，p115 是标定错。**
+
+### 21.3 判据一：行复现性（三次独立取点）
+
+| 行 | 左沿 | 墨量加权中心 | 右沿 | 极差 | 判 |
+|---|---|---|---|---|---|
+| HOB 500 ft | 867.7 ft | **871.5 ft** | 875.3 ft | 17 px | 过（< 20 px） |
+| HOB 300 ft | 778.7 ft | **781.6 ft** | 784.5 ft | 13 px | 过（< 20 px） |
+
+两行都在上升段（切线非水平），取点在 p113_600.png 上按行横扫、带高 ±9 行、阈值 120。
+
+### 21.4 判据二：空爆自洽
+
+- 空爆 1 kt 峰值 **928.0 ft @ HOB 612 ft**（x_px 2433.1, y_px 1144.0）；地爆 1 kt **720.2 ft @ HOB 0**。
+- 928.0 ≥ 720.2 ✓（空爆更高，物理上必须）。
+- 峰值 HOB 612 落在 HOB 500 与 HOB 800 两行之间 ✓；且峰值 928.0 高于 HOB 500 行的 871.5 与
+  HOB 800 行的 691.7，符合「峰值是上包络」的形态。
+
+### 21.5 判据三：陡段图对图（10 psi，两图都印）
+
+| 图 | 位置 | 像素 | 折算 |
+|---|---|---|---|
+| Fig. 3.73b p.113 | 10 psi 鼻尖（两分支在 x=3633 分裂、x=3645 收拢） | x = 3645 | **1467.3 ft**（原标定）/ **1464.4 ft**（用 20 psi 底边 722 vs 720.2 反锚） |
+| Fig. 3.73c p.115 | 10 psi 鼻尖（分支间隙在 x=997 为 2 px、x=1000 合拢） | x = 1000 | **1500.0 ft**（原标定）/ **1493.2 ft**（用 1 psi 底边 3820 vs 3830 反锚） |
+
+差 **2.0%**（反锚后）/ 2.2%（原标定），**< 3%** → 读数流程无系统偏差，PASS。
+旁证：10 psi 底边交点 p113 为 1038 ft、p115 为 1064 ft，差 2.5%，与鼻尖差同量级——两版图本身
+就有约 2% 的版面差，不是读数偏。
+
+### 21.6 外部归一（只作参照）
+
+720.2 ft = **0.2195 km/kt^(1/3)**，落在 0.22–0.24 的**下界外 0.2%**（两位有效数字即 0.22），
+没有高出区间，故不需要 cross-check 里那条「manual reads higher than common tables」。
+
+### 21.7 verdict 与落地
+
+三条判据全过 → **signed**。落地内容：
+
+1. `build_effects.py` 新增 `SIGN_OFF_20PSI`（2026-11-18，含三条判据的数字），六行 `checked_by` 从
+   `None` 改为该句；重生成 `effects.json`（30 条 / **30 signed**）与 `data-ledger.csv`（30 行）。
+2. 页面星号由数据驱动（`!row.checked`），六行 `*` 自动消失，无需改渲染层。
+3. 方法页「N of 30」由 `{checked}/{total}` 算出 → 30 of 30；原来那句「six 20 psi rows are new and
+   unsigned」改成签核记录，并新增一条说明折回判据为何作废。
+4. `/blast-radius/` 那句「marked with a star (*) until that re-read is done」改成事实：六行已于
+   2026-11-18 重读并签核，表里没有等待重读的行。
+5. 方法页两处「511 assertions」是旧数，一并改成 571。
+
+未动：六行数值、环数、顺序、颜色、其它 24 行、sitemap、canonical、title、H1。
+
+## 22. 标定闸门脚本化 + 同图邻线检查 + 记录修正（2026-11-18）
+
+结论先写：**三件事全部落地，20 psi 六行维持 signed**。邻线检查两条判据都过
+（单调 PASS；**主判据 ln d 插值误差 −0.15%；旁证 d 线性插值误差 −4.49%**），所以**没有**把
+`SIGN_OFF_20PSI` 改回 `None`；
+两轮踩过的标定错固化成 `scripts/verify_calibration.py` 的前置断言，负例实测非零退出。
+
+### 22.1 前置断言脚本 `scripts/verify_calibration.py`
+
+规则：任何脚本在用 `p113_600.png` / `p115_600.png` 取数之前必须先跑它，任一断言偏差 >1%
+以非零退出码中止。四条断言与实测（阈值 120，与各读图脚本一致）：
+
+| 断言 | 内容 | 实测 | 偏差 |
+|---|---|---|---|
+| A1 | p113 x：手册 p.112 算例 50 psi @ (400 ft, HOB 500)，轴标锚读数须在 ±1% | 398.2 ft | −0.457% |
+| A1b | 同上，图框锚读数（已知系统偏移，只作护栏，容差 3%） | 405.0 ft | +1.243% |
+| A2 | p113 y：轴标间距 450 px = 200 ft/档、网格每格 100 ft、PYF≈2.2540 | 450.1 px / 100.2 ft / 2.2505 | ≤0.188% |
+| A3 | p115 x：已签核 1 psi 底边 3830 ft（h=15..40 六点外推 HOB=0） | 3822.8 ft | −0.189% |
+| A4 | p115 y：轴标间距 487.4 px = 1000 ft、网格每格 500 ft、PYF≈0.4874 | 488.3 px / 501.6 ft / 0.4883 | ≤0.317% |
+
+结果：**PASS 11 / FAIL 0**，exit 0。
+
+**负例**：`python scripts/verify_calibration.py --p115-y-grid-ft 200`（故意复现 2026-11-18 的
+2.5 倍错）→ `FAIL A4d 每格 ft vs 声明值 200：实测 501.6，偏差 +150.791%`，`PASS 10 / FAIL 1`，
+**exit code 1**，按设计中止。
+
+两个历史错误写进了脚本注释（改脚本前必读）：
+
+1. **2026-11-18，p115 纵轴错 2.5 倍**：把「244 px = 200 ft/格」当成 p115 纵轴标定（PYF 1.22），
+   实测轴标 487.4 px = 1000 ft、每格 500 ft（PYF 0.4874）。后果：HOB 放大约 2.5 倍，那一轮
+   「p115 的 HOB 500 行读 10 psi = 1310.1 ft」实际读的是 HOB≈1240 处，整条结论作废
+   （§20.3 已标注，§21.2 记录）。A4 把「轴标间距 ↔ 网格格高 ↔ 每格 ft」三者绑死，再犯当场中止。
+   > **归属更正（2026-11-18 晚，上一条按只增不删保留）**：那句里的 1,310.1 ft 归属写错了——
+   > 它是 **p113（Fig. 3.73b）** 的值，作废原因是**判据变更**（原读法取 HOB 500 行，新判据改为
+   > 读鼻尖 1,467.3 ft；p113 纵轴标定两轮均正确，A2 偏差 0.188%，不是错读）。**p115 标定错
+   > 作废的是 1,233 ft**（旧纵轴标定下实际取的是 HOB≈1,240，数值无效）。
+   > **两者作废原因不同：p113 是判据换位置，p115 是标定错。**
+2. **2026-11-18，p113 x 有 6–8 ft 系统偏移**：x 轴标数字中心比图框/网格整体右移 14.3 px
+   （约 6.4 ft）、右端到 20 px（约 9 ft），标签锚与图框锚之间是小比例差 + 常数偏。此前一律用
+   图框锚 348.5，50 psi 算例读成 404.9 ft（+1.2%），标签锚读成 397.9 ft（−0.5%）。
+   A1 用标签锚判定、同时打印图框锚读数，两者都进记录。
+
+运行环境说明：默认隔离 `python` 没有 numpy/Pillow，直接跑会 ModuleNotFoundError——那是环境
+问题不是标定失败，会误导判读。新增 `scripts/_imgdep.py` 引导：缺包时自动找一个装了
+numpy+Pillow 的解释器把同一脚本连同参数重跑，输出直通终端、**退出码原样回传**；找不到替代
+解释器时以退出码 **2**（区别于标定失败的 1）打印安装命令中止。`verify_calibration.py` 与
+`read_neighbor_noses.py` 都接了这条引导。踩过的坑已写进 `_imgdep.py` 注释：Windows 上
+`os.spawnv` 按空格拼参数（`-c "import numpy, PIL"` 被拆段、假阴性），`os.execv` 换进程后
+输出与退出码传递不可靠（负例应 exit 1 实测 exit 0）——两处都用 `subprocess` 替代并注明原因。
+
+### 22.2 同图邻线检查（`scripts/read_neighbor_noses.py`，p113_600.png）
+
+方法与 10 psi 鼻尖完全同一套：列扫 + 连续竖直行程（≥40 px ≈ 18 ft）。窗口逐条手定，右界收在
+目标曲线外侧、下一条竖直网格线内侧（网格实线行程更长，会抢）；上下界躲开印刷标号
+（"15"/"20"/"30" 实心笔画也成长行程）。先跑 §22.1 标定闸门，不过拒读。
+
+| psi | 窗口 (HOB, d) ft | 鼻尖 x_px | d 图框锚 ft | d 轴标锚 ft | HOB ft | 行程 ft |
+|---|---|---|---|---|---|---|
+| 15 | 600..700, 1100..1210 | 3057.0 | **1205.5** | 1196.0 | 657.1 | 19 |
+| 20 | 570..660, 840..935 | 2439.0 | **930.5** | 921.9 | 611.4 | 18 |
+| 30 | 460..580, 590..650 | 1805.0 | **648.3** | 640.6 | 521.7 | 39 |
+
+旁录（进 `neighbor-noses.json`，不作判据）：15 psi 在 HOB 617/677 的同行交点出现双值
+（1192.5/1202.2、1200.4），说明该处曲线折返，鼻尖取最外列是唯一稳定定义；30 psi 行程 39 ft
+偏大，是鼻尖处曲线近乎水平的自然结果。
+
+**判据 a（单调）**：d 1205.5 > 930.5 > 648.3 PASS；HOB 657.1 > 611.4 > 521.7（psi 越高峰越低）
+PASS。自检：20 psi 同流程复现 930.5 @ HOB 611，对已签核 928.0 @ HOB 612，差 **+0.27%**。
+
+**判据 b（插值）**：t = ln(20/15)/ln(30/15) = 0.41504。**主判据 ln d 插值**：预测 931.9，
+相对误差 **−0.15%**（门槛 ≤5%，余量 4.85 个百分点）；**旁证 d 线性插值**：预测 974.2，
+相对误差 **−4.49%**（同一门槛，余量只有 0.51 个百分点）。两条线分开报，不合并成一个
+「均 ≤5%」——主判据过得很稳，旁证是擦线过的，这正是要分开写的原因 → PASS。
+
+两条全过 → **保留 signed**，`SIGN_OFF_20PSI` 不动；`neighbor-noses.json`（根目录）留作证据，
+`verdict: "signed"`。
+
+### 22.3 p113 横轴两套标定下的 20 psi 六值（只记录，不改数据）
+
+图框锚 `x = 348.5 + 2.2467·d`（发布值沿用，与已签核的 24 行同一套）vs 轴标锚
+`x = 360.68 + 2.2545·d`（A1 拟合值）。1 kt 基准读数：空爆鼻尖 930.5 → 921.9（**−8.6 ft，
+−0.93%**）；地爆底边 720.2 → 712.3（**−7.9 ft，−1.10%**）。按同一比例折到六行：
+
+| 爆型 | 当量 kt | 发布值 ft | 轴标反锚 ft | 差 ft |
+|---|---|---|---|---|
+| air | 15 | 2288 | 2267 | −21 |
+| air | 100 | 4307 | 4267 | −40 |
+| air | 1000 | 9279 | 9193 | −86 |
+| ground | 15 | 1776 | 1757 | −19 |
+| ground | 100 | 3343 | 3306 | −37 |
+| ground | 1000 | 7202 | 7123 | −79 |
+
+**发布值不动**：差异一致为负、随当量线性放大（1 kt 处只有 8 ft 量级），幅度 ≤1.1%，小于
+两图版面差（§21.5 的 2.0%）；切标定会让其余 24 条失去与已签核读数的一致性，收益不成比例。
+
+### 22.4 cross_check 新增 G6（外部松散参照）
+
+```json
+{"id":"G6","claim":"manual sits above common summary tables at 10 and 20 psi",
+ "manual_ft":7874.0,"ours_ft":9280.0,"delta_pct":17.9,"external":true,...}
+```
+
+detail 写明：10 psi @ 1 kt 手册 1,467–1,500 ft（0.447–0.457 km）对常见汇总表约 0.4 km，
++12% 到 +14%；20 psi @ 1 Mt 手册 9,280 ft = 2.83 km 对约 2.4 km，**+17.9%**；外部数字**不标爆型**，
+只作松散参照不是校验，手册是真源。工程口径：`verify_data.py` 对 G6 用 20% 容差、断言
+`external=True` 且 detail 含爆型说明；`src/lib/effects.ts` 的 `crossChecks` 过滤掉
+`external` 条目，前台两张 cross-check 表的行数保持一致（G6 只活在 `effects.json`、
+`data-ledger.csv` 与方法页的「含 1 条外部松散参照」说明里）。
+
+### 22.5 断言数改为构建期派生（511 / 571 硬编码清零）
+
+1. `verify_data.py` 全绿时写 `src/data/gate-counts.json`（`{"verify_data":{"pass":575,...}}`），
+   数值来自实跑计数，不是手填。
+2. `src/pages/methodology.astro` 两处硬编码改为 `import gateCounts from '../data/gate-counts.json'`
+   → `{gateCounts.verify_data.pass}`。
+3. `check_site.py` 新增第 28 节「断言数由闸门派生」：实跑 `verify_data.py` 解析 PASS 数，
+   与 `gate-counts.json`、与 `/methodology/` 页面上所有 `N assertions` 三方比对；并断言页面
+   不再出现 `511 assertions` / `571 assertions` 字样。
+4. 全树 grep `\b(511|571)\b` 复查：**活代码与页面命中 0**。剩余命中逐条归档，全部不是断言数：
+   - `scripts/check_site.py` 里 `("511","571")` 是第 28 节自己的黑名单模式（闸门本体，应存在）；
+   - `plan.md` 3 处与 `.workbuddy/memory/` 3 处是**历史运行记录**（只增不删规则保护，当时的
+     PASS 数如实）；
+   - `neighbor-noses.json` 的 `"571"` 是 HOB 行 key（该行交点在 HOB 571 ft），纯数据；
+   - `public/data/cities/*.json` 是地名坐标小数（如 24.571…），纯数据。
+
+### 22.6 闸门结果（本轮，全绿）
+
+| 闸门 | 结果 |
+|---|---|
+| `verify_calibration.py` | PASS 11 / FAIL 0，exit 0；负例 `--p115-y-grid-ft 200` → FAIL A4d，exit 1 |
+| `read_neighbor_noses.py` | 判据 a、b 全 PASS，verdict = signed，exit 0 |
+| `verify_data.py` | PASS 575 / FAIL 0，写 `gate-counts.json`（pass=575） |
+| `check_site.py --expect main` | PASS 1773 / FAIL 0 / WARN 0（含第 28 节断言数派生） |
+| `check_urls.py` | PASS 68 / FAIL 0 |
+| `verify_pop_tiles.py` | PASS 9 / FAIL 0（6 个 g-touch 半径 Δ0） |
+| `verify_map.mjs` | ok: true，problems: [] |
+| `verify_click.mjs` | ok: true，problems: [] |
+| `verify_weapons.mjs` | ok: true，problems: []（12 预设、锚点自检逐字一致、same HTML true、sitemap 10 locs） |
+| `verify_search.mjs` | ok: true，problems: [] |
+
+构建：`CF_PAGES_BRANCH=main node node_modules/astro/astro.js build` 成功，11 页，
+`_headers: production (CF_PAGES_BRANCH=main) [SITE_LIVE=true]`。
+
+改动范围：`scripts/verify_calibration.py`（新）、`scripts/read_neighbor_noses.py`（新）、
+`scripts/_imgdep.py`（新）、`scripts/build_effects.py`（G6）、`scripts/verify_data.py`
+（G6 + gate-counts）、`scripts/check_site.py`（第 28 节）、`src/lib/effects.ts`（过滤 external）、
+`src/pages/methodology.astro`（仅断言数派生两行 + import）、`src/data/effects.json` 与
+`data-ledger.csv`（重生成，数值未变）、`src/data/gate-counts.json`（新）、`README.md`
+（去硬编码断言数、补两个新脚本）、本节。未碰：页面文案、canonical、sitemap、title、H1、
+环数、顺序、颜色、其它 24 行数据。
