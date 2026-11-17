@@ -116,7 +116,7 @@ await sleep(400);
 const base = await evaluate(PROBE);
 out.cases.boot = { head: base.head, coords: base.coords, status: base.status };
 if (base.head !== 'New York') bad.push(`boot: 默认状态头不是 New York（${base.head}）`);
-if (base.rows.length !== 5) bad.push(`boot: 读数列 ${base.rows.length} 行`);
+if (base.rows.length !== 6) bad.push(`boot: 读数列 ${base.rows.length} 行`);
 if (shardRequests.length) bad.push(`boot: 首屏就请求了分片 ${JSON.stringify(shardRequests)}`);
 if (base.fetches !== 0) bad.push(`boot: 未输入就 fetch 了 ${base.fetches} 次`);
 
@@ -127,7 +127,7 @@ await sleep(250);
 const a = await evaluate(PROBE);
 out.cases.a = { head: a.head, coords: a.coords, status: a.status, rings: a.rings.length };
 if (!/^Denver\b/.test(a.head || '')) bad.push(`a: 状态区没有变成 Denver（${a.head}）`);
-if (a.rings.length !== 5) bad.push(`a: 环数 ${a.rings.length}`);
+if (a.rings.length !== 6) bad.push(`a: 环数 ${a.rings.length}`);
 if (a.rings.some((r) => r.hidden)) bad.push('a: 有环被隐藏');
 if (a.head === base.head) bad.push('a: 状态区与默认态相同，没有变化');
 
@@ -140,7 +140,7 @@ const wantCoords = fmt(denverRow[3], denverRow[4]);
 out.cases.b = { shown: a.coords, expected: wantCoords };
 if (a.coords !== wantCoords) bad.push(`b: 坐标 ${a.coords} ≠ 分片值 ${wantCoords}`);
 
-// ---------------------------------------------------------------- c: same five
+// ---------------------------------------------------------------- c: same six
 const same =
   JSON.stringify(a.rows) === JSON.stringify(base.rows) &&
   JSON.stringify(a.rings) === JSON.stringify(base.rings);
@@ -151,7 +151,7 @@ out.cases.c = {
   hob: a.rows.map((r) => r.hob),
 };
 if (!same) bad.push('c: Denver 的五距离/爆高/出处与 New York 不是逐字相同');
-for (const [i, km] of ['0.21', '3.22', '9.93', '6.99', '4.02'].entries()) {
+for (const [i, km] of ['9.93', '6.99', '4.02', '3.22', '1.31', '0.21'].entries()) {
   if (!a.rows[i] || !a.rows[i].km.startsWith(km)) {
     bad.push(`c: 第 ${i + 1} 行 km 应为 ${km}，实际 ${a.rows[i]?.km}`);
   }
@@ -214,7 +214,7 @@ out.cases.f = { head: f.head, coords: f.coords, status: f.status, applied };
 if (!applied || applied.name !== 'Łódź') bad.push(`f: 命中的 name 是 ${applied?.name}，期望 Łódź`);
 if (!/^Łódź/.test(f.head || '')) bad.push(`f: 状态区 ${f.head} 不含 Łódź`);
 if (!/l\.json$/.test(shardRequests.join(' '))) bad.push(`f: 没有取 l 桶（${shardRequests.join(' ')}）`);
-if (f.rows.length !== 5) bad.push('f: 命中 Łódź 后读数列不是 5 行');
+if (f.rows.length !== 6) bad.push('f: 命中 Łódź 后读数列不是 6 行');
 
 // ---------------------------------------------------------------- 匹配语义
 // §15 item 2：只做前缀，不做子串。「york 搜不到 New York」是写下来的行为，
@@ -266,7 +266,7 @@ const g = await evaluate(PROBE);
 out.cases.failure = { status: g.status, head: g.head, rows: g.rows.length, rings: g.rings.length, svg: g.svg };
 if (g.state !== 'error') bad.push('失败态没有进入 error');
 if (g.head !== 'New York') bad.push(`失败后状态区变成了 ${g.head}，必须保持 New York`);
-if (g.rows.length !== 5 || g.rings.length !== 5) bad.push('失败后读数或环数变了');
+if (g.rows.length !== 6 || g.rings.length !== 6) bad.push('失败后读数或环数变了');
 if (!g.svg) bad.push('失败后原 SVG 不在了');
 if (g.rows.some((r) => !r.km || r.km === '—')) bad.push('失败后出现空环/空数');
 await send('Network.setBlockedURLs', { urls: [] });
@@ -292,7 +292,7 @@ out.cases.map = m;
 if (!m.place || m.place.gazetteer !== true) bad.push('map: 搜索命中没有落到地图上');
 if (m.place && Math.abs(m.place.lat - denverRow[3]) > 1e-9) bad.push('map: 纬度不是分片值');
 if (!/^Denver/.test(m.label || '')) bad.push(`map: 标题仍是 ${m.label}`);
-if (m.rings !== 5 || m.readout !== 5) bad.push('map: 环或读数不是 5 行');
+if (m.rings !== 6 || m.readout !== 6) bad.push('map: 环或读数不是 6 行');
 
 out.verdict = { ok: bad.length === 0, problems: bad };
 writeFileSync('search-gate.json', JSON.stringify(out, null, 2), 'utf8');

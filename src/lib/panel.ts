@@ -38,11 +38,20 @@ export interface PanelRow {
   color: string;
   /** why the row carries no number in this burst mode */
   absent: string | null;
+  /** what the map prints in the source cell when `absent` is set */
+  reason: string;
   checked: boolean;
 }
 
+/**
+ * One colour per ring. The 20 psi ring sits between the amber 5 psi ring and the
+ * orange fireball, so it is given a rose red rather than a third warm yellow:
+ * amber (hue ~40), rose (~347) and orange (~24) read as three separate rings at
+ * the 1.5 px stroke the SVG uses and at the 2 px stroke on the map.
+ */
 const RING_COLOR: Record<EffectId, string> = {
   fireball: '#ff7a29',
+  overpressure_20psi: '#ff4d6d',
   overpressure_5psi: '#f0b64a',
   overpressure_1psi: '#6fd3a8',
   thermal_2nd: '#7aa7ff',
@@ -51,6 +60,7 @@ const RING_COLOR: Record<EffectId, string> = {
 
 const SUB: Record<EffectId, string> = {
   fireball: 'breakaway radius',
+  overpressure_20psi: 'peak of the 20 psi contour on Fig. 3.73b',
   overpressure_5psi: 'peak of the 4 and 6 psi contours, interpolated',
   overpressure_1psi: 'peak of the outermost contour',
   thermal_2nd: '4.5 cal/cm² · light skin, unshaded',
@@ -74,7 +84,7 @@ export function panelRows(burst: Burst, ykt: YieldKt): PanelRow[] {
       rows.push({
         id, name, sub: SUB[id], km: '—', ft: '', hob: '', src: '',
         tags: [], r: null, color: RING_COLOR[id],
-        absent: THERMAL_ABSENT, checked: false,
+        absent: THERMAL_ABSENT, reason: 'contact burst: not reported', checked: false,
       });
       continue;
     }
@@ -130,6 +140,7 @@ export function panelRows(burst: Burst, ykt: YieldKt): PanelRow[] {
       r: e.radius_km,
       color: RING_COLOR[id],
       absent: null,
+      reason: '',
       checked: e.checked_by !== null,
     });
   }

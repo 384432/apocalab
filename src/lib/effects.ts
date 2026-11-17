@@ -14,6 +14,7 @@ export type YieldKt = (typeof YIELDS)[number];
 export type Burst = 'air' | 'ground';
 export type EffectId =
   | 'fireball'
+  | 'overpressure_20psi'
   | 'overpressure_5psi'
   | 'overpressure_1psi'
   | 'thermal_2nd'
@@ -67,6 +68,9 @@ export interface CrossCheck {
   ours_mi?: number;
   ours_ft?: number;
   delta_pct: number;
+  /** True for comparisons against outside tables rather than the manual's own prose. */
+  external?: boolean;
+  detail?: string;
 }
 
 export interface EffectsData {
@@ -89,7 +93,13 @@ export interface EffectsData {
 export const data = raw as unknown as EffectsData;
 export const entries = data.entries;
 export const manual = data.manual;
-export const crossChecks = data.cross_checks;
+/**
+ * Only the checks whose yardstick is a sentence in the manual. G6 compares this table with
+ * outside summary tables and is deliberately kept out: the two tables that render this list
+ * are titled as cross-checks "against the manual's own prose", and the methodology page counts
+ * its anchors in words. G6 is recorded in effects.json and in plan §22 for the audit trail.
+ */
+export const crossChecks = data.cross_checks.filter((c) => !c.external);
 
 /** The burst heights at which a cell was read, as a single lookup. */
 export function get(effect: EffectId, burst: Burst, y: YieldKt): Entry | undefined {
@@ -126,10 +136,25 @@ export function interpFt(e: Entry): string | null {
   return m ? m[1].replace(/,/g, '') : null;
 }
 
+/**
+ * The six effects, outermost ring first.
+ *
+ * The order is by radius, largest to smallest, and it holds at every yield and
+ * in both burst modes — 1 psi > 2nd-degree > 3rd-degree > 5 psi > 20 psi >
+ * fireball at 15, 100 and 1,000 kt alike, with the two thermal rows dropped for
+ * a contact burst. One order serves the result panel, the SVG rings, the map
+ * legend, the radius table and the city pages, so a reader who counts down the
+ * legend is counting down the rings on the map.
+ *
+ * It is *not* the order the contours appear in the manual, and it is not the
+ * order of the earlier five-row table: `anchor` is what deep links use, so the
+ * `#psi5` style anchors keep working across this reordering.
+ */
 export const EFFECT_ROWS: { id: EffectId; name: string; anchor: string }[] = [
-  { id: 'fireball', name: 'Fireball', anchor: 'fireball' },
-  { id: 'overpressure_5psi', name: '5 psi overpressure', anchor: 'psi5' },
   { id: 'overpressure_1psi', name: '1 psi overpressure', anchor: 'psi1' },
   { id: 'thermal_2nd', name: 'Thermal · 2nd-degree', anchor: 'thermal2' },
   { id: 'thermal_3rd', name: 'Thermal · 3rd-degree', anchor: 'thermal3' },
+  { id: 'overpressure_5psi', name: '5 psi overpressure', anchor: 'psi5' },
+  { id: 'overpressure_20psi', name: '20 psi overpressure', anchor: 'psi20' },
+  { id: 'fireball', name: 'Fireball', anchor: 'fireball' },
 ];

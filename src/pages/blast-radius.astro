@@ -13,6 +13,7 @@ import { SITE_PUBLISHED } from '../lib/site';
 
 const sub: Record<string, string> = {
   fireball: 'breakaway radius · Eq. (2.127.1)',
+  overpressure_20psi: 'peak of the 20 psi contour · Fig. 3.73b',
   overpressure_5psi: 'peak of the 4 and 6 psi contours, interpolated',
   overpressure_1psi: 'peak of the outermost contour',
   thermal_2nd: '4.5 cal/cm² · light skin, unshaded',
@@ -28,7 +29,7 @@ const jsonLd = {
   '@type': 'Dataset',
   name: 'Nuclear weapon blast radius, 15 kt to 1 Mt',
   description:
-    'Fireball, 5 psi, 1 psi and thermal radii for 15, 100 and 1000 kt, transcribed from The Effects of Nuclear Weapons (Glasstone & Dolan, 3rd ed., 1977) and scaled only by the cube-root law printed in that manual.',
+    'Fireball, 20 psi, 5 psi, 1 psi and thermal radii for 15, 100 and 1000 kt, transcribed from The Effects of Nuclear Weapons (Glasstone & Dolan, 3rd ed., 1977) and scaled only by the cube-root law printed in that manual.',
   url: 'https://apocalab.com/blast-radius/',
   datePublished: SITE_PUBLISHED,
   license: 'https://creativecommons.org/publicdomain/mark/1.0/',
@@ -43,6 +44,7 @@ const jsonLd = {
   },
   variableMeasured: [
     'fireball radius',
+    '20 psi overpressure radius',
     '5 psi overpressure radius',
     '1 psi overpressure radius',
     'second-degree burn radius',
@@ -53,7 +55,7 @@ const jsonLd = {
 
 <Base
   title="Nuclear Bomb Blast Radius Table: 15 kt, 100 kt, 1 Mt"
-  description="Three yields, four effects: every radius in the table shows the printed page it came from, and whether it was read off a chart or scaled from one."
+  description="Three yields, six effects: every radius in the table shows the printed page it came from, and whether it was read off a chart or scaled from one."
   path="/blast-radius/"
   current="blast-radius"
   jsonLd={jsonLd}
@@ -64,18 +66,19 @@ const jsonLd = {
   <h1>Nuclear Bomb Blast Radius, with the printed page behind every number</h1>
 
   <p class="lede">
-    The table gives the distance from ground zero to four effects, at three yields. None of it
+    The table gives the distance from ground zero to six effects, at three yields. None of it
     is model output: the blast radii are read off Fig.&nbsp;3.73c at 1 kt and then scaled by the
-    manual's own cube-root law (Eq.&nbsp;3.61.2, p.&nbsp;101); the thermal radii are read
-    directly off Fig.&nbsp;7.42 (p.&nbsp;291) and are not scaled at all. Every cell carries the
-    figure and printed page it came from, so any single number can be checked against the book in
-    under a minute.
+    manual's own cube-root law (Eq.&nbsp;3.61.2, p.&nbsp;101) — except 20&nbsp;psi, which 3.73c
+    does not print and which is read off Fig.&nbsp;3.73b (p.&nbsp;113) the same way; the thermal
+    radii are read directly off Fig.&nbsp;7.42 (p.&nbsp;291) and are not scaled at all. Every cell
+    carries the figure and printed page it came from, so any single number can be checked against
+    the book in under a minute.
   </p>
 
   <p>
     For one city at a time instead of three yields in a row, the <a href="/">nuke simulator</a>
     shows the rings around a chosen city; the <a href="/nuclear-bomb-map/">nuclear bomb map</a>
-    lays the same five rings over real ground, north-up.
+    lays the same six rings over real ground, north-up.
   </p>
 
   <h2 id="air">Air burst — the default reading</h2>
@@ -115,15 +118,16 @@ const jsonLd = {
   </div>
 
   <p class="note note--warn" id="hob-boundary">
-    <strong>Why three cells carry an amber warning.</strong>
-    Reading at the peak of each isobar puts the 1 Mt burst heights at 10,174&nbsp;ft (5 psi) and
-    15,750&nbsp;ft (1 psi); even the 100 kt 1 psi row lands at 7,311&nbsp;ft.
-    Fig.&nbsp;3.73c is computed for a homogeneous sea-level atmosphere at burst heights of
-    5,000&nbsp;ft or less (§3.73, p.&nbsp;110), so these cells extrapolate that assumption by up to
-    a factor of three. The numbers are still the manual's curve multiplied by the manual's scaling
-    law, but they should be read as the edge of what this chart supports rather than as precise
-    distances. No altitude correction from §3.64–3.66 is applied here, and leaving it out pushes
-    these figures low rather than high.
+    <strong>Why four cells carry an amber warning.</strong>
+    Reading at the peak of each isobar puts the 1 Mt burst heights at 6,110&nbsp;ft (20 psi),
+    10,174&nbsp;ft (5 psi) and 15,750&nbsp;ft (1 psi); even the 100 kt 1 psi row lands at
+    7,311&nbsp;ft.
+    Fig.&nbsp;3.73c and 3.73b are computed for a homogeneous sea-level atmosphere at burst heights
+    of 5,000&nbsp;ft or less (§3.73, p.&nbsp;110), so these cells extrapolate that assumption by up
+    to a factor of three. The numbers are still the manual's curve multiplied by the manual's
+    scaling law, but they should be read as the edge of what this chart supports rather than as
+    precise distances. No altitude correction from §3.64–3.66 is applied here, and leaving it out
+    pushes these figures low rather than high.
   </p>
 
   <p class="note" id="tags">
@@ -133,10 +137,12 @@ const jsonLd = {
     recomputed in your browser. <code>interpolated between 4 and 6 psi contours</code> means the
     contour does not exist on the chart at all: Fig.&nbsp;3.73c prints 1, 2, 4, 6, 8 and 10 psi
     only, so 5 psi is placed between the 4 and 6 psi curves at the logarithmic pressure position
-    0.5503. <code>read directly off Fig. 7.42</code> means no scaling was used. Every figure on this
-    page has been through an individual sign-off, logged with its date and with what was re-read in
-    the verification section of the audit trail; a figure added later without one is marked with a
-    star (*) rather than quietly promoted.
+    0.5503.     <code>read directly off Fig. 7.42</code> means no scaling was used. Every figure on this page
+    has been through an individual sign-off, logged with its date and with what was re-read in
+    the verification section of the audit trail. The six 20 psi rows were the last to clear: the
+    contour was re-read at 600&nbsp;dpi on 18&nbsp;November&nbsp;2026 at two rows and at the peak
+    of Fig.&nbsp;3.73b (p.&nbsp;113), and signed off on the same date. Nothing in this table is
+    waiting on a re-read.
   </p>
 
   <h2 id="ground">Contact surface burst</h2>
@@ -166,7 +172,9 @@ const jsonLd = {
                 <span class="th-sub">
                   {row.id === 'fireball'
                     ? 'contact burst · Eq. (2.127.2)'
-                    : 'bottom edge of Fig. 3.73c, height of burst = 0'}
+                    : row.id === 'overpressure_20psi'
+                      ? 'bottom edge of Fig. 3.73b, height of burst = 0'
+                      : 'bottom edge of Fig. 3.73c, height of burst = 0'}
                 </span>
               </th>
               {YIELDS.map((y) => (
@@ -201,6 +209,17 @@ const jsonLd = {
       </p>
     </div>
     <div class="card">
+      <h3>20 psi overpressure</h3>
+      <p>
+        The contour that marks severe structural damage and near-certain fatality in the open,
+        printed on Fig.&nbsp;3.73b (p.&nbsp;113), the intermediate-pressure range of the same
+        1 kt chart series. Unlike the 5 psi row, nothing here is interpolated: the line is drawn
+        on the page, and this row reads its peak — 928&nbsp;ft at a burst height of
+        611&nbsp;ft for 1 kt — then scales it by the cube-root law. A contact burst reads the
+        same line where it meets the bottom edge of the figure, at 720&nbsp;ft.
+      </p>
+    </div>
+    <div class="card">
       <h3>5 psi overpressure</h3>
       <p>
         Peak overpressure on the ground, not the incident pressure in free air. Fig.&nbsp;3.73c
@@ -232,7 +251,7 @@ const jsonLd = {
 
   <h2 id="checks">Cross-checks against the manual's own prose</h2>
   <p>
-    Four places where the book states a number in words. If a reading were wrong, these are the
+    Every place where the book states a number in words. If a reading were wrong, these are the
     places it would show up first.
   </p>
 

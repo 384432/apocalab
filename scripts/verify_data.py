@@ -9,9 +9,10 @@ P  溯源：章/节/图/印刷页齐全，页码与手册核对值一致
 M  单调性：同一效应、同一爆型下，半径随当量严格递增
 L  缩放：缩放条目必须带 "scaled from the 1 kt curve (§3.61, p.101)" 与 1 kt 基准读数（含像素坐标）
 I  插值：5 psi 行必须写明 "interpolated between 4 and 6 psi contours, at X ft"
+P2 20 psi：取自 Fig. 3.73b（p.113），不是 3.73c；1 kt 基准 927.9 ft @ HOB 611 / 720.2 ft @ HOB 0
 B  爆型一致：地爆爆高为 0；空爆爆高 > 0；火球系数空 110 / 地 145，不得混搭
 U  单位：ft × 0.3048 = m，mi × 1.609344 = km，回算一致
-C  交叉校验：4 条手册锚点偏差均在 ±10% 内
+C  交叉校验：5 条手册锚点偏差均在 ±10% 内（含 G5 的 50 psi 算例）
 D  台账：行数与列数、与 JSON 数值一致
 
 用法：python scripts/verify_data.py
@@ -54,7 +55,7 @@ print("=" * 78)
 print("S 结构")
 REQ = ["id", "effect", "label", "burst", "yield_kt", "radius_m", "radius_km", "hob_ft",
        "value_type", "citation", "readout", "conversion", "raw_reading_cn", "read_error"]
-check(len(entries) == 24, f"条目数 24（实际 {len(entries)}）")
+check(len(entries) == 30, f"条目数 30（实际 {len(entries)}）")
 for e in entries:
     for k in REQ:
         if k not in e:
@@ -65,7 +66,7 @@ check({e["burst"] for e in entries} == {"air", "ground"}, "爆型含 air 与 gro
 check({e["yield_kt"] for e in entries} == {15, 100, 1000}, "当量集合 = {15,100,1000}")
 
 print("P 溯源")
-PAGE = {("3.73c", 115), ("7.42", 291)}
+PAGE = {("3.73c", 115), ("3.73b", 113), ("7.42", 291)}
 for e in entries:
     c = e["citation"]
     fig = c.get("figure")
@@ -94,7 +95,9 @@ for e in entries:
     b = e.get("base") or {}
     check(isinstance(b.get("radius_ft"), (int, float)) and b["radius_ft"] > 0,
           f"{e['id']}: base.radius_ft 存在")
-    check(b.get("figure") == "3.73c" and b.get("page") == 115, f"{e['id']}: base 指向 3.73c p.115")
+    check(b.get("figure") == e["citation"].get("figure")
+          and b.get("page") == e["citation"].get("page"),
+          f"{e['id']}: base 与 citation 同图同页（{b.get('figure')} p.{b.get('page')}）")
     check(bool(b.get("px")), f"{e['id']}: base 含像素坐标")
     # 复算：base × W^(1/3) 必须等于 radius_ft（±1 ft）
     recalc = b["radius_ft"] * e["yield_kt"] ** (1 / 3)
@@ -114,6 +117,31 @@ for e in five:
     check(isclose(e["base"]["interp_fraction"], 0.5503, abs_tol=1e-3),
           f"{e['id']}: 插值位置 0.5503")
 
+print("P2 20 psi 溯源（Fig. 3.73b, p.113）")
+psi20 = [e for e in entries if e["effect"] == "overpressure_20psi"]
+check(len(psi20) == 6, f"20 psi 行数 6（实际 {len(psi20)}）")
+EXPECT20 = {("air", 15): 2288, ("air", 100): 4307, ("air", 1000): 9279,
+            ("ground", 15): 1776, ("ground", 100): 3343, ("ground", 1000): 7202}
+for e in psi20:
+    check(e["citation"]["figure"] == "3.73b" and e["citation"]["page"] == 113,
+          f"{e['id']}: 引用 Fig. 3.73b p.113")
+    check(e["value_type"] == "scaled_curve_read", f"{e['id']}: value_type = scaled_curve_read")
+    check(e["base"]["figure"] == "3.73b" and e["base"]["page"] == 113,
+          f"{e['id']}: base 指向 Fig. 3.73b p.113")
+    want = EXPECT20[(e["burst"], e["yield_kt"])]
+    check(e["radius_ft"] == want, f"{e['id']}: 半径 {e['radius_ft']} ft = 图读数 {want} ft")
+    check("Fig. 3.73b" in e["note"], f"{e['id']}: note 写明来自 Fig. 3.73b")
+    if e["burst"] == "ground":
+        check(e["base"]["radius_ft"] == 720.2, f"{e['id']}: 地爆 1 kt 基准 720.2 ft")
+        check(e["base"]["hob_ft"] == 0, f"{e['id']}: 地爆基准 HOB = 0")
+    else:
+        check(e["base"]["radius_ft"] == 927.9, f"{e['id']}: 空爆 1 kt 基准 927.9 ft")
+        check(e["base"]["hob_ft"] == 611, f"{e['id']}: 空爆基准 HOB = 611 ft")
+for e in entries:
+    if e["effect"] in ("overpressure_1psi", "overpressure_5psi"):
+        check(e["citation"]["figure"] == "3.73c" and e["citation"]["page"] == 115,
+              f"{e['id']}: 低压超压仍引 Fig. 3.73c p.115")
+
 print("B 爆型与火球系数一致")
 for e in entries:
     if e["effect"] == "fireball":
@@ -123,12 +151,33 @@ for e in entries:
               f"{e['id']}: {coef:g}·W^0.4 = {want:.0f} ft 与 radius_m 一致")
     if e["burst"] == "ground":
         check(e["hob_ft"] == 0, f"{e['id']}: 地爆爆高 = 0")
-    elif e["effect"] in ("overpressure_5psi", "overpressure_1psi"):
+    elif e["effect"] in ("overpressure_5psi", "overpressure_1psi", "overpressure_20psi"):
         check(e["hob_ft"] and e["hob_ft"] > 0, f"{e['id']}: 空爆爆高 > 0")
 # 不得出现「空爆半径 + 地爆爆高」混搭
 for e in entries:
     if e["burst"] == "ground" and e["effect"].startswith("overpressure"):
         check(not e.get("scaled_label", "").endswith("p.101)") or True, f"{e['id']}: 口径可追溯")
+
+print("S 章节号归属（§3.61 = 立方根，§2.127 = 火球）")
+# Two different sections, two different claims. §3.61 (p.100-102) states the
+# cube-root scaling law; §2.127 (p.70-71) is "The size of the fireball ..." and
+# prints Eq. (2.127.1) / (2.127.2). A blanket search-and-replace between them
+# would misattribute one of the two, so the mapping is asserted here instead of
+# being left to whoever edits the strings next.
+for e in entries:
+    if e["effect"] == "fireball":
+        check(e["citation"]["section"] == "§2.127",
+              f"{e['id']}: 火球引 §2.127（实际 {e['citation']['section']}）")
+        eq = "(2.127.1)" if e["burst"] == "air" else "(2.127.2)"
+        check(e["citation"]["equation"] == eq, f"{e['id']}: 火球式 {eq}")
+        check(e["citation"]["page"] == (70 if e["burst"] == "air" else 71),
+              f"{e['id']}: 火球页码 p.{e['citation']['page']}")
+    else:
+        check(e["citation"]["section"] != "§2.127",
+              f"{e['id']}: 非火球条目不得引 §2.127")
+for e in entries:
+    if e["value_type"] == "scaled_curve_read":
+        check("§3.61" in e.get("scaled_label", ""), f"{e['id']}: 缩放标注含 §3.61")
 
 print("T 热辐射直读（不得缩放）")
 therm = [e for e in entries if e["effect"].startswith("thermal")]
@@ -150,11 +199,27 @@ for e in entries:
           f"{e['id']}: ft × 0.3048 = m")
     check("0.3048" in e["conversion"], f"{e['id']}: 换算过程写明 0.3048")
 
-print("C 交叉校验（手册锚点）")
+print("C 交叉校验（手册散句锚点 + 1 条外部松散参照）")
+check(len(doc["cross_checks"]) == 6, f"交叉校验 6 条（实际 {len(doc['cross_checks'])}）")
+check([c["id"] for c in doc["cross_checks"]] == ["G1", "G2", "G3", "G4", "G5", "G6"],
+      "交叉校验编号 G1–G6")
+g5 = [c for c in doc["cross_checks"] if c["id"] == "G5"]
+check(bool(g5) and g5[0]["manual_ft"] == 400 and g5[0]["ours_ft"] == 410,
+      "G5：p.112 算例 400 ft，本图 410 ft")
 for c in doc["cross_checks"]:
-    check(abs(c["delta_pct"]) <= 10.0,
+    # G6 比的是外部汇总表（没写爆型口径），只作松散参照，容差放宽到 20%，且必须自标 external
+    lim = 20.0 if c.get("external") else 10.0
+    check(abs(c["delta_pct"]) <= lim,
           f"{c['id']} {c['claim']}: {c.get('ours_mi', c.get('ours_ft'))} vs 手册 "
-          f"{c.get('manual_mi', c.get('manual_ft'))} → {c['delta_pct']:+.1f}%")
+          f"{c.get('manual_mi', c.get('manual_ft'))} → {c['delta_pct']:+.1f}%"
+          f"{'（外部参照，容差 20%）' if c.get('external') else ''}")
+g6 = [c for c in doc["cross_checks"] if c["id"] == "G6"]
+check(bool(g6) and g6[0].get("external") is True,
+      "G6 标了 external —— 它不进前台「手册散句」表")
+check(bool(g6) and "burst type" in g6[0].get("detail", ""),
+      "G6 注明外部参考未标爆型口径")
+check(bool(g6) and abs(g6[0]["delta_pct"] - 17.9) < 0.06,
+      "G6：20 psi 1 Mt 比外部表高 17.9%")
 
 print("D 台账一致性")
 rows = list(csv.reader(LEDGER.open(encoding="utf-8-sig")))
@@ -173,4 +238,13 @@ if fails:
     for f in fails:
         print("  -", f)
     sys.exit(1)
+
+# 断言数不再写死在页面里：把本轮实际 PASS 数落盘，方法页构建时读它。
+# 只在全绿时写 —— 闸门红的时候不允许把数字发出去。
+COUNTS = ROOT / "src" / "data" / "gate-counts.json"
+COUNTS.write_text(json.dumps({
+    "verify_data": {"pass": passes, "fail": 0},
+    "source": "scripts/verify_data.py",
+}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+print(f"wrote {COUNTS.relative_to(ROOT)}（verify_data.pass = {passes}）")
 print("阶段 0 数据自检通过。")

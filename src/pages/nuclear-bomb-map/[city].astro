@@ -4,7 +4,7 @@
  *
  * WHAT COMES FROM WHERE (this is the whole contract of the page):
  *
- *   1. The five distances, at 15 kt / 100 kt / 1 Mt   -> src/data/effects.json,
+ *   1. The six distances, at 15 kt / 100 kt / 1 Mt    -> src/data/effects.json,
  *      looked up by get(). Not recomputed here. Same values as /blast-radius/,
  *      byte for byte, because both read the same JSON.
  *   2. People inside a 10 km disc                       -> WorldPop, fetched once
@@ -76,6 +76,7 @@ const pastPhrase =
 /** "a park", "an area" — only for the kinds these pages actually carry. */
 const article = (kind: string) => (/^[aeiou]/.test(kind) ? 'an' : 'a');
 const psi5Pop = peopleWithin(city, get('overpressure_5psi', 'air', 100)!.radius_km);
+const psi20Pop = peopleWithin(city, get('overpressure_20psi', 'air', 100)!.radius_km);
 const psi1Pop = peopleWithin(city, get('overpressure_1psi', 'air', 100)!.radius_km);
 const fireballPop = peopleWithin(city, get('fireball', 'air', 100)!.radius_km);
 const share = (100 * psi5Pop) / cityPop;  // percent, one decimal
@@ -118,11 +119,12 @@ const jsonLd = {
   <h1>Nuclear Bomb Effects on {city.name} — 15 kt, 100 kt and 1 Mt</h1>
 
   <p class="lede">
-    Five distances over {city.name}, plus two population counts. The distances are the same
+    Six distances over {city.name}, plus two population counts. The distances are the same
     figures as the <a href="/blast-radius/">nuclear bomb blast radius</a> table: read off
-    Fig.&nbsp;3.73c and Fig.&nbsp;7.42, scaled only by the cube-root law the manual prints on
-    p.&nbsp;101. The population counts are the one thing the manual cannot supply — 1977 has no
-    gridded population surface — so they come from WorldPop and are labelled as such.
+    Fig.&nbsp;3.73c, Fig.&nbsp;3.73b and Fig.&nbsp;7.42, scaled only by the cube-root law the
+    manual prints on p.&nbsp;101. The population counts are the one thing the manual cannot
+    supply — 1977 has no gridded population surface — so they come from WorldPop and are
+    labelled as such.
   </p>
 
   <h2 id="distances">What each yield reaches over {city.name}</h2>
@@ -184,7 +186,9 @@ const jsonLd = {
     At 100 kt the 5 psi contour reaches {fmtKm(get('overpressure_5psi', 'air', 100)!.radius_km)} km
     over {city.name}. Inside that circle live {fmtPeople(psi5Pop)} people — {share.toFixed(1)}% of
     everyone inside the 10 km disc, concentrated into about a tenth of its area, because cities are
-    not uniformly populated. The 1 psi ring reaches {fmtKm(get('overpressure_1psi', 'air', 100)!.radius_km)}
+    not uniformly populated. The tighter 20 psi ring reaches
+    {fmtKm(get('overpressure_20psi', 'air', 100)!.radius_km)} km and holds {fmtPeople(psi20Pop)}.
+    The 1 psi ring reaches {fmtKm(get('overpressure_1psi', 'air', 100)!.radius_km)}
     km and holds {fmtPeople(psi1Pop)}; the fireball at breakaway, {fmtKm(get('fireball', 'air', 100)!.radius_km)}
     km, holds {fmtPeople(fireballPop)}.
   </p>
@@ -260,7 +264,7 @@ const jsonLd = {
 
   <h2 id="other-cities">The same rings over other cities</h2>
   <p>
-    Same five contours, same table, same {CATCH_RADIUS_KM} km catchment per city, different ground:{" "}
+    Same six contours, same table, same {CATCH_RADIUS_KM} km catchment per city, different ground:{" "}
     {otherCities.map((c, i) => (
       <Fragment>{i > 0 ? (i === otherCities.length - 1 ? " and " : ", ") : ""}<a href={`/nuclear-bomb-map/${c.slug}/`}>nuclear bomb effects on {c.name}</a></Fragment>
     ))}. Each of those pages counts its own population from one query around its own gazetteer

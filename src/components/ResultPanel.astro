@@ -1,6 +1,6 @@
 ---
 /**
- * The result panel: five radii for one city, one yield, one burst mode.
+ * The result panel: six radii for one city, one yield, one burst mode.
  *
  * Everything the panel displays is server-rendered for the default state
  * (New York · 100 kt · air burst), so the numbers are in the HTML before any
@@ -197,7 +197,7 @@ const island = buildIsland(city, y, burst, cities);
     };
 
     // A place picked from the gazetteer has no slug and no page: it only sets
-    // the name and the ring centre, because the five radii do not depend on the
+    // the name and the ring centre, because the six radii do not depend on the
     // city at all (see the figcaption). Cleared the moment a preset is chosen.
     var gz = null;
 

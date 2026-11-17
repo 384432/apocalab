@@ -8,7 +8,6 @@
  */
 import Base from '../layouts/Base.astro';
 import BombMap from '../components/BombMap.astro';
-import { YIELDS } from '../lib/effects';
 import type { YieldKt } from '../lib/effects';
 import { DEFAULT_CITY, PUBLISHED_CITY_SLUGS, cities, getCity } from '../lib/cities';
 
@@ -39,10 +38,10 @@ const unpublished = cities.filter((c) => !PUBLISHED_CITY_SLUGS.includes(c.slug))
   <h1>Nuclear Bomb Map — the rings on the ground, not on a chart</h1>
 
   <p class="lede">
-    The same five distances as the <a href="/blast-radius/">nuclear bomb blast radius</a> table,
-    drawn where they actually land. Pick a city, pick a yield, and the rings are laid over the
-    ground at true scale, north-up. Every number behind a ring still carries the figure and printed
-    page it came from.
+    The same six distances as the <a href="/blast-radius/">nuclear bomb blast radius</a> table,
+    drawn where they actually land. Pick a city, pick a warhead or a yield, and the rings are laid
+    over the ground at true scale, north-up. Every number behind a ring still carries the figure
+    and printed page it came from.
   </p>
 
   <BombMap city={city} y={defaultYield} burst={defaultBurst} cities={cities} />
@@ -56,7 +55,7 @@ const unpublished = cities.filter((c) => !PUBLISHED_CITY_SLUGS.includes(c.slug))
     distances assume flat terrain at sea level. Nothing on this page corrects for that.
   </p>
 
-  <h2>What the 5 psi ring means</h2>
+  <h2>What the 5 and 20 psi rings mean</h2>
 
   <p>
     Five psi is the overpressure the manual ties to most residential buildings being destroyed. On
@@ -66,8 +65,17 @@ const unpublished = cities.filter((c) => !PUBLISHED_CITY_SLUGS.includes(c.slug))
     never 5, so each of those values is interpolated between the 4 and 6 psi curves: at 1&nbsp;kt
     the 5 psi position is 2,275&nbsp;ft from ground zero, at a burst height of 1,017&nbsp;ft. The
     quantity is peak overpressure on the ground, which already contains the reflected shock — not
-    the incident pressure in free air — so a tool quoting incident pressure will draw a visibly
-    smaller ring under the same label.
+    the incident pressure in free air.
+  </p>
+
+  <p>
+    Twenty psi is the innermost of the three overpressure rings and the one the manual associates
+    with severe structural damage. It is printed on Fig.&nbsp;3.73b, p.&nbsp;113 — the
+    intermediate-pressure panel, whose labels run 10, 15, 20, 30, 50, 100 and 200 psi — and not on
+    Fig.&nbsp;3.73c, which stops at 10 psi. Read at its peak, the contour reaches 928&nbsp;ft from
+    ground zero at 1&nbsp;kt with a burst height of 611&nbsp;ft; scaled by the cube root of the
+    yield that is 0.70&nbsp;km at 15&nbsp;kt, 1.31&nbsp;km at 100&nbsp;kt and 2.83&nbsp;km at
+    1&nbsp;Mt. A contact burst reads the same line at the bottom edge of the figure, 720&nbsp;ft.
   </p>
 
   <h2>What the 1 psi ring means</h2>
@@ -76,7 +84,7 @@ const unpublished = cities.filter((c) => !PUBLISHED_CITY_SLUGS.includes(c.slug))
     One psi is the weakest contour the chart draws and the one that reaches furthest; it is roughly
     where window glass breaks. The ring measures 5.28&nbsp;km at 15&nbsp;kt, 9.93&nbsp;km (6.17&nbsp;mi)
     at 100&nbsp;kt and 21.40&nbsp;km (13.30&nbsp;mi) at 1&nbsp;Mt, again from Fig.&nbsp;3.73c,
-    p.&nbsp;115. It is also the most sensitive of the five to burst height: at 1&nbsp;kt this
+    p.&nbsp;115. It is also the most sensitive of the six to burst height: at 1&nbsp;kt this
     contour reaches 7,020&nbsp;ft when the burst is at 1,575&nbsp;ft, against 3,830&nbsp;ft for a
     contact burst — a factor of 1.8 from burst height alone. That sensitivity is why every ring
     here is read at the peak of its own curve instead of at one burst height chosen in advance; the
@@ -150,9 +158,10 @@ const unpublished = cities.filter((c) => !PUBLISHED_CITY_SLUGS.includes(c.slug))
   </p>
 
   <p class="small">
-    Yields covered: {YIELDS.map((y) => `${y.toLocaleString('en-US')} kt`).join(' · ')}.
-    Cities: {cities.length}. Contact bursts are shown for the fireball and the two overpressure
-    rings; thermal radii are not drawn for a contact burst, because Fig.&nbsp;7.42 is an air-burst
-    chart and the manual handles surface-burst heating by a separate route (§7.41, p.&nbsp;290).
+    Yields: 15 kt, 100 kt and 1,000 kt as printed in the manual, plus twelve weapon presets from
+    7 kt to 50 Mt. Cities: {cities.length}. Contact bursts are shown for the fireball and the two
+    overpressure rings; thermal radii are not drawn for a contact burst, because Fig.&nbsp;7.42 is
+    an air-burst chart and the manual handles surface-burst heating by a separate route (§7.41,
+    p.&nbsp;290).
   </p>
 </Base>

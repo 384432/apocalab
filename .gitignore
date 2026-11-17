@@ -19,6 +19,9 @@ map-gate.json
 search-gate.json
 www-gate.json
 live-gate.json
+click-gate.json
+pop-gate.json
+weapon-gate.json
 .tmp_chrome*/
 .deploy/
 

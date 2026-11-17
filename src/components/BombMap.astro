@@ -8,12 +8,23 @@
  * picture of the numbers, and the point of this page is that the rings sit on
  * real ground. So with scripting off this page shows the readout list and a
  * line saying the map needs scripting; it never shows an empty frame.
+ *
+ * The default state is the tabulated 100 kt air burst, which is the only state
+ * this markup has to carry: every preset and every scaled yield is a client
+ * re-render of the same list from the same JSON.
  */
 import type { Burst, YieldKt } from '../lib/effects';
 import type { City } from '../lib/cities';
 import { coordText } from '../lib/cities';
 import { BURST_LABEL, panelRows } from '../lib/panel';
 import { buildIsland } from '../lib/island';
+import {
+  PRESETS,
+  YIELD_OPTIONS,
+  fmtKt,
+  presetOptionText,
+  tabulatedLine,
+} from '../lib/weapons';
 import CitySearch from './CitySearch.astro';
 
 interface Props {
@@ -26,8 +37,9 @@ interface Props {
 const { city, y, burst, cities } = Astro.props;
 
 const rows = panelRows(burst, y);
-const island = buildIsland(city, y, burst, cities);
+const island = buildIsland(city, y, burst, cities, true);
 const heaviest = rows.reduce((m, r) => (r.r !== null && r.r > m ? r.r : m), 0);
+const defaultOption = YIELD_OPTIONS.find((o) => o.kt === y)?.id ?? 'y100';
 ---
 
 <section class="map-app" id="bomb-map" aria-labelledby="map-title">
@@ -39,9 +51,14 @@ const heaviest = rows.reduce((m, r) => (r.r !== null && r.r > m ? r.r : m), 0);
         {y.toLocaleString('en-US')} kt · {burst === 'air' ? 'air burst' : 'contact burst'}
       </span>
     </h2>
-    <p class="map-sub">
+    <p class="map-sub" id="map-sub">
       Ring centre <span data-bind="coords">{coordText(city)}</span> — a GeoNames gazetteer
       point, not an administrative centroid.
+    </p>
+    <p class="map-sub map-point" id="map-point" hidden>
+      <span data-bind="point-coords"></span>
+      <span class="sep">·</span>
+      <span data-bind="near" data-placeholder="1">near —</span>
     </p>
   </div>
 
@@ -59,16 +76,26 @@ const heaviest = rows.reduce((m, r) => (r.r !== null && r.r > m ? r.r : m), 0);
       </select>
     </fieldset>
 
-    <fieldset>
-      <legend>Yield</legend>
-      <div class="seg">
-        {[15, 100, 1000].map((yy) => (
-          <label>
-            <input type="radio" name="yield" value={String(yy)} checked={yy === y} />
-            <span>{yy.toLocaleString('en-US')} kt</span>
-          </label>
-        ))}
-      </div>
+    <fieldset class="pick">
+      <legend>Warhead or yield</legend>
+      <select name="preset">
+        <optgroup label="Yields printed in the manual">
+          {
+            YIELD_OPTIONS.map((o) => (
+              <option value={o.id} selected={o.id === defaultOption}>
+                {fmtKt(o.kt)} kt
+              </option>
+            ))
+          }
+        </optgroup>
+        <optgroup label="Weapons">
+          {
+            PRESETS.map((p) => (
+              <option value={p.id}>{presetOptionText(p)}</option>
+            ))
+          }
+        </optgroup>
+      </select>
     </fieldset>
 
     <fieldset>
@@ -95,6 +122,7 @@ const heaviest = rows.reduce((m, r) => (r.r !== null && r.r > m ? r.r : m), 0);
         .map((r) => `${r.name} ${r.km} km`)
         .join(', ')}`}></canvas>
       <p class="map-note" id="map-note" hidden></p>
+      <p class="map-hint" id="map-hint">Click the map to move the rings to that point.</p>
     </div>
     <figcaption>
       Rings are true ground distances — drawn from a geodesic circle and projected, not a
@@ -110,6 +138,8 @@ const heaviest = rows.reduce((m, r) => (r.r !== null && r.r > m ? r.r : m), 0);
     table.
   </p>
 
+  <p class="map-popsrc" id="map-popsrc" hidden></p>
+
   <ul class="map-readout" id="map-readout">
     {
       rows.map((row) => (
@@ -120,15 +150,69 @@ const heaviest = rows.reduce((m, r) => (r.r !== null && r.r > m ? r.r : m), 0);
             {row.absent ? '—' : row.km}
             {!row.absent && <span class="u">km</span>}
           </span>
-          <span class="src">{row.absent ? 'contact burst: not reported' : row.src}</span>
+          <span class="src">{row.absent ? row.reason : row.src}</span>
         </li>
       ))
     }
   </ul>
 
+  <p class="map-basis" id="map-basis-tab">{tabulatedLine(rows)}</p>
+  <p class="map-basis" id="map-basis-scale" hidden></p>
+
   <p class="small map-scale">
     Outermost ring {heaviest.toFixed(2)} km. Figures from the{" "}
     <a href="/blast-radius/">nuclear bomb blast radius</a> table — same JSON, same printed pages.
+  </p>
+
+  <h3 class="presets-h">The twelve presets, and the line that states each yield</h3>
+  <p class="small presets-intro">
+    Each yield below is the figure the cited page prints, not a round number chosen here.
+    Where a page prints a range, the preset uses a value inside it and the note says which.
+    The quoted line is what the page actually says.
+  </p>
+  <div class="presets-wrap">
+    <table class="presets">
+      <thead>
+        <tr>
+          <th scope="col">Weapon</th>
+          <th scope="col">Country</th>
+          <th scope="col">Year</th>
+          <th scope="col">Yield</th>
+          <th scope="col">What it was</th>
+          <th scope="col">Source</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          PRESETS.map((p) => (
+            <tr>
+              <th scope="row">{p.name}</th>
+              <td>{p.country}</td>
+              <td class="num">{p.year}</td>
+              <td class="num">
+                {p.kt_range
+                  ? `${fmtKt(p.kt)} kt (${p.kt_range[0]}–${p.kt_range[1]} kt range)`
+                  : `${fmtKt(p.kt)} kt`}
+              </td>
+              <td>{p.note}</td>
+              <td class="src-cell">
+                <a href={p.source.url} target="_blank" rel="noopener">
+                  {p.source.label}
+                </a>
+                <q>{p.quote_yield}</q>
+              </td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <p class="small presets-note">
+    Two edges belong to the presets themselves. §3.61 states the cube-root law for yields “up to
+    (and including) the megaton range”, and the six presets above 1&nbsp;Mt apply it past that.
+    Fig.&nbsp;7.42 stops at 10&nbsp;Mt, so Ivy Mike, Castle Bravo, B41 and Tsar Bomba carry no
+    thermal ring at all — a gap in the source, not a zero on this page.
   </p>
 
   <script type="application/json" id="apoca-map-island" set:html={JSON.stringify(island)} />

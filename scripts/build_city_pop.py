@@ -183,7 +183,7 @@ def main():
         "note": (
             "People inside a geodesic disc of the given radius around the "
             "GeoNames city point, integrated by WorldPop on their gridded surface. "
-            "Every radius on a city page — fireball, 5 psi, 1 psi, both thermal "
+            "Every radius on a city page — fireball, 20 psi, 5 psi, 1 psi, both thermal "
             f"contours — is the cumulative inside one {CATCH_RADIUS_KM:g} km catchment, "
             "so no ring is ever built by subtracting another ring, and the widest "
             "ring (1 Mt 1 psi, 21.40 km) still sits inside the catchment. "

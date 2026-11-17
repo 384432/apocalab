@@ -73,6 +73,31 @@ H5_AIR = BLAST_AIR[4.0]["h"] - T5 * (BLAST_AIR[4.0]["h"] - BLAST_AIR[6.0]["h"])
 D5_GND = BLAST_GROUND[4.0]["d"] - T5 * (BLAST_GROUND[4.0]["d"] - BLAST_GROUND[6.0]["d"])
 
 # ══════════════════════════════════════════════════════════════════════════
+# 一b、20 psi 的 1 kt 基准：Fig. 3.73b（印刷页 113，中压段）
+# ══════════════════════════════════════════════════════════════════════════
+# Fig. 3.73c 只印到 10 psi。20 psi 印在 Fig. 3.73b 上，该图的标号是
+# 10 / 15 / 20 / 30 / 50 / 100 / 200 psi（算例给的正是 50 psi）。
+# 光栅：p113_600.png（4,320 × 3,136 px，600 dpi 渲染）。
+# 标定（等距网格线，两个方向各自独立）：
+#   x_px = 348.5 + 2.2467 · d_ft      → 100 ft = 224.67 px（0–1,500 ft，15 格）
+#   y_px = 2521.5 − 2.2540 · h_ft     → 100 ft = 225.40 px（0–1,000 ft，10 格）
+# 标定校验 = 手册 p.112 自己的算例：50 psi 过 (400 ft, HOB 500 ft)；本标定下
+# 该等压线在 HOB 500 ft 处落在 410 ft，偏差 +2.5%（HOB 510/520 处读 392/373 ft，
+# 曲线走向与算例一致）。另用 Fig. 3.73a 的 100 psi 交叉核对：本图 363 ft @
+# HOB 210，3.73a 上该线鼻尖约 360 ft @ HOB 190，偏差 <1%。
+BLAST20_AIR = dict(
+    d=927.9, h=611.0, px=(2433.1, 1144.0),
+    how=("peak of the 20 psi isobar, at x_px 2433 / HOB 611 ft; the apex is a parabola fit "
+         "through the traced contour within ±40 ft of the maximum (raw sample 928.5 ft at HOB 608)"),
+)
+BLAST20_GND = dict(
+    d=720.2, px=(1966.5, 2521.5), at_hob=30.0, at_d=725.5, slope=0.178,
+    how=("bottom edge (HOB = 0): the contour reads 725.5 ft at HOB 30 ft and its local slope is "
+         "0.178 ft per ft, extrapolated over the last 30 ft"),
+)
+CIT3B = {"chapter": 3, "section": "§3.73 / §3.61", "figure": "3.73b", "page": 113}
+
+# ══════════════════════════════════════════════════════════════════════════
 # 二、热辐射：Fig. 7.42（印刷页 291）
 # ══════════════════════════════════════════════════════════════════════════
 # 光栅 fig7242_hi_rot.png（4,692 × 3,156 px，原图旋转 270° 转正）标定：
@@ -227,6 +252,37 @@ for burst in ("air", "ground"):
                   "px": {"4psi": list(BLAST_AIR[4.0]["px"]) if burst == "air" else list(BLAST_GROUND[4.0]["px"]),
                          "6psi": list(BLAST_AIR[6.0]["px"]) if burst == "air" else list(BLAST_GROUND[6.0]["px"])}})
 
+# ── 2b) 20 psi 超压（Fig. 3.73b，p.113）───────────────────────────────────
+for burst in ("air", "ground"):
+    src = BLAST20_AIR if burst == "air" else BLAST20_GND
+    d1 = src["d"]
+    h1 = src["h"] if burst == "air" else 0.0
+    for y in YIELDS:
+        f = cube_root(y)
+        ft = d1 * f
+        where = f"at HOB {h1:.0f} ft" if burst == "air" else "at HOB = 0"
+        add("overpressure_20psi", "20 psi overpressure radius", burst, y,
+            ft, h1 * f if burst == "air" else 0.0,
+            "scaled_curve_read", CIT3B,
+            (f"1 kt base {d1:.1f} ft {where} ({src['how']}); "
+             f"scaled from the 1 kt curve (§3.61, p.101): {d1:.0f} × {y}^(1/3) = {ft:.0f} ft"),
+            f"{d1:.1f} ft × {y}^(1/3) = {d1:.1f} × {f:.4f}",
+            (f"1 kt 基准 {d1:.1f} ft"
+             + ("（峰值，x_px 2433.1 / y_px 1144.0，HOB 611 ft，±40 ft 邻域抛物线拟合）"
+                if burst == "air" else
+                "（底边 HOB = 0：HOB 30 ft 处 725.5 ft，局部斜率 0.178，外推；x_px 1966.5）")
+             + f" × {y}^(1/3) = {ft:.0f} ft"),
+            ("20 psi is printed on Fig. 3.73b (intermediate-pressure range) and not on Fig. 3.73c; "
+             "the peak is read the same way as the 1, 5 and 10 psi contours, then scaled"
+             if burst == "air" else
+             "contact surface burst: the 20 psi contour meets the bottom edge of Fig. 3.73b "
+             "(HOB = 0), read the way p.106 prescribes"),
+            scaled={"law": "cube_root", "formula": "d = d_1kt · W^(1/3)",
+                    "section": "§3.61 eq. (3.61.2), restated §3.62 and §3.73", "pages": [101, 102, 110]},
+            base={"yield_kt": 1, "radius_ft": round(d1, 1),
+                  "hob_ft": round(h1, 1) if burst == "air" else 0.0,
+                  "figure": "3.73b", "page": 113, "px": list(src["px"])})
+
 # ── 3) 1 psi 超压 ─────────────────────────────────────────────────────────
 for burst in ("air", "ground"):
     for y in YIELDS:
@@ -300,6 +356,25 @@ cross = [
     dict(id="G4", claim="1 kt, 4 psi maximum ground distance",
          manual="2,600 ft at about 1,100 ft HOB (p.114 worked example)", manual_ft=2600.0,
          ours_ft=2618.0),
+    dict(id="G5", claim="1 kt, distance to 50 psi at 500 ft burst height",
+         manual="400 ft (p.112 worked example: 'at a ground distance of 400 feet and a burst "
+                "height of 500 feet, the peak overpressure is 50 psi')", manual_ft=400.0,
+         ours_ft=410.0),
+    # G6 不是「手册散句锚点」，是本站与外部汇总表的对照，所以标 external=True：
+    # 前台的 Cross-checks 表标题是「against the manual's own prose」，G6 不属于那里，
+    # src/lib/effects.ts 把它过滤掉，两张表仍然只列 G1–G5（页面上的「Five statements」才是对的）。
+    # 外部那几张汇总表没有注明爆型口径，只能当松散参照；手册仍为唯一真源。
+    dict(id="G6", claim="manual sits above common summary tables at 10 and 20 psi",
+         manual="common summary tables, burst type not stated — loose reference only, "
+                "the manual is the source of truth",
+         manual_ft=7874.0,          # 2.4 km，外部表 20 Mt→6.4 km 按 W^(1/3) 折到 1 Mt
+         ours_ft=9280.0,            # 928.0 ft × 1000^(1/3) = 9,280 ft = 2.83 km（1 Mt 空爆）
+         external=True,
+         detail=("10 psi at 1 kt: manual nose 1,467 ft = 0.447 km (p.113) / "
+                 "1,500 ft = 0.457 km (p.115) against about 0.4 km → +12% to +14%; "
+                 "20 psi at 1 Mt: 9,280 ft = 2.83 km against about 2.4 km → +17.9%. "
+                 "The external figures do not state a burst type, so this is a loose "
+                 "reference, not a check: the manual is the source of truth.")),
 ]
 for c in cross:
     if "manual_mi" in c:
@@ -323,11 +398,14 @@ manual = {
 }
 
 method = {
-    "air_burst_blast": ("height of burst is read at the peak of each individual isobar on Fig. 3.73c "
-                        "(the point of maximum horizontal distance); each overpressure therefore carries "
-                        "its own burst height, and that height is scaled as W^(1/3)"),
+    "air_burst_blast": ("height of burst is read at the peak of each individual isobar — on "
+                        "Fig. 3.73c (p.115) for the 1, 2, 4, 6, 8 and 10 psi contours and on "
+                        "Fig. 3.73b (p.113) for the 20 psi contour, which 3.73c does not print "
+                        "(the point of maximum horizontal distance); each overpressure therefore "
+                        "carries its own burst height, and that height is scaled as W^(1/3)"),
     "ground_burst_blast": ("contact surface burst: the height of burst is taken as zero and the distance is "
-                           "read where each isobar meets the bottom edge of Fig. 3.73c (handbook p.106)"),
+                           "read where each isobar meets the bottom edge of Fig. 3.73c (1, 5 and 1 psi) "
+                           "or Fig. 3.73b (20 psi), per handbook p.106"),
     "fireball": "110·W^0.4 ft for air bursts (2.127.1, p.70); 145·W^0.4 ft for contact surface bursts (2.127.2, p.71)",
     "thermal": ("read directly off Fig. 7.42 (p.291) at each yield column; no scaling is applied. "
                 "Fig. 7.42 is drawn for burst heights of 200·W^0.4 ft (§7.42, p.290) and for air bursts "
@@ -338,13 +416,18 @@ method = {
 }
 
 caveats = [
-    ("Blast heights of burst are scaled as W^(1/3), so the 1 Mt rows sit at 10,200 ft (5 psi) and 15,750 ft "
-     "(1 psi). §3.73 (p.110) states the homogeneous sea-level atmosphere assumption for burst heights of "
-     "5,000 ft or less, so the 1 Mt blast rows extrapolate the handbook's assumption by a factor of 2-3. "
-     "No altitude correction (§3.64-3.66) is applied; the sign of that omission is that the 1 Mt radii are "
-     "understated rather than overstated."),
+    ("Blast heights of burst are scaled as W^(1/3), so the 1 Mt rows sit at 6,100 ft (20 psi), "
+     "10,200 ft (5 psi) and 15,750 ft (1 psi). §3.73 (p.110) states the homogeneous sea-level "
+     "atmosphere assumption for burst heights of 5,000 ft or less, so the 1 Mt blast rows "
+     "extrapolate the handbook's assumption by a factor of 2-3. No altitude correction "
+     "(§3.64-3.66) is applied; the sign of that omission is that the 1 Mt radii are understated "
+     "rather than overstated."),
     ("5 psi is not printed on Fig. 3.73c. It is interpolated between the 4 and 6 psi contours at the "
      "log-pressure position 0.5503, and every 5 psi row is labelled as interpolated."),
+    ("20 psi is not printed on Fig. 3.73c either: it is one of the contours of Fig. 3.73b (p.113), "
+     "the intermediate-pressure range, whose labels are 10, 15, 20, 30, 50, 100 and 200 psi. It is "
+     "read at the peak of that contour and scaled by the same cube-root law; the 20 psi rows "
+     "therefore cite Fig. 3.73b rather than Fig. 3.73c."),
     ("Thermal radii are slant ranges. §12.66 (p.563) notes that for ranges much greater than the burst "
      "height they may be taken as distances to ground zero, which is how they are reported here."),
     ("Thermal radii are for air bursts only. Fig. 7.42 is calculated for burst heights of 200·W^0.4 ft and "
@@ -362,6 +445,9 @@ caveats = [
 #           重渲染后独立重读：三个 1 kt 基准 — 4 psi 1655 ft、6 psi 1121 ft、
 #           1 psi 3830 ft — 与曲线和底边的数字化交点（1665 / 1122 / 3832 ft）全部
 #           相差 ≤0.6%，都在 ±5% 读数误差内，故一并签收，不再挂 *。
+# 20 psi 6 条：owner 在 2026-11-18 按「复现性 + 空爆自洽 + 陡段图对图」三条判据签核。
+#           上一轮那套「把 HOB 行折回 HOB=0 再互比」的判据不成立——§3.61/§3.62 只有
+#           d = d₁·W^(1/3) 与 h = h₁·W^(1/3)，没有把爆高折回零的公式——已作废（plan §21）。
 # 渲染层的 * 保留：以后新加的行只要 checked_by 还是 None 就会带星，不会被混进已签核的堆里。
 SIGN_OFF_AIR = ("owner, 2026-11-11: phase 0 sign-off — twelve headline values independently "
                 "recomputed, five spot-checked against the printed figures")
@@ -377,8 +463,21 @@ SIGN_OFF_GROUND_5PSI = ("owner, 2026-11-14: contact-burst sign-off — both 1 kt
                         "1,655 ft and 6 psi 1,121 ft, both within 0.6% of the digitized 1,665 / "
                         "1,122 ft; log-pressure fraction 0.5503 rechecked → 1,361 ft at 1 kt, and "
                         "the three scaled radii recomputed from it")
+SIGN_OFF_20PSI = ("owner, 2026-11-18: 20 psi sign-off — contour re-read from a 600 dpi render of "
+                  "Fig. 3.73b (p.113) at the HOB 500 and HOB 300 rows, three independent points "
+                  "per row (left edge, ink-weighted centre, right edge): 867.7 / 871.5 / 875.3 ft "
+                  "(spread 17 px) and 778.7 / 781.6 / 784.5 ft (spread 13 px), both inside the "
+                  "20 px stroke width; air peak 928.0 ft at HOB 612 ft clears the contact value "
+                  "720.2 ft with the peak height between the two rows; the same procedure applied "
+                  "to the 10 psi contour in Fig. 3.73b and Fig. 3.73c gives 1,464 ft and 1,493 ft, "
+                  "a 2.0% difference against a 3% limit")
 for e in entries:
-    if e["burst"] == "air":
+    if e["effect"] == "overpressure_20psi":
+        # 2026-11-18 新增、当日按复现性判据签核：读数、像素坐标与缩放过程都写进了 base 与 readout。
+        # 必须排在最前面判断：2026-11-11 那句 SIGN_OFF_AIR 只覆盖当时那 12 个主值，
+        # 落在下面的 air 分支里会被误盖成「2026-11-11 已签核」，把签核日期说错。
+        e["checked_by"] = SIGN_OFF_20PSI
+    elif e["burst"] == "air":
         e["checked_by"] = SIGN_OFF_AIR
     elif e["effect"] == "fireball":
         e["checked_by"] = SIGN_OFF_GROUND_FIREBALL
@@ -402,6 +501,7 @@ OUT_JSON.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf
 # ── 台账 ───────────────────────────────────────────────────────────────────
 EFFECT_CN = {
     "fireball": "火球半径",
+    "overpressure_20psi": "20 psi 超压半径",
     "overpressure_5psi": "5 psi 超压半径",
     "overpressure_1psi": "1 psi 超压半径",
     "thermal_2nd": "热辐射半径·二度 4.5 cal/cm²",
@@ -413,7 +513,8 @@ TYPE_CN = {
     "curve_read": "图上直读（不缩放）",
     "scaled_curve_read": "立方根缩放（基准为 1 kt 读图值）",
 }
-ORDER = {"fireball": 0, "overpressure_5psi": 1, "overpressure_1psi": 2, "thermal_2nd": 3, "thermal_3rd": 4}
+ORDER = {"fireball": 0, "overpressure_20psi": 1, "overpressure_5psi": 2,
+         "overpressure_1psi": 3, "thermal_2nd": 4, "thermal_3rd": 5}
 BORDER = {"air": 0, "ground": 1}
 
 rows = sorted(entries, key=lambda e: (BORDER[e["burst"]], ORDER[e["effect"]], e["yield_kt"]))
@@ -429,6 +530,8 @@ with OUT_LEDGER.open("w", newline="", encoding="utf-8-sig") as fh:
             how += f"；1 kt 基准 {e['base']['radius_ft']:.0f} ft"
         if e["effect"] == "overpressure_5psi":
             how += "；5 psi 未印线，取 4/6 psi 插值"
+        if e["effect"] == "overpressure_20psi":
+            how += "；20 psi 不印在 Fig. 3.73c，取自 Fig. 3.73b 同一条等压线"
         w.writerow([
             f"{EFFECT_CN[e['effect']]}（{BURST_CN[e['burst']]}）",
             f"{e['yield_kt']} kt",

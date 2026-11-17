@@ -886,6 +886,32 @@ dl.spec dd {
   color: var(--dim-2);
 }
 
+.map-sub.map-point {
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
+}
+
+.map-sub[hidden] {
+  display: none;
+}
+
+.map-hint {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  margin: 0;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: rgba(11, 13, 16, 0.78);
+  font-size: 0.72rem;
+  color: var(--dim-2);
+  pointer-events: none;
+}
+
+.map-hint[hidden] {
+  display: none;
+}
+
 .map-controls {
   display: flex;
   flex-wrap: wrap;
@@ -1028,6 +1054,17 @@ html.js .map-nojs {
   border-top: 1px solid var(--line-soft);
 }
 
+.map-popsrc {
+  margin: 0;
+  padding: 12px 18px 0;
+  font-size: 0.78rem;
+  color: var(--dim);
+}
+
+.map-popsrc[hidden] {
+  display: none;
+}
+
 .map-ro {
   display: grid;
   grid-template-columns: 10px minmax(8.5rem, 0.9fr) 6.5rem minmax(0, 1.1fr);
@@ -1036,6 +1073,25 @@ html.js .map-nojs {
   padding: 7px 0;
   border-bottom: 1px solid var(--line-soft);
   font-size: 0.84rem;
+}
+
+/* The population column only exists once a click has produced a figure: a row
+   with an empty cell would read as "zero people", which is a different claim. */
+.map-readout[data-pop='1'] .map-ro {
+  grid-template-columns: 10px minmax(8.5rem, 0.9fr) 6.5rem minmax(0, 0.85fr) minmax(0, 1.1fr);
+}
+
+.map-ro .pop {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.map-ro .pop .u {
+  margin-left: 2px;
+  font-size: 0.72em;
+  color: var(--dim-2);
 }
 
 .map-ro:last-child {
@@ -1081,6 +1137,103 @@ html.js .map-nojs {
 .map-scale {
   padding: 0 18px 14px;
   margin: 0;
+}
+
+/* The two class lines. Exactly one is visible, and it sits directly under the
+   numbers it describes rather than in a footnote. */
+.map-basis {
+  margin: 0;
+  padding: 10px 18px 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--dim-2);
+  border-top: 1px solid var(--line-soft);
+}
+
+.map-basis[hidden] {
+  display: none;
+}
+
+.map-controls fieldset.pick select {
+  max-width: min(100%, 24rem);
+}
+
+/* ---------- weapon presets ---------- */
+
+.presets-h {
+  margin: 26px 0 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.presets-intro {
+  margin: 0 0 12px;
+}
+
+.presets-wrap {
+  overflow-x: auto;
+  margin: 0 0 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+}
+
+.presets {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  min-width: 42rem;
+}
+
+.presets th,
+.presets td {
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.presets thead th {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--dim-2);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.presets tbody th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.presets tbody tr:last-child th,
+.presets tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.presets .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.presets .src-cell {
+  min-width: 14rem;
+}
+
+.presets .src-cell a {
+  display: block;
+  font-size: 0.74rem;
+}
+
+.presets .src-cell q {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.7rem;
+  color: var(--dim-2);
+  quotes: '“' '”';
 }
 
 /* ---------- footer ---------- */
@@ -1154,6 +1307,22 @@ html.js .map-nojs {
 
   .map-ro .src {
     grid-column: 2 / -1;
+  }
+
+  .map-readout[data-pop='1'] .map-ro {
+    grid-template-columns: 10px minmax(0, 1fr) 5.5rem;
+    row-gap: 2px;
+  }
+
+  .map-readout[data-pop='1'] .map-ro .pop {
+    grid-column: 2 / -1;
+    grid-row: 2;
+    text-align: left;
+  }
+
+  .map-readout[data-pop='1'] .map-ro .src {
+    grid-column: 2 / -1;
+    grid-row: 3;
   }
 }
 

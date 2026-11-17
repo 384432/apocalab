@@ -45,6 +45,15 @@ export function projectWorld(lon: number, lat: number, zoom: number): { x: numbe
   };
 }
 
+/** Pixel position inside the world square -> lon/lat. Inverts projectWorld(). */
+export function unprojectWorld(x: number, y: number, zoom: number): { lon: number; lat: number } {
+  const size = worldSize(zoom);
+  const lon = (x / size) * 360 - 180;
+  const n = Math.PI * (1 - (2 * y) / size);
+  const lat = (Math.atan(Math.sinh(n)) * 180) / Math.PI;
+  return { lon, lat };
+}
+
 /**
  * The zoom at which a ground radius of `radiusM` draws `radiusPx` pixels wide
  * at this latitude. Inverts metersPerPixel().

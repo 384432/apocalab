@@ -1,0 +1,423 @@
+{
+ "law": {
+  "section": "§3.61",
+  "equation": "(3.61.2)",
+  "pages": [
+   100,
+   101,
+   102
+  ],
+  "formula": "R = R(100 kt) × (W/100)^(1/3)",
+  "quote": "Full-scale tests have shown this relationship between distance and energy yield to hold for yields up to (and including) the megaton range.",
+  "applies_to": [
+   "overpressure_5psi",
+   "overpressure_20psi",
+   "overpressure_1psi"
+  ]
+ },
+ "figure": {
+  "id": "7.42",
+  "page": 291,
+  "max_yield_kt": 10000,
+  "calibration": {
+   "x0": 834.5,
+   "x_per_decade": 783.25,
+   "y0": 212.0,
+   "y_per_decade": 783.67
+  },
+  "note": "the 4.5 and 10 cal/cm² contours measured at each preset's own column; the frame closes at 10,000 kt, so no thermal radius is read above it"
+ },
+ "anchor": {
+  "kt": 100,
+  "bursts": {
+   "air": {
+    "overpressure_5psi": {
+     "scaled_km": 3.22,
+     "tabulated_km": 3.22
+    },
+    "overpressure_20psi": {
+     "scaled_km": 1.31,
+     "tabulated_km": 1.31
+    },
+    "overpressure_1psi": {
+     "scaled_km": 9.93,
+     "tabulated_km": 9.93
+    },
+    "fireball": {
+     "scaled_km": 0.21,
+     "tabulated_km": 0.21
+    }
+   },
+   "ground": {
+    "overpressure_5psi": {
+     "scaled_km": 1.93,
+     "tabulated_km": 1.93
+    },
+    "overpressure_20psi": {
+     "scaled_km": 1.02,
+     "tabulated_km": 1.02
+    },
+    "overpressure_1psi": {
+     "scaled_km": 5.42,
+     "tabulated_km": 5.42
+    },
+    "fireball": {
+     "scaled_km": 0.28,
+     "tabulated_km": 0.28
+    }
+   }
+  },
+  "identical": true
+ },
+ "presets": [
+  {
+   "id": "little-boy",
+   "kt": 15,
+   "basis": "tabulated",
+   "thermal": "tabulated"
+  },
+  {
+   "id": "fat-man",
+   "kt": 21,
+   "basis": "scaled",
+   "thermal": "read",
+   "radii": {
+    "air": [
+     5.9,
+     3.87,
+     2.08,
+     1.91,
+     0.78,
+     0.11
+    ],
+    "ground": [
+     3.22,
+     null,
+     null,
+     1.15,
+     0.61,
+     0.15
+    ]
+   },
+   "px": {
+    "air": [
+     1870,
+     1481.0,
+     1870,
+     1692.0
+    ],
+    "ground": null
+   }
+  },
+  {
+   "id": "w76-2",
+   "kt": 6,
+   "basis": "scaled",
+   "thermal": "read",
+   "radii": {
+    "air": [
+     3.89,
+     2.23,
+     1.12,
+     1.26,
+     0.51,
+     0.07
+    ],
+    "ground": [
+     2.12,
+     null,
+     null,
+     0.75,
+     0.4,
+     0.09
+    ]
+   },
+   "px": {
+    "air": [
+     1444,
+     1667.5,
+     1444,
+     1904.0
+    ],
+    "ground": null
+   }
+  },
+  {
+   "id": "w76-1",
+   "kt": 90,
+   "basis": "scaled",
+   "thermal": "read",
+   "radii": {
+    "air": [
+     9.59,
+     6.79,
+     3.91,
+     3.11,
+     1.27,
+     0.2
+    ],
+    "ground": [
+     5.23,
+     null,
+     null,
+     1.86,
+     0.98,
+     0.27
+    ]
+   },
+   "px": {
+    "air": [
+     2365,
+     1289.5,
+     2365,
+     1477.5
+    ],
+    "ground": null
+   }
+  },
+  {
+   "id": "w87",
+   "kt": 300,
+   "basis": "scaled",
+   "thermal": "read",
+   "radii": {
+    "air": [
+     14.32,
+     10.67,
+     6.35,
+     4.64,
+     1.89,
+     0.33
+    ],
+    "ground": [
+     7.82,
+     null,
+     null,
+     2.78,
+     1.47,
+     0.43
+    ]
+   },
+   "px": {
+    "air": [
+     2775,
+     1135.5,
+     2775,
+     1312.0
+    ],
+    "ground": null
+   }
+  },
+  {
+   "id": "w88",
+   "kt": 475,
+   "basis": "scaled",
+   "thermal": "read",
+   "radii": {
+    "air": [
+     16.7,
+     12.58,
+     7.66,
+     5.41,
+     2.21,
+     0.4
+    ],
+    "ground": [
+     9.11,
+     null,
+     null,
+     3.24,
+     1.71,
+     0.52
+    ]
+   },
+   "px": {
+    "air": [
+     2931,
+     1079.5,
+     2931,
+     1248.5
+    ],
+    "ground": null
+   }
+  },
+  {
+   "id": "b83",
+   "kt": 1200,
+   "basis": "scaled",
+   "thermal": "read",
+   "radii": {
+    "air": [
+     22.74,
+     17.56,
+     10.99,
+     7.37,
+     3.01,
+     0.57
+    ],
+    "ground": [
+     12.41,
+     null,
+     null,
+     4.41,
+     2.33,
+     0.75
+    ]
+   },
+   "px": {
+    "air": [
+     3246,
+     966.0,
+     3246,
+     1125.5
+    ],
+    "ground": null
+   }
+  },
+  {
+   "id": "b53",
+   "kt": 9000,
+   "basis": "scaled",
+   "thermal": "read",
+   "radii": {
+    "air": [
+     44.51,
+     32.12,
+     23.94,
+     14.43,
+     5.88,
+     1.28
+    ],
+    "ground": [
+     24.29,
+     null,
+     null,
+     8.63,
+     4.57,
+     1.69
+    ]
+   },
+   "px": {
+    "air": [
+     3932,
+     760.5,
+     3932,
+     860.5
+    ],
+    "ground": null
+   }
+  },
+  {
+   "id": "ivy-mike",
+   "kt": 10400,
+   "basis": "scaled",
+   "thermal": "off-chart",
+   "radii": {
+    "air": [
+     46.71,
+     null,
+     null,
+     15.14,
+     6.17,
+     1.36
+    ],
+    "ground": [
+     25.48,
+     null,
+     null,
+     9.06,
+     4.79,
+     1.79
+    ]
+   },
+   "px": {
+    "air": null,
+    "ground": null
+   }
+  },
+  {
+   "id": "castle-bravo",
+   "kt": 15000,
+   "basis": "scaled",
+   "thermal": "off-chart",
+   "radii": {
+    "air": [
+     52.77,
+     null,
+     null,
+     17.1,
+     6.98,
+     1.57
+    ],
+    "ground": [
+     28.79,
+     null,
+     null,
+     10.23,
+     5.41,
+     2.07
+    ]
+   },
+   "px": {
+    "air": null,
+    "ground": null
+   }
+  },
+  {
+   "id": "b41",
+   "kt": 25000,
+   "basis": "scaled",
+   "thermal": "off-chart",
+   "radii": {
+    "air": [
+     62.57,
+     null,
+     null,
+     20.28,
+     8.27,
+     1.93
+    ],
+    "ground": [
+     34.14,
+     null,
+     null,
+     12.13,
+     6.42,
+     2.54
+    ]
+   },
+   "px": {
+    "air": null,
+    "ground": null
+   }
+  },
+  {
+   "id": "tsar-bomba",
+   "kt": 50000,
+   "basis": "scaled",
+   "thermal": "off-chart",
+   "radii": {
+    "air": [
+     78.83,
+     null,
+     null,
+     25.55,
+     10.42,
+     2.54
+    ],
+    "ground": [
+     43.01,
+     null,
+     null,
+     15.29,
+     8.09,
+     3.35
+    ]
+   },
+   "px": {
+    "air": null,
+    "ground": null
+   }
+  }
+ ]
+}

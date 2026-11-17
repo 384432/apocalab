@@ -146,7 +146,7 @@ const A = out.tiles;
 if (!A || !A.hook) bad.push('A: __apocalabMap 不存在（脚本没跑）');
 else {
   if (A.mode !== 'tiles') bad.push(`A: mode=${A.mode}，期望 tiles`);
-  if (A.rings !== 5) bad.push(`A: rings=${A.rings}，期望 5`);
+  if (A.rings !== 6) bad.push(`A: rings=${A.rings}，期望 6`);
   if (A.pixels.rings < 20000) bad.push(`A: 半径圈像素 ${A.pixels.rings}，太少`);
   if (A.note_hidden !== true) bad.push('A: 底图正常时不应显示降级说明');
   if (A.canvas.w < 300) bad.push(`A: 画布宽 ${A.canvas.w}`);
@@ -156,7 +156,7 @@ const B = out.blocked;
 if (!B || !B.hook) bad.push('B: __apocalabMap 不存在');
 else {
   if (B.mode !== 'outline') bad.push(`B: mode=${B.mode}，期望 outline`);
-  if (B.rings !== 5) bad.push(`B: rings=${B.rings}，期望 5`);
+  if (B.rings !== 6) bad.push(`B: rings=${B.rings}，期望 6`);
   if (B.pixels.base < 20000) bad.push(`B: 备用轮廓像素 ${B.pixels.base}，太少`);
   if (B.pixels.rings < 20000) bad.push(`B: 降级时半径圈像素 ${B.pixels.rings}，太少`);
   if (B.note_hidden !== false) bad.push('B: 降级时应显示一行说明');
@@ -168,13 +168,13 @@ else {
     bad.push(`C: URL 状态没还原（${JSON.stringify(C.state)}）`);
   const absent = C.readout.filter((r) => r.absent === '1').length;
   if (absent !== 2) bad.push(`C: 地爆应有 2 行无热辐射（实际 ${absent}）`);
-  if (C.readout.length !== 5) bad.push(`C: 读数列 ${C.readout.length} 行`);
+  if (C.readout.length !== 6) bad.push(`C: 读数列 ${C.readout.length} 行`);
 }
 const D = out.nojs;
 if (!D) bad.push('D: 关 JS 探针失败');
 else {
   if (D.figure !== 'none') bad.push(`D: 关 JS 时地图 frame 应隐藏（display=${D.figure}）`);
-  if (D.readout_rows !== 5) bad.push(`D: 关 JS 时读数 ${D.readout_rows} 行`);
+  if (D.readout_rows !== 6) bad.push(`D: 关 JS 时读数 ${D.readout_rows} 行`);
   if (D.nojs_note === 'none') bad.push('D: 关 JS 时应说明地图需要脚本');
   if (!D.srcs.every((s) => /p\. \d+/.test(s))) bad.push('D: 关 JS 时每行仍要带页码');
 }

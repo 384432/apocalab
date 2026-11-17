@@ -1,0 +1,183 @@
+{
+  "_comment": [
+    "One entry per preset. `kt` is the figure the cited page prints, not a figure",
+    "chosen for roundness: where a page prints a range, `kt` takes a value inside",
+    "that range and `note` says which. `quote_yield` and `quote_year` are copied",
+    "verbatim from the cited page; scripts/check_weapons.py --online asserts both",
+    "strings are still on it, so a preset cannot outlive its source.",
+    "Nothing in this file describes an effect. The radii live in weapon-radii.json,",
+    "which scripts/build_weapon_radii.py derives from effects.json and Fig. 7.42."
+  ],
+  "presets": [
+    {
+      "id": "little-boy",
+      "name": "Little Boy",
+      "country": "United States",
+      "year": 1945,
+      "kt": 15,
+      "note": "Uranium gun-type bomb, the first used in war; dropped on Hiroshima on 6 August 1945.",
+      "source": {
+        "label": "National Museum of Nuclear Science & History — Little Boy and Fat Man",
+        "url": "https://ahf.nuclearmuseum.org/ahf/history/little-boy-and-fat-man/"
+      },
+      "quote_yield": "Explosive force: 15,000 tons of TNT equivalent",
+      "quote_year": "Hiroshima on August 6, 1945"
+    },
+    {
+      "id": "fat-man",
+      "name": "Fat Man",
+      "country": "United States",
+      "year": 1945,
+      "kt": 21,
+      "note": "Plutonium implosion bomb, dropped on Nagasaki on 9 August 1945.",
+      "source": {
+        "label": "National Museum of Nuclear Science & History — Little Boy and Fat Man",
+        "url": "https://ahf.nuclearmuseum.org/ahf/history/little-boy-and-fat-man/"
+      },
+      "quote_yield": "Explosive force: 21,000 tons of TNT equivalent",
+      "quote_year": "Nagasaki on August 9, 1945"
+    },
+    {
+      "id": "w76-2",
+      "name": "W76-2",
+      "country": "United States",
+      "year": 2019,
+      "kt": 6,
+      "kt_range": [5, 7],
+      "yield_note": "5–7 kt published estimate; radii computed at the 6 kt midpoint",
+      "note": "Low-yield Trident II warhead. Every public figure is a 5–7 kt range rather than a point value, so the radii here are computed at the 6 kt midpoint of that range.",
+      "source": {
+        "label": "Nuclear Weapon Archive — Complete List of All U.S. Nuclear Weapons",
+        "url": "https://nuclearweaponarchive.org/Usa/Weapons/Allbombs.html"
+      },
+      "quote_yield": "5-7 kT (Mod 2)",
+      "quote_year": "W76-2 1/19-2024"
+    },
+    {
+      "id": "w76-1",
+      "name": "W76-1",
+      "country": "United States",
+      "year": 2008,
+      "kt": 90,
+      "note": "Life-extended W76 for the Trident II missile, the most numerous warhead in the US stockpile.",
+      "source": {
+        "label": "Nuclear Weapon Archive — Complete List of All U.S. Nuclear Weapons",
+        "url": "https://nuclearweaponarchive.org/Usa/Weapons/Allbombs.html"
+      },
+      "quote_yield": "90 kT (Mod 1)",
+      "quote_year": "W76-1 LEP 9/08-12/18"
+    },
+    {
+      "id": "w87",
+      "name": "W87",
+      "country": "United States",
+      "year": 1986,
+      "kt": 300,
+      "note": "Warhead for the Minuteman III intercontinental missile.",
+      "source": {
+        "label": "Nuclear Weapon Archive — Complete List of All U.S. Nuclear Weapons",
+        "url": "https://nuclearweaponarchive.org/Usa/Weapons/Allbombs.html"
+      },
+      "quote_yield": "300 kT",
+      "quote_year": "Manufactured 7/86 - 12/88; active service; 525 produced"
+    },
+    {
+      "id": "w88",
+      "name": "W88",
+      "country": "United States",
+      "year": 1988,
+      "kt": 475,
+      "note": "Trident II warhead; some older charts print a lower estimate, and this page uses the figure the linked page prints.",
+      "source": {
+        "label": "Nuclear Weapon Archive — Complete List of All U.S. Nuclear Weapons",
+        "url": "https://nuclearweaponarchive.org/Usa/Weapons/Allbombs.html"
+      },
+      "quote_yield": "475 kT",
+      "quote_year": "Manufactured 9/88 - 11/89"
+    },
+    {
+      "id": "b83",
+      "name": "B83",
+      "country": "United States",
+      "year": 1983,
+      "kt": 1200,
+      "note": "Variable-yield strategic bomb; 1,200 kt is its highest setting, and a lower setting draws smaller rings.",
+      "source": {
+        "label": "Nuclear Weapon Archive — Complete List of All U.S. Nuclear Weapons",
+        "url": "https://nuclearweaponarchive.org/Usa/Weapons/Allbombs.html"
+      },
+      "quote_yield": "Variable, low kT to 1.2 MT",
+      "quote_year": "Manufactured 6/83 - 1991"
+    },
+    {
+      "id": "b53",
+      "name": "B53",
+      "country": "United States",
+      "year": 1962,
+      "kt": 9000,
+      "note": "9 Mt high-yield bomb, in service from 1962 until the last 50 were retired in 1997.",
+      "source": {
+        "label": "Nuclear Weapon Archive — Complete List of All U.S. Nuclear Weapons",
+        "url": "https://nuclearweaponarchive.org/Usa/Weapons/Allbombs.html"
+      },
+      "quote_yield": "9 MT",
+      "quote_year": "Manufactured 8/62 - 6/65"
+    },
+    {
+      "id": "ivy-mike",
+      "name": "Ivy Mike",
+      "country": "United States",
+      "year": 1952,
+      "kt": 10400,
+      "note": "First true thermonuclear test, 1 November 1952; it was a surface burst, so the contact setting is the faithful one.",
+      "source": {
+        "label": "Nuclear Weapon Archive — Operation Ivy",
+        "url": "https://nuclearweaponarchive.org/Usa/Tests/Ivy.html"
+      },
+      "quote_yield": "Yield:10.4 Mt",
+      "quote_year": "31 October 1952"
+    },
+    {
+      "id": "castle-bravo",
+      "name": "Castle Bravo",
+      "country": "United States",
+      "year": 1954,
+      "kt": 15000,
+      "note": "Largest US test, 1 March 1954; a surface burst that ran about 2.5 times its predicted yield.",
+      "source": {
+        "label": "Nuclear Weapon Archive — Operation Castle",
+        "url": "https://nuclearweaponarchive.org/Usa/Tests/Castle.html"
+      },
+      "quote_yield": "Yield: 15 Mt",
+      "quote_year": "28 February 1954"
+    },
+    {
+      "id": "b41",
+      "name": "B41",
+      "country": "United States",
+      "year": 1960,
+      "kt": 25000,
+      "note": "Highest-yield bomb the United States ever fielded, manufactured from 1960 and retired by 1976.",
+      "source": {
+        "label": "Nuclear Weapon Archive — Complete List of All U.S. Nuclear Weapons",
+        "url": "https://nuclearweaponarchive.org/Usa/Weapons/Allbombs.html"
+      },
+      "quote_yield": "25 MT",
+      "quote_year": "Manufactured 9/60 - 6/62"
+    },
+    {
+      "id": "tsar-bomba",
+      "name": "Tsar Bomba",
+      "country": "Soviet Union",
+      "year": 1961,
+      "kt": 50000,
+      "note": "Largest weapon ever detonated, 1961; a 50 Mt air burst, and the blast figure the page prints is half its 100 Mt design.",
+      "source": {
+        "label": "Nuclear Weapon Archive — The Tsar Bomba",
+        "url": "https://nuclearweaponarchive.org/Russia/TsarBomba.html"
+      },
+      "quote_yield": "Yield:50 Megatons",
+      "quote_year": "1961"
+    }
+  ]
+}

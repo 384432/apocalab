@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import { crossChecks, entries, fmtFt, fmtKm, get, manual } from '../lib/effects';
+import gateCounts from '../data/gate-counts.json';
 import { getCity } from '../lib/cities';
 import {
   CATCH_RADIUS_KM,
@@ -10,9 +11,20 @@ import {
   peopleWithin,
   popSource,
 } from '../lib/city-pop';
+import popMeta from '../data/pop-meta.json';
 
 const checked = entries.filter((e) => e.checked_by !== null).length;
 const total = entries.length;
+
+// The clicked-point grid, read from the same metadata the map island carries:
+// a number typed into this sentence would drift away from the tiles.
+const clickCellKm = popMeta.grid.cell_km_equator.toFixed(2);
+// Two decimals, not one: the bound is 2.968%, and "3.0%" would read as "exactly
+// 3%", i.e. as if the site had spent its whole error budget by design.
+const clickBinPct = (100 * popMeta.bins.max_relative_error).toFixed(2);
+const clickCellDeg = `${(1 / 24).toFixed(4)}°`;
+/** 30 arc-seconds is 0.93 km at the equator; the source names itself "1 km". */
+const clickSourceRes = `${(popMeta.source.resolution_deg * 111.319).toFixed(0)} km`;
 
 // The dataset name carries a comma from the API ("Global2 R2025A, 100 m"); in
 // running text that comma reads as a list separator, so it becomes one name.
@@ -120,6 +132,16 @@ const versionGapPct = (100 * (PARIS_TIF_SUM - parisApi)) / parisApi;
           <td>Read at the peak of the outermost contour, then scaled by W<sup>1/3</sup>.</td>
         </tr>
         <tr>
+          <th scope="row">20 psi</th>
+          <td>Fig. 3.73b</td>
+          <td>113</td>
+          <td>
+            Read at the peak of the 20 psi contour on the intermediate-pressure panel — the panel
+            whose printed labels are 10, 15, 20, 30, 50, 100 and 200 psi — then scaled by
+            W<sup>1/3</sup>. Not printed on Fig. 3.73c.
+          </td>
+        </tr>
+        <tr>
           <th scope="row">Thermal, 2nd degree</th>
           <td>Fig. 7.42</td>
           <td>291</td>
@@ -134,6 +156,45 @@ const versionGapPct = (100 * (PARIS_TIF_SUM - parisApi)) / parisApi;
       </tbody>
     </table>
   </div>
+
+  <h2 id="intermediate">The 20 psi contour, and why it comes from another panel</h2>
+
+  <p>
+    The low-pressure panel of Fig. 3.73 (printed page 115) prints 1, 2, 4, 6, 8 and 10 psi. There is
+    no 20 psi contour on it, and the manual does not print one anywhere else in that family except
+    on the intermediate-pressure panel, Fig. 3.73b (p. 113), whose labels run 10, 15, 20, 30, 50,
+    100 and 200 psi. The 20 psi row therefore cites Fig. 3.73b, not Fig. 3.73c, and every cell says
+    so. Its distance is not derived from the 5 psi or 10 psi values by any formula: it is the same
+    cube-root multiplication applied to a separately read 1 kt contour, and that contour is a
+    printed line.
+  </p>
+  <p>
+    Fig. 3.73b is drawn at a different scale and over a different range of distances and burst
+    heights from the low-pressure panel, so its pixel calibration is its own:
+    <code>x = 348.5 + 2.2467·d</code> and <code>y = 2521.5 − 2.2540·h</code>, both in pixels per
+    foot, taken from the equally spaced grid lines in each direction. Two independent readings
+    check it, and neither is a fit to the curves:
+  </p>
+  <ul>
+    <li>
+      The manual's own worked example on p. 112 — 50 psi at a ground distance of 400 ft and a burst
+      height of 500 ft — lands at 410 ft on the digitised panel, 2.5% further out. That is the
+      calibration, the same way p. 114 is the calibration for the low-pressure panel.
+    </li>
+    <li>
+      The 100 psi contour, which both panels print, reads 363 ft at 210 ft burst height here and
+      about 360 ft at 190 ft on Fig. 3.73a (p. 111), the high-pressure panel: under 1% apart where
+      the two panels overlap.
+    </li>
+  </ul>
+  <p>
+    The 20 psi peak is then read the same way as every other overpressure peak — at the point where
+    the contour reaches furthest from ground zero — giving 928 ft at a burst height of 611 ft for
+    1 kt, from the apex of a parabola fitted through the traced contour within ±40 ft of its
+    maximum. The contact-burst value is read where the same contour meets the bottom edge of the
+    panel; it is 725 ft at 30 ft burst height with a local slope of 0.178 ft per foot, extrapolated
+    over the last 30 ft to 720 ft at zero.
+  </p>
 
   <h2 id="hob">Height of burst</h2>
 
@@ -160,9 +221,9 @@ const versionGapPct = (100 * (PARIS_TIF_SUM - parisApi)) / parisApi;
 
   <p class="note note--warn">
     <strong>Where the chart stops: the high burst heights.</strong>
-    Peak burst heights scale to 10,174 ft at 5 psi and 15,750 ft at 1 psi for 1 Mt, and to
-    7,311 ft for 1 psi at 100 kt. Fig. 3.73c is computed for a homogeneous sea-level atmosphere at
-    burst heights of 5,000 ft or less (§3.73, p. 110). Those cells therefore extrapolate the
+    Peak burst heights scale to 6,110 ft at 20 psi, 10,174 ft at 5 psi and 15,750 ft at 1 psi for
+    1 Mt, and to 7,311 ft for 1 psi at 100 kt. Fig. 3.73 is computed for a homogeneous sea-level
+    atmosphere at burst heights of 5,000 ft or less (§3.73, p. 110). Those cells therefore extrapolate the
     chart's assumption by up to a factor of three. They are kept because the scaling law is the
     manual's own and the alternative — silently dropping the largest yield — would hide the
     limitation instead of stating it. No altitude
@@ -261,8 +322,9 @@ const versionGapPct = (100 * (PARIS_TIF_SUM - parisApi)) / parisApi;
 
   <h2 id="checks">Cross-checks</h2>
   <p>
-    Four statements in the manual's prose, used as independent anchors. They are the reason the
-    digitised curves are trusted; they are not a substitute for the citations above.
+    Five statements in the manual's prose, used as independent anchors — three thermal, two blast.
+    They are the reason the digitised curves are trusted; they are not a substitute for the
+    citations above.
   </p>
 
   <p class="tbl-hint">Scroll the table sideways →</p>
@@ -307,9 +369,17 @@ const versionGapPct = (100 * (PARIS_TIF_SUM - parisApi)) / parisApi;
   <h2 id="verification">Verification status</h2>
 
   <p>
-    <strong>{checked} of {total} rows</strong> carry an individual sign-off. The star that marks an
-    unsigned row is still wired into the table component and would appear on any row added without
-    one, but every row currently published is signed:
+    <strong>{checked} of {total} rows</strong> carry an individual sign-off. {checked === total
+      ? <>The last to clear were the 20 psi rows: three yields, air and contact burst, signed
+      off on 18 November 2026 after the contour was re-read at 600 dpi against Fig.&nbsp;3.73b
+      (p.&nbsp;113). There is no star left in the
+      <a href="/blast-radius/">nuclear bomb blast radius</a> table, and nothing in the table is
+      waiting on a re-read.</>
+      : <>The {total - checked} that do not are all 20 psi rows: three yields, air and contact
+      burst. They are marked with a star in the
+      <a href="/blast-radius/">nuclear bomb blast radius</a> table, and the star comes off only
+      when the contour has been re-read against a fresh render of the printed page, which is what
+      a sign-off means here.</>}
   </p>
   <ul>
     <li>
@@ -319,22 +389,46 @@ const versionGapPct = (100 * (PARIS_TIF_SUM - parisApi)) / parisApi;
       original figures. The third-degree column was read off the same chart and accepted with them.
     </li>
     <li>
-      The nine contact-burst values carry a sign-off dated 14 November 2026. They read a different
-      edge of the same two charts — height of burst zero, the bottom edge of Fig.&nbsp;3.73c on
-      p.&nbsp;115 — and that edge was re-read from a 600 dpi render of the printed page rather than
-      taken from the earlier digitization: 4 psi at 1,655 ft, 6 psi at 1,121 ft and 1 psi at
-      3,830 ft for 1 kt, each within 0.6 percent of where the digitized curve meets the edge. The
-      5 psi row is interpolated between the 4 and 6 psi readings, as it is everywhere else on this
-      site, and the remaining six radii are those 1 kt bases put through the cube-root scaling of
-      §3.61. Nothing in the table moved as a result of the re-read; the sign-off confirms the
-      numbers that were already published.
+      The nine contact-burst values published before the 20 psi row was added carry a sign-off
+      dated 14 November 2026. They read a different edge of the same chart — height of burst zero,
+      the bottom edge of Fig.&nbsp;3.73c on p.&nbsp;115 — and that edge was re-read from a 600 dpi
+      render of the printed page rather than taken from the earlier digitization: 4 psi at
+      1,655 ft, 6 psi at 1,121 ft and 1 psi at 3,830 ft for 1 kt, each within 0.6 percent of where
+      the digitized curve meets the edge. The 5 psi row is interpolated between the 4 and 6 psi
+      readings, as it is everywhere else on this site, the fireball rows come from
+      eq.&nbsp;(2.127.2) rather than from a reading, and the six radii built on those 1 kt bases are
+      the cube-root scaling of §3.61. Nothing in the table moved as a result of the re-read; the
+      sign-off confirms the numbers that were already published.
+    </li>
+    <li>
+      The six 20 psi rows carry a sign-off dated 18 November 2026. That contour is printed on
+      Fig.&nbsp;3.73b (p.&nbsp;113), the intermediate-pressure plate — not on Fig.&nbsp;3.73c,
+      which stops at 10 psi. It was re-read from a 600 dpi render at two points on the rising
+      branch, three independent probes per row: left edge, ink-weighted centre and right edge.
+      The HOB 500 ft row gave 867.7 / 871.5 / 875.3 ft, a spread of 17 px, and the HOB 300 ft row
+      778.7 / 781.6 / 784.5 ft, a spread of 13 px. Both sit inside the 20 px stroke width, so the
+      reading reproduces. The air peak of 928.0 ft at HOB 612 ft clears the contact value of
+      720.2 ft, and the height the peak sits at falls between the two rows it was tested against.
+      The same procedure applied to the 10 psi contour, which both plates print, gives 1,464 ft
+      from Fig.&nbsp;3.73b and 1,493 ft from Fig.&nbsp;3.73c: 2.0 percent apart against a
+      3 percent limit, so the method carries no systematic bias. The 720.2 ft contact value is
+      0.2195 km/kt<sup>1/3</sup>, at the low edge of the 0.22–0.24 range published tables quote
+      for 20 psi.
+    </li>
+    <li>
+      One earlier attempt at these six rows compared readings taken at different heights of burst
+      by folding them back to a contact burst first. That test was wrong and has been withdrawn:
+      §3.61 and §3.62 scale a distance by the cube root of the yield at the <em>same</em> scaled
+      height, and the manual gives no rule for projecting a reading from one burst height to
+      another. The numbers in this table never depended on that projection.
     </li>
   </ul>
   <p>
     The automated check (<code>scripts/verify_data.py</code>) enforces structure, provenance,
     monotonicity, the scaling arithmetic, unit conversions, the interpolation label on every 5 psi
-    row, and agreement between the JSON and the CSV ledger. It currently runs 354 assertions, and a
-    single failure exits non-zero, which fails the build.
+    row, and agreement between the JSON and the CSV ledger. It currently runs
+    {gateCounts.verify_data.pass} assertions, and a single failure exits non-zero, which fails
+    the build.
   </p>
 
   <h2 id="population">Population figures</h2>
@@ -362,7 +456,7 @@ const versionGapPct = (100 * (PARIS_TIF_SUM - parisApi)) / parisApi;
     that as the ring — the one error such a page could not survive. {CATCH_RADIUS_KM} km clears the
     widest contour by {fmtKm(CATCH_RADIUS_KM - MAX_RING_KM)} km and returns every other radius in
     the same response. Each ring is its own cumulative count inside that single catchment: fireball,
-    5 psi, 1 psi and both thermal contours are read at their own radius, never obtained by
+    20 psi, 5 psi, 1 psi and both thermal contours are read at their own radius, never obtained by
     subtracting a smaller ring from a larger one. The {CITY_RADIUS_KM} km city figure is the
     cumulative at {CITY_RADIUS_KM} km from the same request.
   </p>
@@ -379,6 +473,27 @@ const versionGapPct = (100 * (PARIS_TIF_SUM - parisApi)) / parisApi;
     reproducible against one named release; the gap is recorded here rather than hidden, and anyone
     re-running the query against the older GeoTIFF should expect to land about
     {versionGapPct.toFixed(1)}% away.
+  </p>
+
+  <h2 id="clicked">Ring populations at a clicked point</h2>
+
+  <p>
+    A clicked point on the <a href="/nuclear-bomb-map/">nuclear bomb map</a> is a different question
+    from a city page, so it is answered from a different surface and labelled as one. The map sums
+    <strong>{clickCellKm} km cells</strong> — {clickCellDeg} of latitude and longitude, five source pixels of
+    the downloadable WorldPop 2020 {clickSourceRes} release (<a
+      href="https://www.worldpop.org/" rel="nofollow noopener">CC BY 4.0</a
+    >) per side — kept as one byte per cell in 10° × 10° tiles. Each byte is a log bin between 1 and
+    3,000,000 people per cell, rebuilt at the geometric midpoint of its bin, so the worst case a
+    single cell can be out is {clickBinPct}%; a cell on the rim of a ring counts for the fraction of
+    it the circle covers, which is what keeps a 0.21 km ring from being answered with a whole 4.6 km
+    cell. A click within 5 km of one of the 20 tabulated cities returns that city's figures from the
+    API surface above instead and says <em>snapped to … — tabulated city</em>: two different numbers
+    for one place would be worse than one. The tile count is the coarser of the two, so a ring drawn
+    a few kilometres outside a city will not reproduce that city's figure, and a ring narrower than
+    one cell is a share of that cell — its density, not a measurement of the ground inside it. The
+    map names the source of each column rather than leaving the reader to guess which one they are
+    looking at.
   </p>
 
   <h2 id="not">What this site does not compute</h2>
@@ -425,7 +540,7 @@ const versionGapPct = (100 * (PARIS_TIF_SUM - parisApi)) / parisApi;
     </div>
     <div>
       <dt><code>scripts/verify_data.py</code></dt>
-      <dd>Runs the 354 assertions. Exits non-zero on any failure.</dd>
+      <dd>Runs the {gateCounts.verify_data.pass} assertions. Exits non-zero on any failure.</dd>
     </div>
   </dl>
 

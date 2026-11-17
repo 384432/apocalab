@@ -2,8 +2,8 @@
 """
 阶段 1 构建闸门。/blast-radius/ 的四条上线标准（plan §4.2）在这里逐条判定。
 
-G-a 关 JS 能读完整表   —— 24 个值全部是静态文本；无可执行 <script>
-G-b 每格带印刷页码     —— p. 115 / p. 291 / p. 70 / p. 71 出现次数不低于格子数
+G-a 关 JS 能读完整表   —— 30 个值全部是静态文本；无可执行 <script>
+G-b 每格带印刷页码     —— p. 115 / p. 113 / p. 291 / p. 70 / p. 71 出现次数不低于格子数
 G-c 5 psi 每行带插值   —— "interpolated between 4 and 6 psi contours" ≥ 6
 G-d 1 Mt 带爆高边界    —— "5,000 ft" 与 "10,174 ft" 出现在同一段落内
 
@@ -192,6 +192,7 @@ check(br.count("<script") == br.count("application/ld+json"), "blast-radius: 没
 print("3 G-b 每格带印刷页码")
 counts = {
     "p. 115": (brtxt.count("p. 115"), 12),   # 5 psi + 1 psi，空爆 3 + 地爆 3，各两行
+    "p. 113": (brtxt.count("p. 113"), 6),    # 20 psi 6 格（Fig. 3.73b）
     "p. 291": (brtxt.count("p. 291"), 6),    # 热辐射 6 格
     "p. 70": (brtxt.count("p. 70"), 3),      # 空爆火球 3 格
     "p. 71": (brtxt.count("p. 71"), 3),      # 地爆火球 3 格
@@ -261,7 +262,7 @@ by_key = {(e["effect"], e["burst"], e["yield_kt"]): e for e in entries}
 for burst in ("air", "ground"):
     for y in (15, 100, 1000):
         rows = island.get("combos", {}).get(burst, {}).get(str(y))
-        check(rows is not None and len(rows) == 5, f"index: 岛内 combos.{burst}.{y} 有 5 行")
+        check(rows is not None and len(rows) == 6, f"index: 岛内 combos.{burst}.{y} 有 6 行")
         if not rows:
             continue
         for row in rows:
@@ -282,6 +283,55 @@ for burst in ("air", "ground"):
 
 check(len(island.get("scales", {})) == 6, "index: 岛内 6 组绘图比例")
 check(len(island.get("bars", {})) == 6, "index: 岛内 6 组比例尺")
+
+# ---------------------------------------------------------------- G-e
+print("8b G-e 六环（20 psi 为第六环，半径降序）")
+SIX_ORDER = ["overpressure_1psi", "thermal_2nd", "thermal_3rd",
+             "overpressure_5psi", "overpressure_20psi", "fireball"]
+for burst in ("air", "ground"):
+    for y in (15, 100, 1000):
+        rows = island.get("combos", {}).get(burst, {}).get(str(y)) or []
+        got = [r["id"] for r in rows]
+        check(got == SIX_ORDER, f"index: combos.{burst}.{y} 六环顺序 = 半径降序（实际 {got}）")
+# 同一张表里，半径必须真的逐环变小；顺序对了但数值排错也算失败
+for burst in ("air", "ground"):
+    rows = island.get("combos", {}).get(burst, {}).get("100") or []
+    radii = [r["r"] for r in rows if not r["absent"]]
+    check(all(a > b for a, b in zip(radii, radii[1:])),
+          f"index: {burst}/100 的六环半径严格递减（{radii}）")
+for e in entries:
+    if e["effect"] != "overpressure_20psi":
+        continue
+    check(citation_line(e) in brtxt, f"blast-radius: {e['id']} 引 {citation_line(e)}")
+    check(f"{e['radius_km']:.2f} km" in brtxt, f"blast-radius: {e['id']} 是静态文本")
+check("Fig. 3.73b" in brtxt, "blast-radius: 写明 20 psi 来自 Fig. 3.73b")
+check("Fig. 3.73b" in mb, "methodology: 写明 20 psi 来自 Fig. 3.73b")
+check("p. 113" in mb, "methodology: 20 psi 的印刷页写 p. 113")
+check("10, 15, 20, 30, 50, 100 and 200 psi" in mb,
+      "methodology: 写明 3.73b 的标号段（含 20 psi）")
+check("410 ft" in mb and "2.5%" in mb, "methodology: 50 psi 算例校准写在页面")
+check("363 ft" in mb, "methodology: 100 psi 与 Fig. 3.73a 的交叉核对写在页面")
+check("6 of" in mb or "6 that do not" in mb or "six 20 psi" in mb,
+      "methodology: 未签核的 6 行有交代")
+RING_WORDING = ["five rings", "five distances", "five radii", "five effects",
+                "five contours", "Five rings", "Five distances", "Five radii"]
+for name, body in txt.items():
+    for phrase in RING_WORDING:
+        check(phrase not in body, f"{name}: 不再出现 “{phrase}”")
+check("six rings" in txt["nuclear-bomb-map"] or "six distances" in txt["nuclear-bomb-map"],
+      "nuclear-bomb-map: 文案已按六环表述")
+
+# 图例：六个点色互不相同，名字按 EFFECT_ROWS 的半径降序排；20 psi 与 5 psi 必须不同色
+mp_raw = raw["nuclear-bomb-map"]
+dots = re.findall(r'<span class="dot" style="background:(#[0-9a-fA-F]{6})"></span>', mp_raw)
+check(len(dots) >= 6, f"map: 图例有六个色点（实际 {len(dots)}）")
+check(len(set(dots[:6])) == 6, f"map: 六个环色互不相同（{dots[:6]}）")
+if len(dots) >= 5:
+    check(dots[3] != dots[4], f"map: 20 psi 与 5 psi 不同色（{dots[3]} vs {dots[4]}）")
+names = [text_of(x).strip() for x in re.findall(r'<span class="nm">(.*?)</span>', mp_raw)]
+LEGEND = ["1 psi overpressure", "Thermal · 2nd-degree", "Thermal · 3rd-degree",
+          "5 psi overpressure", "20 psi overpressure", "Fireball"]
+check(names[:6] == LEGEND, f"map: 图例顺序按半径降序（实际 {names[:6]}）")
 
 print("9 阶段 2 脚本与 URL 状态")
 scripts = re.findall(r"(?is)<script\b[^>]*>", idx)
@@ -438,7 +488,7 @@ mt = txt["nuclear-bomb-map"]
 check('id="map-rings"' in mp, "map: 自绘半径圈 canvas 存在")
 check('id="map-fallback"' in mp, "map: 备用轮廓 canvas 存在")
 check('id="map-frame"' in mp and 'data-mode="pending"' in mp, "map: frame 带 data-mode 供断言")
-check(mp.count('class="map-ro"') == 5, f"map: 读数列 5 行（实际 {mp.count('class=\"map-ro\"')}）")
+check(mp.count('class="map-ro"') == 6, f"map: 读数列 6 行（实际 {mp.count('class=\"map-ro\"')}）")
 check("OpenFreeMap" in mt and "OpenStreetMap" in mt, "map: 底图署名")
 check("Natural Earth" in mt, "map: 备用轮廓署名（公有领域）")
 
@@ -456,7 +506,7 @@ check(all("lat" in c and "lon" in c for c in mcities), "map: 岛内城市带经�
 for burst in ("air", "ground"):
     for y in (15, 100, 1000):
         rows = island2.get("combos", {}).get(burst, {}).get(str(y))
-        check(rows is not None and len(rows) == 5, f"map: 岛内 combos.{burst}.{y} 有 5 行")
+        check(rows is not None and len(rows) == 6, f"map: 岛内 combos.{burst}.{y} 有 6 行")
         for row in rows or []:
             e = by_key.get((row["id"], burst, y))
             if row["absent"]:
@@ -1108,6 +1158,36 @@ lodz = json.loads((SHARD_DIR / "l.json").read_text(encoding="utf-8"))
 hit = [r for r in lodz if str(r[2]).upper().startswith("LODZ")]
 check(bool(hit), "L 桶里有 LODZ（用例 f 的分片侧前提）")
 check(bool(hit) and "Ł" in hit[0][1], f"该行的 name 是 Łódź（实际 {hit[0][1] if hit else '—'}）")
+
+# 28 断言数必须由闸门派生，不许在页面里写死（plan §22）
+#    页面读 src/data/gate-counts.json（由 verify_data 全绿时写入）；这里反过来跑一遍
+#    verify_data，拿它真实的 PASS 数，和页面上的数字逐个对。任何一处对不上就是有人
+#    又手写了一个数，或者改了数据却没重生成。
+print("28 断言数由闸门派生")
+import subprocess  # noqa: E402  （放在这里是为了不污染顶部 import 区）
+
+gate = subprocess.run([sys.executable, str(ROOT / "scripts" / "verify_data.py")],
+                      capture_output=True, text=True, cwd=str(ROOT))
+gm = re.search(r"结果：PASS (\d+)\s+FAIL (\d+)", gate.stdout)
+check(gm is not None, "verify_data 能跑通并打印 PASS/FAIL（否则下面的比对没有意义）")
+if gm:
+    actual, vfail = int(gm.group(1)), int(gm.group(2))
+    check(vfail == 0, f"verify_data FAIL 为 0（实际 {vfail}）")
+    counts_path = ROOT / "src" / "data" / "gate-counts.json"
+    check(counts_path.exists(), "src/data/gate-counts.json 存在")
+    recorded = None
+    if counts_path.exists():
+        recorded = json.loads(counts_path.read_text(encoding="utf-8"))["verify_data"]["pass"]
+    check(recorded == actual,
+          f"gate-counts.json 记的 {recorded} = verify_data 实跑 {actual}")
+    page = text_of((DIST / "methodology" / "index.html").read_text(encoding="utf-8"))
+    shown = [int(x.replace(",", "")) for x in re.findall(r"([\d,]+) assertions", page)]
+    check(len(shown) >= 2, f"方法页至少两处提到断言数（实际 {len(shown)} 处）")
+    check(bool(shown) and all(v == actual for v in shown),
+          f"页面上的断言数 {sorted(set(shown))} 与 verify_data 实跑 {actual} 一致")
+    for pat in ("511", "571"):
+        check(not re.search(rf"{pat} assertions", page),
+              f"方法页不再出现写死的 {pat} assertions")
 
 print(f"结果：PASS {passes}  FAIL {len(fails)}  WARN {len(warns)}")
 if fails:
