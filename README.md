@@ -114,6 +114,10 @@ Three rules, learned the hard way (see plan.md, "提交纪律"):
 4. **One commit, one thing.** Functional work, data files, and copy-or-record fixes go in separate
    commits. A commit that mixes 648 binary tiles with a ring's data and a sign-off is one nobody
    can review — and it is how rule 2 became necessary.
+5. **Commit before rewriting a file.** plan.md is an append-only living document; its uncommitted
+   state is the only copy. Commit the current state before any whole-file rewrite, and never write
+   a file with `open('w')` — use an editor that applies a diff. After any edit, run
+   `git diff --stat` and check the added/deleted line counts.
 
 `dist/_headers` is **generated at the end of every build** by `scripts/gen_headers.mjs`, not copied
 from `public/`. Whether the deploy may be indexed depends on the environment, and that is only known
