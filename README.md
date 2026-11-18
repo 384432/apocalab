@@ -95,6 +95,26 @@ three away.
 `wrangler.toml` carries `pages_build_output_dir = "./dist"` so a manual
 `wrangler pages deploy` cannot upload the repository root.
 
+### Commit discipline
+
+Three rules, learned the hard way (see plan.md, "提交纪律"):
+
+1. **One deployment corresponds to one commit, pushed to `origin/main` first.** The Pages build is
+   triggered by the push; there is no deployment without a commit behind it.
+2. **Never "upload `dist/` directly now, backfill a commit later."** Commit `18e5a95` did exactly
+   that and swept everything from §16 to §21 — work that had already been deployed by direct
+   upload — into a single mixed batch; what deployed when is no longer recoverable from the log:
+   every one of those files now shows the same last-touched date.
+3. **Before committing, build with `CF_PAGES_BRANCH=main` and run `python scripts/check_site.py
+   --expect main`.** Without the variable the build falls into preview mode, `_headers` carries
+   `noindex`, and the mode assertions flip red — a red gate means the artifact, not the code, is
+   being misread. The artifact proves itself: `dist/_headers` must carry all three comments —
+   `# mode: production`, `# site-live: true`, `# branch: main` — and that file, not the source,
+   is what decides.
+4. **One commit, one thing.** Functional work, data files, and copy-or-record fixes go in separate
+   commits. A commit that mixes 648 binary tiles with a ring's data and a sign-off is one nobody
+   can review — and it is how rule 2 became necessary.
+
 `dist/_headers` is **generated at the end of every build** by `scripts/gen_headers.mjs`, not copied
 from `public/`. Whether the deploy may be indexed depends on the environment, and that is only known
 while building:
@@ -203,5 +223,7 @@ text layer. Both are in `/methodology/`.
 The 20 psi contour is printed on Fig. 3.73b (p. 113), not on Fig. 3.73c, whose labels stop at
 10 psi. That row cites its own panel, is calibrated against the manual's p. 112 worked example
 (50 psi at 400 ft ground distance, read here at 410 ft, +2.5%) and cross-checked against the
-100 psi contour on Fig. 3.73a (<1% apart). Its six values carry no sign-off yet and are starred
-until that re-read happens.
+100 psi contour on Fig. 3.73a (<1% apart). All thirty rows carry an individual sign-off, including
+the six 20 psi distances read off Fig. 3.73b. The starred placeholders described here earlier were
+retired on 2026-11-18; plan.md §21–§22 records the three checks each row had to pass and the two
+readings that were withdrawn.
